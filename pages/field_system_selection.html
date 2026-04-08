@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人机触媒-认知轴线-场域系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="../lib/xujiahui-osm-boundary.js"></script>
+<script src="../lib/cluster-field-circles.js"></script>
+<script src="../lib/catalyst-seam-clusters.js"></script>
+<script src="../lib/corridor-bottleneck-routing.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,300&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --magenta: #e91e8c;
+    --magenta-bright: #ff4dad;
+    --magenta-soft: rgba(233, 30, 140, 0.75);
+    --magenta-dim: rgba(233, 30, 140, 0.45);
+    --magenta-bg: rgba(233, 30, 140, 0.12);
+    --magenta-2: #ff6b9d;
+    --magenta-3: #c2186d;
+    --field-a: #ff4dad;
+    --field-b: #ff6b9d;
+    --field-c: #e91e8c;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;font-family:'DM Sans','Noto Sans SC',sans-serif}
+  #map{width:100%;height:100%;z-index:1}
+  .leaflet-control-attribution{display:none!important}
+  .leaflet-control-zoom a{
+    background:rgba(12,12,14,0.94)!important;
+    color:var(--magenta-bright)!important;
+    border-color:rgba(233,30,140,0.35)!important;
+  }
+  .leaflet-control-zoom a:hover{background:rgba(233,30,140,0.15)!important;}
+
+  .panel-header{
+    position:fixed;top:0;left:0;right:0;
+    padding:20px 28px 18px;
+    background:linear-gradient(180deg,rgba(8,8,10,0.94) 0%,rgba(8,8,10,0.7) 65%,transparent 100%);
+    z-index:1000;pointer-events:none;
+  }
+  .panel-header .tag{
+    font-size:10px;letter-spacing:3px;text-transform:uppercase;
+    color:var(--magenta-dim);font-weight:500;margin-bottom:4px;
+  }
+  .panel-header h1{font-size:22px;font-weight:700;color:#f0f0f0;letter-spacing:-0.3px}
+  .panel-header .sub{
+    font-size:12px;color:rgba(255,255,255,0.4);font-weight:300;
+    font-style:italic;margin-top:3px;
+  }
+
+  /* Legend */
+  .legend-panel{
+    position:fixed;top:100px;left:28px;
+    background:rgba(12,12,14,0.94);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px;
+    padding:18px 20px;
+    z-index:1000;
+    backdrop-filter:blur(14px);
+    width:300px;
+    max-height:calc(100vh - 140px);
+    overflow-y:auto;
+  }
+  .legend-panel::-webkit-scrollbar{width:3px}
+  .legend-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
+
+  .lg-section{margin-bottom:14px}
+  .lg-section:last-child{margin-bottom:0}
+  .lg-title{
+    font-size:10px;letter-spacing:2px;text-transform:uppercase;
+    margin-bottom:8px;font-weight:500;color:var(--magenta-soft);
+  }
+  .lg-item{
+    display:flex;align-items:flex-start;gap:10px;
+    margin-bottom:8px;font-size:11px;line-height:1.45;
+  }
+  .lg-symbol{
+    flex-shrink:0;width:20px;height:20px;
+    display:flex;align-items:center;justify-content:center;
+    margin-top:1px;
+  }
+  .lg-label{color:rgba(255,255,255,0.75)}
+  .lg-label .lg-sub{
+    display:block;font-size:10px;color:rgba(255,255,255,0.35);
+    margin-top:2px;font-style:italic;
+  }
+  .lg-divider{
+    border:none;border-top:1px solid rgba(255,255,255,0.06);
+    margin:12px 0;
+  }
+
+  /* Stats */
+  .stats-panel{
+    position:fixed;bottom:28px;left:28px;
+    background:rgba(12,12,14,0.94);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px;
+    padding:16px 20px;
+    z-index:1000;
+    backdrop-filter:blur(14px);
+    width:300px;
+  }
+  .st-title{
+    font-size:9px;letter-spacing:2px;text-transform:uppercase;
+    color:rgba(255,255,255,0.3);margin-bottom:10px;
+  }
+  .st-row{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:6px;font-size:12px;
+  }
+  .st-row .st-lbl{color:rgba(255,255,255,0.5)}
+  .st-row .st-val{font-weight:600;letter-spacing:-0.3px}
+  .st-row .c-a{color:var(--field-a)}
+  .st-row .c-b{color:var(--field-b)}
+  .st-row .c-c{color:var(--field-c)}
+  .st-row .c-total{color:var(--magenta-bright)}
+  .st-row .c-10ha{color:var(--magenta-2);font-size:11px}
+
+  /* Algorithm panel */
+  .algo-panel{
+    position:fixed;top:100px;right:28px;
+    background:rgba(12,12,14,0.94);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px;
+    padding:16px 20px;
+    z-index:1000;
+    backdrop-filter:blur(14px);
+    width:260px;
+  }
+  .algo-panel .ap-title{
+    font-size:9px;letter-spacing:2px;text-transform:uppercase;
+    color:rgba(255,255,255,0.3);margin-bottom:10px;
+  }
+  .algo-panel .ap-step{
+    font-size:10.5px;color:rgba(255,255,255,0.55);line-height:1.55;
+    margin-bottom:6px;padding-left:14px;position:relative;
+  }
+  .algo-panel .ap-step::before{
+    content:'';position:absolute;left:0;top:6px;
+    width:6px;height:6px;border-radius:50%;
+    background:var(--magenta-bright);
+    opacity:0.55;
+  }
+  .algo-panel .ap-step em{font-style:normal;font-weight:600;color:var(--magenta-bright)}
+
+  /* Tooltip */
+  .node-tooltip{
+    background:rgba(12,12,14,0.96)!important;
+    border:1px solid rgba(255,255,255,0.15)!important;
+    border-radius:8px!important;
+    padding:10px 14px!important;
+    font-family:'DM Sans','Noto Sans SC',sans-serif!important;
+    font-size:11px!important;
+    color:#e0e0e0!important;
+    max-width:260px!important;
+    box-shadow:0 8px 32px rgba(0,0,0,0.5)!important;
+  }
+  .tt-type{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px;font-weight:500}
+  .tt-type.t-catalyst{color:var(--magenta-bright)}
+  .tt-type.t-corridor{color:var(--magenta-2)}
+  .tt-type.t-field{color:var(--field-c)}
+  .tt-name{font-size:13px;font-weight:600;color:#f5f5f5;margin-bottom:6px}
+  .tt-r{display:flex;justify-content:space-between;gap:12px;color:rgba(255,255,255,0.5);margin-bottom:2px}
+  .tt-r b{color:var(--magenta-bright);font-weight:600}
+  .tt-sep{border:none;border-top:1px solid rgba(255,255,255,0.08);margin:6px 0}
+  .tt-note{font-size:10px;color:rgba(255,255,255,0.35);font-style:italic}
+
+  .map-loading{
+    position:fixed;inset:0;z-index:800;pointer-events:none;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(8,8,10,0.35);
+    color:var(--magenta-bright);font-size:13px;font-weight:600;
+    letter-spacing:0.5px;text-shadow:0 0 12px rgba(233,30,140,0.5);
+    transition:opacity 0.25s ease;
+  }
+  .map-loading.done{opacity:0;visibility:hidden}
+
+  .leaflet-tooltip.boundary-tt{
+    background:rgba(12,12,14,0.94)!important;
+    border:1px solid rgba(233,30,140,0.4)!important;
+    color:rgba(255,255,255,0.88)!important;
+    font-size:11px!important;
+    padding:6px 10px!important;
+    border-radius:8px!important;
+    box-shadow:0 4px 20px rgba(0,0,0,0.45)!important;
+  }
+</style>
+</head>
+<body>
+
+<div id="map-loading" class="map-loading" aria-live="polite">加载路网与分类中…</div>
+<div id="map"></div>
+
+<div class="panel-header">
+  <div class="tag">Prototype ③ — Field System</div>
+  <h1>人机触媒-认知轴线-场域系统</h1>
+  <div class="sub">场域总量固定 <strong>10 ha</strong>，按簇 <strong>Σpriority</strong> 比例分配面积；每块为<strong>实线核心圆 + 虚线缓冲圆</strong>（较大者为缓冲）。<strong>簇跨度超标</strong>时子聚类分裂后再取 Top-N。统计仍为全量。</div>
+</div>
+
+<!-- Legend -->
+<div class="legend-panel">
+  <div class="lg-section">
+    <div class="lg-title">原型一 · 触媒空间 CATALYST</div>
+    <div class="lg-item">
+      <div class="lg-symbol"><svg width="16" height="16"><circle cx="8" cy="8" r="5.5" fill="#ff4dad" fill-opacity="0.55" stroke="#ffb3d9" stroke-width="1.2"/></svg></div>
+      <div class="lg-label">激活节点（Canvas 圆点抽样）<span class="lg-sub">性能模式关闭悬停详情；斜土路/田子坊型仍按分类着色</span></div>
+    </div>
+  </div>
+  <hr class="lg-divider">
+  <div class="lg-section">
+    <div class="lg-title">原型二 · 连接廊道 CORRIDOR</div>
+    <div class="lg-item">
+      <div class="lg-symbol"><svg width="16" height="6"><line x1="0" y1="3" x2="16" y2="3" stroke="#ff6b9d" stroke-width="2.5"/></svg></div>
+      <div class="lg-label">簇间廊道（玫红折线）<span class="lg-sub">medoid 间 w=0.55·l̂+0.45·(1−b) 最短路；无路径时图绘回退零散瓶颈边（严格→接缝→低 AC）</span></div>
+    </div>
+  </div>
+  <hr class="lg-divider">
+  <div class="lg-section">
+    <div class="lg-title">原型三 · 场域系统 FIELD SYSTEM</div>
+    <div class="lg-item">
+      <div class="lg-symbol"><svg width="16" height="16"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="#e91e8c" stroke-width="1.5" stroke-dasharray="3,2"/></svg></div>
+      <div class="lg-label">场域边界<span class="lg-sub"><strong>实线</strong>核心圆 + <strong>虚线</strong>缓冲圆（较大者为缓冲）：r<sub>内</sub>=min(叙事半径,点云半径)，r<sub>外</sub>=max(·)。10 ha 按 Σpriority 比例。大块簇可子分裂</span></div>
+    </div>
+  </div>
+  <hr class="lg-divider">
+  <div class="lg-section">
+    <div class="lg-title">研究区 · Study area</div>
+    <div class="lg-item">
+      <div class="lg-symbol"><svg width="20" height="12" viewBox="0 0 20 12"><rect x="1" y="2" width="18" height="8" rx="1" fill="none" stroke="#ff4dad" stroke-width="1.4" stroke-dasharray="4 3"/></svg></div>
+      <div class="lg-label">大徐家汇边界 · OSM<span class="lg-sub">与节点地图同源；四街道行政并集</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-panel">
+  <div class="st-title">场域系统统计 Field System Stats</div>
+  <div id="stat-fields-container"></div>
+  <hr class="lg-divider">
+  <div class="st-row"><span class="st-lbl">总面积</span><span class="st-val c-total" id="stat-total">—</span></div>
+  <div class="st-row"><span class="st-lbl">触媒节点</span><span class="st-val" style="color:#f0f0f0" id="stat-catalysts">—</span></div>
+  <div class="st-row"><span class="st-lbl">瓶颈边段</span><span class="st-val" style="color:var(--magenta-2)" id="stat-corridors">—</span></div>
+  <div class="st-row"><span class="st-lbl">10 ha 分配</span><span class="st-val c-10ha" id="stat-10ha">—</span></div>
+</div>
+
+<!-- Algorithm -->
+<div class="algo-panel">
+  <div class="ap-title">选址算法 · 触媒 → 廊道 → 边界</div>
+  <div class="ap-step"><em>Step 1</em> 输入边段先限制为<strong>大徐家汇边界内</strong>（中点在界内）；节点分类：激活 / 瓶颈（接缝与 Step 2 共用 <code>catalyst-seam-clusters.js</code>）</div>
+  <div class="ap-step"><em>Step 2</em> <strong>触媒</strong>：激活边中点 DBSCAN（ε=180m 起可调, minPts=3；与场域块同源）</div>
+  <div class="ap-step"><em>Step 3</em> <strong>触媒</strong>：簇内 ≥5 点且<strong>最大点距 &gt; 520m</strong> → 更紧 ε 子 DBSCAN，至多 3 轮分裂</div>
+  <div class="ap-step"><em>Step 4</em> <strong>触媒</strong>：按簇 Σpriority 排序取 Top-<em>6</em></div>
+  <div class="ap-step"><em>Step 5</em> <strong>边界</strong>：质心双圆（实线核心 / 虚线缓冲）；r<sub>叙事</sub>=√(分配面积/π)，r<sub>点云</sub>=最远触媒距+缓冲；取 min/max 得内外圆</div>
+  <div class="ap-step"><em>Step 6</em> <strong>廊道</strong>：玫红折线绘簇间路径（与瓶颈边同源；与场域面分层）</div>
+</div>
+
+<script>
+// ============================================================
+//  MAP INIT
+// ============================================================
+const map = L.map('map', {
+  center: [31.195, 121.438],
+  zoom: 15,
+  zoomControl: false,
+  attributionControl: false,
+  preferCanvas: true,
+  zoomAnimation: false,
+  fadeAnimation: false
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  maxZoom: 19,
+  subdomains: 'abcd',
+  updateWhenIdle: true,
+  keepBuffer: 1
+}).addTo(map);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+const boundaryLayerGroup = L.layerGroup().addTo(map);
+function bringStudyBoundaryToFront() {
+  boundaryLayerGroup.eachLayer(function (ly) {
+    if (ly && typeof ly.bringToFront === 'function') ly.bringToFront();
+  });
+}
+addXujiahuiBoundaryToGroup(boundaryLayerGroup, bringStudyBoundaryToFront);
+
+// ============================================================
+//  JENKS（与 map_intervention_nodes 一致；大样本退回三分位）
+// ============================================================
+function jenks(data, nClasses) {
+  const sorted = [...data].sort((a, b) => a - b);
+  const n = sorted.length;
+  if (n <= nClasses) return sorted;
+  const lc = Array.from({ length: n + 1 }, () => new Float64Array(nClasses + 1).fill(Infinity));
+  const variance = Array.from({ length: n + 1 }, () => new Float64Array(nClasses + 1).fill(Infinity));
+  for (let i = 1; i <= nClasses; i++) {
+    lc[1][i] = 1;
+    variance[1][i] = 0;
+  }
+  for (let l = 2; l <= n; l++) {
+    let sum = 0, sumSq = 0;
+    for (let m = 1; m <= l; m++) {
+      const val = sorted[l - m];
+      sum += val;
+      sumSq += val * val;
+      const w = m;
+      const v = sumSq - (sum * sum) / w;
+      const i4 = l - m;
+      if (i4 !== 0) {
+        for (let j = 2; j <= nClasses; j++) {
+          if (variance[l][j] >= v + variance[i4][j - 1]) {
+            lc[l][j] = i4 + 1;
+            variance[l][j] = v + variance[i4][j - 1];
+          }
+        }
+      }
+    }
+    lc[l][1] = 1;
+    variance[l][1] = sumSq - (sum * sum) / l;
+  }
+  const breaks = [];
+  let k = n;
+  for (let j = nClasses; j >= 2; j--) {
+    const idx = lc[k][j] - 2;
+    breaks.unshift(sorted[idx]);
+    k = lc[k][j] - 1;
+  }
+  return breaks;
+}
+const JENKS_MAX_N = 4096;
+function getClassificationBreaks(values, nClasses) {
+  const n = values.length;
+  if (n === 0) return [0, 1];
+  if (n <= JENKS_MAX_N) return jenks(values, nClasses);
+  const sorted = [...values].sort((a, b) => a - b);
+  const i1 = Math.floor(n / 3);
+  const i2 = Math.floor((2 * n) / 3);
+  let b0 = sorted[Math.min(i1, n - 1)];
+  let b1 = sorted[Math.min(Math.max(i2, i1 + 1), n - 1)];
+  if (b1 <= b0 && n > 2) b1 = sorted[n - 1] + 1e-12;
+  return [b0, b1];
+}
+function classifyJenks(value, breaks) {
+  if (value < breaks[0]) return 0;
+  if (value < breaks[1]) return 1;
+  return 2;
+}
+
+/** 与 map_intervention_nodes 一致：W 两轴用研究区内经验分位后再 Jenks */
+function addEmpiricalPercentileRanks(edges) {
+  const n = edges.length;
+  if (!n) return;
+  function ranksFor(getter, setter) {
+    if (n === 1) {
+      edges[0][setter] = 0.5;
+      return;
+    }
+    const idx = edges.map((_, i) => i);
+    idx.sort((ia, ib) => {
+      const va = getter(edges[ia]);
+      const vb = getter(edges[ib]);
+      const a = Number.isFinite(va) ? va : 0;
+      const b = Number.isFinite(vb) ? vb : 0;
+      return a - b;
+    });
+    const pr = new Array(n);
+    let j = 0;
+    while (j < n) {
+      let k = j;
+      const vj = getter(edges[idx[j]]);
+      const base = Number.isFinite(vj) ? vj : 0;
+      while (k + 1 < n) {
+        const vk = getter(edges[idx[k + 1]]);
+        const vb = Number.isFinite(vk) ? vk : 0;
+        if (vb !== base) break;
+        k++;
+      }
+      const mid = (j + k) / 2;
+      const p = mid / (n - 1);
+      for (let t = j; t <= k; t++) pr[idx[t]] = p;
+      j = k + 1;
+    }
+    for (let i = 0; i < n; i++) edges[i][setter] = pr[i];
+  }
+  ranksFor(e => e.W_elder, 'p_elder');
+  ranksFor(e => e.W_work, 'p_work');
+}
+
+// ============================================================
+//  UTILITY
+// ============================================================
+function gaussRand(mean, std) {
+  let u=0,v=0;
+  while(u===0) u=Math.random();
+  while(v===0) v=Math.random();
+  return mean + std * Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+}
+
+function haversineM(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLon = (lon2-lon1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+/** DBSCAN 邻域：局部平面米制坐标（相对质心），避免 O(n²) 次 haversine */
+function attachPlanarMetersXY(points) {
+  const n = points.length;
+  if (n === 0) return;
+  let slat = 0, slon = 0;
+  for (let i = 0; i < n; i++) {
+    slat += points[i].lat;
+    slon += points[i].lon;
+  }
+  const clat = slat / n;
+  const clon = slon / n;
+  const mLat = 111320;
+  const mLon = 111320 * Math.cos(clat * Math.PI / 180);
+  for (let i = 0; i < n; i++) {
+    const p = points[i];
+    p._mx = (p.lon - clon) * mLon;
+    p._my = (p.lat - clat) * mLat;
+  }
+}
+
+/** 用于 fitBounds：圆的外接矩形四角（近似） */
+function appendCircleCornerPoints(lat, lon, radiusM, allPts) {
+  const dLat = radiusM / 111320;
+  const dLon = radiusM / (111320 * Math.cos(lat * Math.PI / 180));
+  allPts.push(
+    [lat - dLat, lon - dLon],
+    [lat - dLat, lon + dLon],
+    [lat + dLat, lon - dLon],
+    [lat + dLat, lon + dLon]
+  );
+}
+
+// ============================================================
+//  SIMULATE EDGES (same logic as source file)
+// ============================================================
+function simulateEdges() {
+  const centerLon = 121.438, centerLat = 31.195, spread = 0.018;
+  const gridSize = 28;
+  const nodes = {};
+  let nid = 0;
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      nodes[nid] = {
+        lon: centerLon - spread + (i/gridSize)*spread*2 + gaussRand(0,0.0003),
+        lat: centerLat - spread + (j/gridSize)*spread*2 + gaussRand(0,0.00025),
+        id: nid
+      };
+      nid++;
+    }
+  }
+  const edges = [];
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      const id = i*gridSize + j;
+      if (j < gridSize-1 && Math.random()>0.06) edges.push({u: id, v: i*gridSize+j+1});
+      if (i < gridSize-1 && Math.random()>0.06) edges.push({u: id, v: (i+1)*gridSize+j});
+    }
+  }
+  edges.forEach(e => {
+    const n1 = nodes[e.u], n2 = nodes[e.v];
+    e.midLon = (n1.lon + n2.lon)/2;
+    e.midLat = (n1.lat + n2.lat)/2;
+    e.from = n1; e.to = n2;
+
+    const dx = e.midLon - centerLon, dy = e.midLat - centerLat;
+    const distC = Math.sqrt(dx*dx + dy*dy) / spread;
+    const dSW = Math.sqrt(Math.pow(e.midLon-(centerLon-0.008),2) + Math.pow(e.midLat-(centerLat-0.006),2));
+    const proxSW = Math.max(0, 1 - dSW/0.008);
+    const dSE = Math.sqrt(Math.pow(e.midLon-(centerLon+0.007),2) + Math.pow(e.midLat-(centerLat-0.004),2));
+    const proxSE = Math.max(0, 1 - dSE/0.007);
+    const proxCenter = Math.max(0, 1 - distC*1.5);
+
+    e.csvi_E = Math.max(0.05, Math.min(0.95, gaussRand(0.35 + proxSW*0.3 + proxCenter*0.2, 0.10)));
+    e.csvi_S_env = Math.max(0, Math.min(0.4, gaussRand(0.08, 0.03)));
+    e.csvi_S_contact = Math.max(0, Math.min(0.8, gaussRand(0.35 + proxSE*0.2, 0.08)));
+    e.N_YP = Math.max(0.1, Math.min(0.9, gaussRand(0.45 + proxSE*0.25 + proxCenter*0.1, 0.08)));
+    e.N08 = Math.max(0, Math.min(1, gaussRand(0.48, 0.14)));
+
+    const dPark1 = Math.sqrt(Math.pow(e.midLon-(centerLon-0.005),2) + Math.pow(e.midLat-(centerLat+0.006),2));
+    const parkProx = Math.max(0, 1 - dPark1/0.006);
+    const corridorDist = Math.abs(e.midLat - (centerLat - 0.005));
+    const inCorridor = corridorDist < 0.003 && e.midLon > centerLon-0.01 && e.midLon < centerLon+0.01;
+    e.csvi_AC_phys = Math.max(0.001, Math.min(0.3, gaussRand(0.04 + parkProx*0.15 - (inCorridor?0.03:0), 0.025)));
+    e.csvi_AC_social = Math.max(0, Math.min(0.4, gaussRand(0.06 + proxCenter*0.15, 0.04)));
+
+    e.priority = Math.max(0, Math.min(1,
+      e.csvi_E * (e.csvi_S_env + e.csvi_S_contact) / Math.max(0.001, e.csvi_AC_phys * e.csvi_AC_social + 0.01)
+    ));
+    e.priority = Math.min(1, e.priority / 30);
+    e.W_elder = e.csvi_E * (e.csvi_AC_phys + 1);
+    e.W_work = Math.max(0, e.N_YP * e.N08);
+    const sTotal = e.csvi_S_env + e.csvi_S_contact;
+    e.S_contact_ratio = sTotal > 0 ? e.csvi_S_contact / sTotal : 0;
+  });
+  return edges;
+}
+
+const CSV_FILENAME = '../data/cld/cld_priority.csv';
+
+function estimateNodePositions(rawEdges) {
+  const nodes = new Set();
+  rawEdges.forEach(r => { nodes.add(r.u); nodes.add(r.v); });
+  const sum = {}, cnt = {};
+  nodes.forEach(n => { sum[n] = [0, 0]; cnt[n] = 0; });
+  rawEdges.forEach(r => {
+    const mx = r.lon, my = r.lat;
+    [r.u, r.v].forEach(id => {
+      sum[id][0] += mx; sum[id][1] += my; cnt[id]++;
+    });
+  });
+  const pos = {};
+  nodes.forEach(n => {
+    pos[n] = { lon: sum[n][0] / cnt[n], lat: sum[n][1] / cnt[n] };
+  });
+  const iters = rawEdges.length > 12000 ? 8 : 24;
+  for (let iter = 0; iter < iters; iter++) {
+    rawEdges.forEach(r => {
+      const mx = r.lon, my = r.lat;
+      pos[r.u].lon = 2 * mx - pos[r.v].lon;
+      pos[r.u].lat = 2 * my - pos[r.v].lat;
+    });
+  }
+  return pos;
+}
+
+function buildEdgesFromCsvRows(rows) {
+  const raw = rows.map(r => ({
+    u: String(r.u),
+    v: String(r.v),
+    lon: +r.lon,
+    lat: +r.lat,
+    csvi_E: +r.csvi_E,
+    csvi_S_env: +r.csvi_S_env,
+    csvi_S_contact: +r.csvi_S_contact,
+    csvi_AC_phys: +r.csvi_AC_phys,
+    csvi_AC_social: +r.csvi_AC_social,
+    N_YP: +r.N_YP,
+    N08: +r.N08,
+    priority: +r.priority
+  }));
+  const pos = estimateNodePositions(raw);
+  return raw.map(r => {
+    const from = pos[r.u], to = pos[r.v];
+    const midLon = (from.lon + to.lon) / 2;
+    const midLat = (from.lat + to.lat) / 2;
+    const sTotal = r.csvi_S_env + r.csvi_S_contact;
+    return {
+      u: r.u, v: r.v,
+      from, to, midLon, midLat,
+      csvi_E: r.csvi_E,
+      csvi_S_env: r.csvi_S_env,
+      csvi_S_contact: r.csvi_S_contact,
+      csvi_AC_phys: r.csvi_AC_phys,
+      csvi_AC_social: r.csvi_AC_social,
+      N_YP: r.N_YP,
+      N08: r.N08,
+      priority: r.priority,
+      W_elder: r.csvi_E * (r.csvi_AC_phys + 1),
+      W_work: Math.max(0, (+r.N_YP || 0) * (+r.N08 || 0)),
+      S_contact_ratio: sTotal > 0 ? r.csvi_S_contact / sTotal : 0
+    };
+  });
+}
+
+async function loadEdges() {
+  try {
+    const rows = await d3.csv(CSV_FILENAME, d3.autoType);
+    if (!rows || !rows.length) throw new Error('empty');
+    if (rows[0].priority === undefined || rows[0].N08 === undefined) throw new Error('需要 priority、N08 等列（W_work=N_YP×N08）');
+    return buildEdgesFromCsvRows(rows);
+  } catch (err) {
+    console.warn('未加载 ' + CSV_FILENAME + '，使用模拟路网。', err);
+    return simulateEdges();
+  }
+}
+
+// ============================================================
+//  CLASSIFICATION（与 map_intervention_nodes 同逻辑）
+// ============================================================
+function vertPosFromActivatedEdges(activatedEdgeList) {
+  const m = new Map();
+  for (let i = 0; i < activatedEdgeList.length; i++) {
+    const ev = activatedEdgeList[i];
+    m.set(ev.u, ev.from);
+    m.set(ev.v, ev.to);
+  }
+  return m;
+}
+
+function classifyNodes(edges) {
+  addEmpiricalPercentileRanks(edges);
+  const len = edges.length;
+  const pri = new Array(len);
+  const pElderArr = new Array(len);
+  const pWorkArr = new Array(len);
+  const acPhysArr = new Array(len);
+  for (let i = 0; i < len; i++) {
+    const e = edges[i];
+    pri[i] = e.priority;
+    pElderArr[i] = e.p_elder;
+    pWorkArr[i] = e.p_work;
+    acPhysArr[i] = e.csvi_AC_phys;
+  }
+  const csviBreaks = getClassificationBreaks(pri, 3);
+  const wElderBreaks = getClassificationBreaks(pElderArr, 3);
+  const wWorkBreaks = getClassificationBreaks(pWorkArr, 3);
+  acPhysArr.sort((a, b) => a - b);
+  const nAc = acPhysArr.length;
+  const acPhys50 = nAc ? acPhysArr[Math.floor((nAc - 1) / 2)] : 0;
+
+  edges.forEach(e => {
+    e.csviClass = classifyJenks(e.priority, csviBreaks);
+    e.wElderClass = classifyJenks(e.p_elder, wElderBreaks);
+    e.wWorkClass = classifyJenks(e.p_work, wWorkBreaks);
+  });
+
+  const activated = [], bottleneck = [], critical = [];
+
+  edges.forEach(e => {
+    if (e.csviClass === 2 && (e.wElderClass === 2 || e.wWorkClass === 2)) {
+      if (e.wElderClass === 2 && e.wWorkClass <= 1) e.nodeType = 'act_elder';
+      else if (e.wWorkClass === 2 && e.wElderClass <= 1) e.nodeType = 'act_work';
+      else e.nodeType = 'act_both';
+      activated.push(e);
+      return;
+    }
+    e.nodeType = null;
+  });
+
+  const vertPosAct = vertPosFromActivatedEdges(activated);
+  const aligned = CatalystSeamClusters.collectAlignedSeamEdgesWithDb(
+    edges,
+    activated,
+    critical,
+    vertPosAct
+  );
+  const connectorSeamSet = aligned.seam;
+  const seamEdges = Array.from(connectorSeamSet);
+
+  const clusterCirclesByClusterLabel =
+    typeof ClusterFieldCircles !== 'undefined'
+      ? ClusterFieldCircles.dbscanCirclesForCorridor(aligned.db, MAX_TOTAL_FIELD_AREA_M2)
+      : null;
+
+  const routePack = CorridorBottleneck.compute({
+    edges,
+    activatedEdges: activated,
+    criticalEdges: critical,
+    vertPos: vertPosAct,
+    connectorSeamSet,
+    acPhys50,
+    catalystDb: aligned.db,
+    clusterCirclesByClusterLabel
+  });
+  for (let bi = 0; bi < routePack.bottleneckEdges.length; bi++) {
+    const e = routePack.bottleneckEdges[bi];
+    e.nodeType = 'bottleneck';
+    bottleneck.push(e);
+  }
+
+  return {
+    activated,
+    bottleneck,
+    critical,
+    seamEdges,
+    acPhysMedian: acPhys50,
+    corridorPaths: routePack.corridorPaths,
+    corridorEdgeSet: routePack.corridorEdgeSet,
+    catalystDb: aligned.db
+  };
+}
+
+// ============================================================
+//  FIELD SYSTEM SELECTION ALGORITHM
+//  DBSCAN → 跨度达标则子分裂 → Top-N 簇 → 质心圆 + 10 ha 按比例
+// ============================================================
+/** 场域面积之和的目标总量（10 ha），按簇 priority 比例分配 */
+const MAX_TOTAL_FIELD_AREA_M2 = 100000;
+
+/** 最终保留的场域块数上限（分裂后按 Σpriority 截断） */
+const MAX_FIELD_SYSTEMS = 6;
+
+/**
+ * 达标分裂：单簇触媒点「跨度」过大时再拆选址。
+ * 跨度 = 簇内任意两点平面距离的最大值（米）。
+ */
+const SPLIT_MAX_CLUSTER_DIAMETER_M = 520;
+const SPLIT_MIN_MEMBERS_FOR_SPLIT = 5;
+const SPLIT_INNER_EPS_FACTOR = 0.48;
+const SPLIT_REFINEMENT_PASSES = 3;
+const SPLIT_INNER_EPS_MIN_M = 40;
+
+function clusterMaxPairwiseDistanceM(members) {
+  const n = members.length;
+  if (n < 2) return 0;
+  attachPlanarMetersXY(members);
+  let maxD = 0;
+  for (let i = 0; i < n; i++) {
+    const pi = members[i];
+    for (let j = i + 1; j < n; j++) {
+      const pj = members[j];
+      const dx = pi._mx - pj._mx;
+      const dy = pi._my - pj._my;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > maxD) maxD = d;
+    }
+  }
+  return maxD;
+}
+
+/**
+ * 对「又密又长」的母簇：仅在跨度超阈值时，用更小的 ε 再 DBSCAN；
+ * 仅当能拆出 ≥2 个有效子簇（各 ≥2 点）时才替换母簇，否则保留。
+ */
+function refineClustersByDiameterSplit(clusters, dbscanEps, minPts) {
+  let cur = clusters;
+  for (let pass = 0; pass < SPLIT_REFINEMENT_PASSES; pass++) {
+    const next = [];
+    let anySplit = false;
+    for (let ci = 0; ci < cur.length; ci++) {
+      const cl = cur[ci];
+      if (cl.members.length < SPLIT_MIN_MEMBERS_FOR_SPLIT) {
+        next.push(cl);
+        continue;
+      }
+      const diam = clusterMaxPairwiseDistanceM(cl.members);
+      if (diam <= SPLIT_MAX_CLUSTER_DIAMETER_M) {
+        next.push(cl);
+        continue;
+      }
+      const subEps = Math.max(SPLIT_INNER_EPS_MIN_M, dbscanEps * SPLIT_INNER_EPS_FACTOR);
+      const subMinPts = Math.min(minPts, Math.max(2, Math.min(3, Math.floor(cl.members.length / 4))));
+      const subResult = dbscan(cl.members, subEps, subMinPts);
+      const subClusters = [];
+      for (let c = 0; c < subResult.nClusters; c++) {
+        const mem = [];
+        for (let i = 0; i < cl.members.length; i++) {
+          if (subResult.labels[i] === c) mem.push(cl.members[i]);
+        }
+        if (mem.length >= 2) {
+          subClusters.push({
+            members: mem,
+            sumPriority: mem.reduce((s, m) => s + m.edge.priority, 0)
+          });
+        }
+      }
+      if (subClusters.length >= 2) {
+        for (let si = 0; si < subClusters.length; si++) next.push(subClusters[si]);
+        anySplit = true;
+      } else {
+        next.push(cl);
+      }
+    }
+    cur = next;
+    if (!anySplit) break;
+  }
+  return cur;
+}
+
+function dbscan(points, eps, minPts) {
+  // points: [{lat,lon,...}] → 写入 _mx,_my
+  const n = points.length;
+  attachPlanarMetersXY(points);
+  const eps2 = eps * eps;
+  const labels = new Int32Array(n).fill(-1); // -1=unvisited
+  let clusterId = 0;
+
+  function regionQuery(pIdx) {
+    const neighbors = [];
+    const p = points[pIdx];
+    const px = p._mx, py = p._my;
+    for (let i = 0; i < n; i++) {
+      const q = points[i];
+      const dx = px - q._mx, dy = py - q._my;
+      if (dx * dx + dy * dy <= eps2) neighbors.push(i);
+    }
+    return neighbors;
+  }
+
+  for (let i=0; i<n; i++) {
+    if (labels[i] !== -1) continue;
+    const neighbors = regionQuery(i);
+    if (neighbors.length < minPts) { labels[i] = -2; continue; } // noise
+    labels[i] = clusterId;
+    const seeds = [...neighbors];
+    let si = 0;
+    while (si < seeds.length) {
+      const q = seeds[si++];
+      if (labels[q] !== -1 && labels[q] !== -2 && labels[q] !== clusterId) continue;
+      if (labels[q] === -1 || labels[q] === -2) labels[q] = clusterId;
+      const qNeighbors = regionQuery(q);
+      if (qNeighbors.length >= minPts) {
+        for (const nn of qNeighbors) {
+          if (labels[nn] === -1 || labels[nn] === -2) seeds.push(nn);
+        }
+      }
+    }
+    clusterId++;
+  }
+  return { labels, nClusters: clusterId };
+}
+
+function selectFieldSystems(edges, classified) {
+  const db =
+    classified.catalystDb ||
+    CatalystSeamClusters.runCatalystDbscan(classified.activated, classified.critical);
+  const { points, labels, nClusters, eps, minPts } = db;
+  const result = { labels, nClusters };
+
+  // Score each cluster by sum of priority
+  const clusters = [];
+  for (let c=0; c<result.nClusters; c++) {
+    const members = [];
+    for (let i=0; i<points.length; i++) {
+      if (result.labels[i] === c) members.push(points[i]);
+    }
+    if (members.length < 2) continue;
+    const sumPriority = members.reduce((s,m) => s+m.edge.priority, 0);
+    clusters.push({id:c, members, sumPriority});
+  }
+
+  clusters.sort((a, b) => b.sumPriority - a.sumPriority);
+  const expanded = refineClustersByDiameterSplit(clusters, eps, minPts);
+  expanded.sort((a, b) => b.sumPriority - a.sumPriority);
+  const topClusters = expanded.slice(0, MAX_FIELD_SYSTEMS);
+
+  let totalPriority = 0;
+  for (let ti = 0; ti < topClusters.length; ti++) totalPriority += topClusters[ti].sumPriority;
+  if (totalPriority <= 1e-18) totalPriority = topClusters.length || 1;
+
+  const fieldSystems = topClusters.map((cl, fi) => {
+    const targetM2 = MAX_TOTAL_FIELD_AREA_M2 * (cl.sumPriority / totalPriority);
+    const pair =
+      typeof ClusterFieldCircles !== 'undefined'
+        ? ClusterFieldCircles.circlePairFromMembers(cl.members, targetM2)
+        : null;
+    const cLat = pair ? pair.centerLat : cl.members.reduce((s, m) => s + m.lat, 0) / cl.members.length;
+    const cLon = pair ? pair.centerLon : cl.members.reduce((s, m) => s + m.lon, 0) / cl.members.length;
+    const rIn = pair ? pair.radiusInnerM : Math.sqrt(Math.max(targetM2, 1) / Math.PI);
+    const rOut = pair ? pair.radiusOuterM : rIn;
+
+    return {
+      id: fi,
+      members: cl.members,
+      circleCenterLat: cLat,
+      circleCenterLon: cLon,
+      circleRadiusInnerM: rIn,
+      circleRadiusOuterM: rOut,
+      boundarySource: 'circle',
+      areaM2: targetM2,
+      areaHa: targetM2 / 10000,
+      sumPriority: cl.sumPriority,
+      targetM2,
+      catalystEdges: cl.members.map((m) => m.edge)
+    };
+  });
+
+  const corridorEdges = classified.corridorEdgeSet
+    ? [...classified.corridorEdgeSet]
+    : [];
+
+  return {
+    fieldSystems,
+    corridorEdges,
+    corridorPaths: classified.corridorPaths || [],
+    eps,
+    areaPlan: 'priority10ha',
+    splitParams: {
+      maxDiameterM: SPLIT_MAX_CLUSTER_DIAMETER_M,
+      minMembers: SPLIT_MIN_MEMBERS_FOR_SPLIT,
+      maxFields: MAX_FIELD_SYSTEMS
+    }
+  };
+}
+
+// ============================================================
+//  RENDER（瓶颈边段全量绘制；底网/触媒仍抽样以减负）
+// ============================================================
+const FIELD_COLORS = ['#ff4dad', '#ff6b9d', '#e91e8c', '#ff8ec7', '#d81b87', '#f48fb1'];
+
+function fieldSystemLabel(i) {
+  const letter = String.fromCharCode(65 + i);
+  return `场域 ${letter} · 簇 ${i + 1}`;
+}
+
+/** 绘制上限（瓶颈除外；统计仍用全量） */
+const PERF = {
+  maxCatalystMarkersPerField: 18,
+  maxCorridorMidMarkers: 0,
+  maxBaseSegs: 140
+};
+
+function takeTopByPriority(edgeArr, maxN) {
+  if (edgeArr.length <= maxN) return edgeArr;
+  return [...edgeArr].sort((a, b) => b.priority - a.priority).slice(0, maxN);
+}
+
+/** 无廊道路径时的兜底线段：严格瓶颈 → 接缝 → 低 AC_phys（有廊道时页面改绘玫红廊道折线） */
+function getEdgesToDrawAsBottleneck(classified, allEdges) {
+  const strict = classified.bottleneck;
+  if (strict.length > 0) return { list: strict, mode: 'strict' };
+  const seam = classified.seamEdges || [];
+  if (seam.length > 0) return { list: seam, mode: 'seam' };
+  const med = classified.acPhysMedian;
+  const low = [];
+  for (let i = 0; i < allEdges.length; i++) {
+    const e = allEdges[i];
+    if (e.nodeType === 'act_elder' || e.nodeType === 'act_work' || e.nodeType === 'act_both') continue;
+    if (e.csvi_AC_phys <= med) low.push(e);
+  }
+  return { list: low, mode: 'lowAc' };
+}
+
+function render(edges, classified, fields, onDone) {
+  const vectorRenderer = L.canvas({ padding: 0.5 });
+  /** 瓶颈单独用第二套 Canvas，后添加并 bringToFront，避免被场域面盖住 */
+  const bottleneckRenderer = L.canvas({ padding: 0.5 });
+  let totalArea = 0;
+  let totalCatalysts = 0;
+  let bottleneckDrawPack = { list: [], mode: 'none' };
+
+  function phaseLines() {
+    const plen = edges.length;
+    const pp = new Float64Array(plen);
+    for (let i = 0; i < plen; i++) pp[i] = edges[i].priority;
+    pp.sort();
+    const idx = plen ? Math.min(Math.floor(plen * 0.993), plen - 1) : 0;
+    const pThresh = plen ? pp[idx] : 0;
+    const cand = [];
+    for (let i = 0; i < plen; i++) {
+      const e = edges[i];
+      if (e.priority >= pThresh) cand.push(e);
+    }
+    const baseShow = cand.length <= PERF.maxBaseSegs ? cand : takeTopByPriority(cand, PERF.maxBaseSegs);
+    const netSegs = baseShow.map(e => [[e.from.lat, e.from.lon], [e.to.lat, e.to.lon]]);
+    if (netSegs.length) {
+      L.polyline(netSegs, {
+        renderer: vectorRenderer, interactive: false, smoothFactor: 0,
+        color: 'rgba(233,30,140,0.09)', weight: 1, opacity: 0.5
+      }).addTo(map);
+    }
+  }
+
+  function phasePolygonsAndLabels() {
+    fields.fieldSystems.forEach((fs, i) => {
+      const color = FIELD_COLORS[i] || '#fff';
+      totalArea += fs.areaHa;
+      totalCatalysts += fs.catalystEdges.length;
+      const rIn = fs.circleRadiusInnerM;
+      const rOut = fs.circleRadiusOuterM;
+      const dual = Math.abs(rOut - rIn) >= 0.75;
+      if (dual) {
+        L.circle([fs.circleCenterLat, fs.circleCenterLon], {
+          radius: rOut,
+          renderer: vectorRenderer,
+          color: color,
+          weight: 2,
+          opacity: 0.65,
+          fillColor: color,
+          fillOpacity: 0.03,
+          dashArray: '10,8',
+          interactive: false
+        }).addTo(map);
+      }
+      L.circle([fs.circleCenterLat, fs.circleCenterLon], {
+        radius: dual ? rIn : rOut,
+        renderer: vectorRenderer,
+        color: color,
+        weight: 2.5,
+        opacity: 0.9,
+        fillColor: color,
+        fillOpacity: dual ? 0.09 : 0.08,
+        interactive: false
+      }).addTo(map);
+      const cLat = fs.members.reduce((s, m) => s + m.lat, 0) / fs.members.length;
+      const cLon = fs.members.reduce((s, m) => s + m.lon, 0) / fs.members.length;
+      const labelIcon = L.divIcon({
+        html: `<div style="
+        color:${color};font-size:11px;font-weight:700;letter-spacing:1px;
+        text-shadow:0 0 8px rgba(0,0,0,0.8);white-space:nowrap;
+        font-family:'DM Sans','Noto Sans SC',sans-serif;
+      ">${fieldSystemLabel(i)}<br>
+      <span style="font-size:9px;font-weight:400;opacity:0.7">${fs.areaHa.toFixed(1)} ha · ${fs.catalystEdges.length} · r<sub>内</sub>${fs.circleRadiusInnerM.toFixed(0)}m${Math.abs(fs.circleRadiusOuterM - fs.circleRadiusInnerM) >= 0.75 ? ` / 缓冲${fs.circleRadiusOuterM.toFixed(0)}m` : ''}</span>
+      </div>`,
+        className: '',
+        iconSize: [160, 40],
+        iconAnchor: [80, 20]
+      });
+      L.marker([cLat, cLon], { icon: labelIcon, interactive: false }).addTo(map);
+    });
+  }
+
+  function phaseCatalystDots() {
+    fields.fieldSystems.forEach((fs, i) => {
+      const color = FIELD_COLORS[i] || '#fff';
+      const catSrc = fs.catalystEdges;
+      const catShow = catSrc.length <= PERF.maxCatalystMarkersPerField
+        ? catSrc
+        : takeTopByPriority(catSrc, PERF.maxCatalystMarkersPerField);
+      for (let j = 0; j < catShow.length; j++) {
+        const e = catShow[j];
+        L.circleMarker([e.midLat, e.midLon], {
+          renderer: vectorRenderer,
+          radius: 4.5,
+          fillColor: '#ff4dad',
+          color: color,
+          weight: 1,
+          fillOpacity: 0.45,
+          opacity: 0.92,
+          interactive: false
+        }).addTo(map);
+      }
+    });
+  }
+
+  function pathLatLngsFromEdges(edgeList) {
+    if (!edgeList || !edgeList.length) return [];
+    const out = [[edgeList[0].from.lat, edgeList[0].from.lon]];
+    for (let i = 0; i < edgeList.length; i++) {
+      out.push([edgeList[i].to.lat, edgeList[i].to.lon]);
+    }
+    return out;
+  }
+
+  function phaseBottleneckOverlay() {
+    const paths = fields.corridorPaths || [];
+    if (paths.length) {
+      bottleneckDrawPack = { list: classified.bottleneck, mode: 'corridor' };
+      for (let pi = 0; pi < paths.length; pi++) {
+        const latlngs = pathLatLngsFromEdges(paths[pi].edges);
+        if (latlngs.length < 2) continue;
+        const layer = L.polyline(latlngs, {
+          renderer: bottleneckRenderer,
+          color: 'rgba(255,120,180,0.92)',
+          weight: 2.6,
+          opacity: 0.95,
+          interactive: false,
+          smoothFactor: 0,
+          lineCap: 'round'
+        }).addTo(map);
+        if (typeof layer.bringToFront === 'function') layer.bringToFront();
+      }
+      return;
+    }
+
+    bottleneckDrawPack = getEdgesToDrawAsBottleneck(classified, edges);
+    if (bottleneckDrawPack.mode !== 'strict' && bottleneckDrawPack.list.length) {
+      console.info('[场域选址] 瓶颈图绘模式:', bottleneckDrawPack.mode, '条数', bottleneckDrawPack.list.length,
+        '（严格瓶颈', classified.bottleneck.length, '）');
+    }
+    const bot = bottleneckDrawPack.list;
+    const n = bot.length;
+    const botSegs = new Array(n);
+    for (let bi = 0; bi < n; bi++) {
+      const be = bot[bi];
+      botSegs[bi] = [[be.from.lat, be.from.lon], [be.to.lat, be.to.lon]];
+    }
+    if (!botSegs.length) return;
+    const thick = n > 4000 ? 1 : 1.35;
+    const col = bottleneckDrawPack.mode === 'strict'
+      ? 'rgba(255,120,180,0.92)'
+      : bottleneckDrawPack.mode === 'seam'
+        ? 'rgba(255,160,200,0.88)'
+        : 'rgba(255,140,190,0.72)';
+    const layer = L.polyline(botSegs, {
+      renderer: bottleneckRenderer,
+      interactive: false,
+      smoothFactor: 0,
+      color: col,
+      weight: thick,
+      opacity: 0.95
+    }).addTo(map);
+    if (typeof layer.bringToFront === 'function') layer.bringToFront();
+  }
+
+  function phaseStatsAndFit() {
+    const statCont = document.getElementById('stat-fields-container');
+    const colorCls = ['c-a', 'c-b', 'c-c'];
+    if (statCont) {
+      statCont.innerHTML = '';
+      fields.fieldSystems.forEach((fs, i) => {
+        const row = document.createElement('div');
+        row.className = 'st-row';
+        const lbl = document.createElement('span');
+        lbl.className = 'st-lbl';
+        lbl.textContent = `场域 ${String.fromCharCode(65 + i)}`;
+        const val = document.createElement('span');
+        val.className = 'st-val ' + (colorCls[i % colorCls.length] || 'c-total');
+        val.textContent = `${fs.areaHa.toFixed(1)} ha · ${fs.catalystEdges.length} nodes`;
+        row.appendChild(lbl);
+        row.appendChild(val);
+        statCont.appendChild(row);
+      });
+    }
+    document.getElementById('stat-total').textContent = `${totalArea.toFixed(1)} ha`;
+    const el10 = document.getElementById('stat-10ha');
+    if (el10) {
+      if (fields.areaPlan === 'priority10ha') {
+        const sp = fields.splitParams;
+        const splitNote = sp
+          ? ` · 分裂阈 ${sp.maxDiameterM}m / ≥${sp.minMembers} 点 / 最多 ${sp.maxFields} 块`
+          : '';
+        el10.textContent = `实线=核心圆，虚线=缓冲圆（较大半径）；廊道 medoid 约束至外圆内（必要时自动放宽）。按 Σpriority 分配 10 ha（合计 ${totalArea.toFixed(2)} ha）${splitNote}`;
+      } else {
+        el10.textContent = totalArea >= 10
+          ? `已超过（合计 ${totalArea.toFixed(2)} ha）`
+          : `未超过（合计 ${totalArea.toFixed(2)} ha）`;
+      }
+    }
+    document.getElementById('stat-catalysts').textContent = `${totalCatalysts}`;
+    const nCorP = (fields.corridorPaths && fields.corridorPaths.length) || 0;
+    const nCorE = fields.corridorEdges.length;
+    const drawnN = bottleneckDrawPack.list.length;
+    const dm = bottleneckDrawPack.mode;
+    const botNote = dm === 'corridor'
+      ? `玫红廊道 ${nCorP} 条 · ${nCorE} 边（瓶颈边 ${classified.bottleneck.length}）`
+      : dm === 'strict'
+        ? `瓶颈图绘 ${drawnN}（严格）`
+        : `瓶颈 ${classified.bottleneck.length} / 图绘 ${drawnN}${dm === 'seam' ? '·接缝' : dm === 'lowAc' ? '·低AC' : ''}`;
+    document.getElementById('stat-corridors').textContent =
+      dm === 'corridor' ? botNote : (nCorP ? `廊道 ${nCorP} 条 · ${nCorE} 边；${botNote}` : `${botNote}（无廊道路径）`);
+
+    const allPts = [];
+    fields.fieldSystems.forEach((fs) => {
+      appendCircleCornerPoints(fs.circleCenterLat, fs.circleCenterLon, fs.circleRadiusOuterM, allPts);
+    });
+    const blist = bottleneckDrawPack.list;
+    for (let bi = 0; bi < blist.length; bi++) {
+      const be = blist[bi];
+      allPts.push([be.from.lat, be.from.lon], [be.to.lat, be.to.lon]);
+    }
+    const cpaths = fields.corridorPaths || [];
+    for (let pi = 0; pi < cpaths.length; pi++) {
+      const es = cpaths[pi].edges;
+      for (let ei = 0; ei < es.length; ei++) {
+        const be = es[ei];
+        allPts.push([be.from.lat, be.from.lon], [be.to.lat, be.to.lon]);
+      }
+    }
+    if (allPts.length) {
+      let minLat = allPts[0][0], maxLat = allPts[0][0], minLon = allPts[0][1], maxLon = allPts[0][1];
+      for (let k = 1; k < allPts.length; k++) {
+        const p = allPts[k];
+        if (p[0] < minLat) minLat = p[0];
+        if (p[0] > maxLat) maxLat = p[0];
+        if (p[1] < minLon) minLon = p[1];
+        if (p[1] > maxLon) maxLon = p[1];
+      }
+      map.fitBounds([[minLat - 0.003, minLon - 0.003], [maxLat + 0.003, maxLon + 0.003]], { animate: false });
+    }
+    bringStudyBoundaryToFront();
+    if (typeof onDone === 'function') onDone();
+  }
+
+  requestAnimationFrame(() => {
+    phaseLines();
+    requestAnimationFrame(() => {
+      phasePolygonsAndLabels();
+      requestAnimationFrame(() => {
+        phaseCatalystDots();
+        requestAnimationFrame(() => {
+          phaseBottleneckOverlay();
+          requestAnimationFrame(phaseStatsAndFit);
+        });
+      });
+    });
+  });
+}
+
+// ============================================================
+//  MAIN（分帧让「加载中」有机会绘制，避免长时间同步脚本看起来像死锁）
+// ============================================================
+const mapLoadingEl = document.getElementById('map-loading');
+function hideMapLoading() {
+  if (mapLoadingEl) mapLoadingEl.classList.add('done');
+}
+
+loadEdges().then(async (edgesAll) => {
+  let edges = edgesAll;
+  if (typeof filterEdgeRecordsToDaxujiahuiStudy === 'function') {
+    edges = await filterEdgeRecordsToDaxujiahuiStudy(edgesAll);
+  }
+  setTimeout(() => {
+    let classified, fields;
+    try {
+      classified = classifyNodes(edges);
+      fields = selectFieldSystems(edges, classified);
+    } catch (err) {
+      console.error(err);
+      hideMapLoading();
+      return;
+    }
+    setTimeout(() => {
+      try {
+        render(edges, classified, fields, () => requestAnimationFrame(hideMapLoading));
+      } catch (err) {
+        console.error(err);
+        hideMapLoading();
+      }
+    }, 0);
+  }, 0);
+});
+</script>
+</body>
+</html>

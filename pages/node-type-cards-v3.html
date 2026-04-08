@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>徐家汇空间节点系统</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Noto+Sans+SC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  :root {
+    --bg:#08080E; --card:#0D0D18; --grid:rgba(255,255,255,0.022);
+    --p:#E91E8C; --pl:#FF4DAD; --pd:rgba(233,30,140,0.10); --pb:rgba(233,30,140,0.28);
+    --t1:#FDF2F8; --t2:rgba(253,242,248,0.42); --t3:rgba(233,30,140,0.42);
+  }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:20px 28px 28px;
+    font-family:'Noto Sans SC',sans-serif;
+    word-break:keep-all;
+    line-break:strict;
+  }
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:1060px;}
+
+  .card{border-radius:20px;background:var(--card);overflow:hidden;display:flex;flex-direction:column;position:relative;}
+  .card::before{content:'';position:absolute;inset:0;pointer-events:none;
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:20px 20px;z-index:0;}
+  .card>*{position:relative;z-index:1;}
+  .card{border:1px solid var(--pb);box-shadow:0 0 50px rgba(233,30,140,0.07);}
+  .card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,transparent,var(--p),transparent);z-index:2;}
+
+  /* header */
+  .ch{padding:15px 18px 13px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--pb);}
+  .badge{font-family:'IBM Plex Mono',monospace;font-size:8px;font-weight:500;letter-spacing:0.16em;
+    text-transform:uppercase;padding:2px 8px;border-radius:4px;
+    background:var(--pd);border:1px solid var(--pb);color:var(--pl);}
+  .name{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--t1);letter-spacing:0.01em;}
+
+  /* diagram */
+  .diag{height:268px;overflow:hidden;}
+  .diag svg{width:100%;height:100%;}
+
+  /* strip */
+  .strip{padding:12px 18px 15px;display:flex;flex-direction:column;gap:7px;
+    border-top:1px solid var(--pb);background:linear-gradient(90deg,var(--pd),transparent);}
+  .kv{display:flex;align-items:baseline;gap:8px;}
+  .k{font-family:'IBM Plex Mono',monospace;font-size:8.5px;color:var(--t3);letter-spacing:0.10em;min-width:58px;}
+  .v{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:500;color:var(--pl);}
+  .vn{font-size:9.5px;opacity:0.5;font-family:'IBM Plex Mono',monospace;}
+  .subtypes{display:flex;gap:5px;flex-wrap:wrap;margin-top:1px;}
+  .st{font-family:'IBM Plex Mono',monospace;font-size:8px;padding:2px 7px;border-radius:3px;
+    letter-spacing:0.06em;background:var(--pd);border:1px solid var(--pb);color:var(--pl);}
+  .desc{font-size:10px;color:rgba(255,77,173,0.50);line-height:1.65;
+    border-top:1px solid rgba(233,30,140,0.12);padding-top:7px;margin-top:2px;}
+  .desc strong{color:rgba(253,242,248,0.82);}
+
+  @media (max-width:960px){.grid{grid-template-columns:1fr;max-width:420px;}}
+</style>
+</head>
+<body>
+
+<div class="grid">
+
+  <!-- ── N-01 潜力节点 ── 视觉语言：人群密度散点 + 三亚型分区 -->
+  <div class="card">
+    <div class="ch"><span class="badge">N-01</span><span class="name">潜力节点</span></div>
+    <div class="diag">
+      <svg viewBox="0 0 320 268" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="p1g" cx="50%" cy="50%">
+            <stop offset="0%"   stop-color="#E91E8C" stop-opacity=".18"/>
+            <stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="p1ga" cx="50%" cy="50%">
+            <stop offset="0%"   stop-color="#E91E8C" stop-opacity=".30"/>
+            <stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/>
+          </radialGradient>
+          <!-- clip for each zone -->
+          <clipPath id="zoneA"><ellipse cx="90"  cy="100" rx="68" ry="54"/></clipPath>
+          <clipPath id="zoneB"><ellipse cx="230" cy="100" rx="68" ry="54"/></clipPath>
+          <clipPath id="zoneC"><ellipse cx="160" cy="196" rx="68" ry="46"/></clipPath>
+        </defs>
+
+        <!-- zone backgrounds -->
+        <ellipse cx="90"  cy="100" rx="68" ry="54" fill="rgba(233,30,140,.06)" stroke="rgba(233,30,140,.18)" stroke-width="1" stroke-dasharray="4 5"/>
+        <ellipse cx="230" cy="100" rx="68" ry="54" fill="rgba(233,30,140,.06)" stroke="rgba(233,30,140,.18)" stroke-width="1" stroke-dasharray="4 5"/>
+        <ellipse cx="160" cy="196" rx="68" ry="46" fill="rgba(233,30,140,.10)" stroke="rgba(233,30,140,.30)" stroke-width="1.2"/>
+
+        <!-- zone labels -->
+        <text x="90"  y="30" text-anchor="middle" fill="rgba(255,77,173,.55)" font-size="7.5" font-family="IBM Plex Mono,monospace" letter-spacing=".1em">WORK-LED</text>
+        <text x="230" y="30" text-anchor="middle" fill="rgba(255,77,173,.55)" font-size="7.5" font-family="IBM Plex Mono,monospace" letter-spacing=".1em">ELDER-LED</text>
+        <text x="160" y="165" text-anchor="middle" fill="rgba(255,77,173,.70)" font-size="7.5" font-family="IBM Plex Mono,monospace" letter-spacing=".1em">DUAL · RARE</text>
+
+        <!-- zone A — work population dots: dense, uniform size -->
+        <circle cx="58"  cy="88"  r="3.2" fill="#E91E8C" opacity=".65"/>
+        <circle cx="72"  cy="72"  r="3.2" fill="#E91E8C" opacity=".65"/>
+        <circle cx="88"  cy="68"  r="3.2" fill="#E91E8C" opacity=".65"/>
+        <circle cx="104" cy="74"  r="3.2" fill="#E91E8C" opacity=".65"/>
+        <circle cx="118" cy="88"  r="3.2" fill="#E91E8C" opacity=".65"/>
+        <circle cx="62"  cy="104" r="3.2" fill="#E91E8C" opacity=".55"/>
+        <circle cx="78"  cy="112" r="3.2" fill="#E91E8C" opacity=".55"/>
+        <circle cx="96"  cy="116" r="3.2" fill="#E91E8C" opacity=".55"/>
+        <circle cx="112" cy="108" r="3.2" fill="#E91E8C" opacity=".55"/>
+        <circle cx="90"  cy="96"  r="3.2" fill="#E91E8C" opacity=".72"/>
+        <circle cx="70"  cy="96"  r="2.4" fill="#FF4DAD" opacity=".40"/>
+        <circle cx="106" cy="92"  r="2.4" fill="#FF4DAD" opacity=".40"/>
+
+        <!-- zone B — elder dots: slightly larger, sparser, warmer -->
+        <circle cx="198" cy="90"  r="4.0" fill="#E91E8C" opacity=".72"/>
+        <circle cx="216" cy="74"  r="4.0" fill="#E91E8C" opacity=".65"/>
+        <circle cx="234" cy="68"  r="4.0" fill="#E91E8C" opacity=".65"/>
+        <circle cx="250" cy="78"  r="4.0" fill="#E91E8C" opacity=".60"/>
+        <circle cx="258" cy="96"  r="4.0" fill="#E91E8C" opacity=".58"/>
+        <circle cx="204" cy="108" r="4.0" fill="#E91E8C" opacity=".50"/>
+        <circle cx="224" cy="116" r="4.0" fill="#E91E8C" opacity=".50"/>
+        <circle cx="244" cy="112" r="3.2" fill="#FF4DAD" opacity=".36"/>
+        <circle cx="234" cy="98"  r="3.2" fill="#FF4DAD" opacity=".42"/>
+
+        <!-- zone C — dual: mixed, larger glowing dots -->
+        <circle cx="128" cy="192" r="5.5" fill="#E91E8C" opacity=".80"/>
+        <circle cx="148" cy="180" r="4.5" fill="#E91E8C" opacity=".72"/>
+        <circle cx="160" cy="188" r="6.0" fill="#E91E8C"/>
+        <circle cx="172" cy="178" r="4.5" fill="#E91E8C" opacity=".72"/>
+        <circle cx="192" cy="192" r="5.5" fill="#E91E8C" opacity=".80"/>
+        <circle cx="138" cy="204" r="4.0" fill="#FF4DAD" opacity=".60"/>
+        <circle cx="160" cy="208" r="4.0" fill="#FF4DAD" opacity=".60"/>
+        <circle cx="182" cy="204" r="4.0" fill="#FF4DAD" opacity=".60"/>
+        <!-- glow on dual zone center -->
+        <circle cx="160" cy="192" r="32" fill="url(#p1ga)" opacity=".8"/>
+        <circle cx="160" cy="192" r="18" fill="none" stroke="#FF4DAD" stroke-width=".8" opacity="0">
+          <animate attributeName="r"       values="18;38" dur="2.4s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values=".5;0"  dur="2.4s" repeatCount="indefinite"/>
+        </circle>
+
+        <!-- connectors between zones -->
+        <line x1="140" y1="140" x2="120" y2="128" stroke="rgba(233,30,140,.15)" stroke-width="1" stroke-dasharray="3 4"/>
+        <line x1="180" y1="140" x2="200" y2="128" stroke="rgba(233,30,140,.15)" stroke-width="1" stroke-dasharray="3 4"/>
+
+        <!-- sub-type name labels inside zones -->
+        <text x="90"  cy="100" y="136" text-anchor="middle" fill="rgba(255,77,173,.38)" font-size="7" font-family="Noto Sans SC,sans-serif">工作人口主导</text>
+        <text x="230" cy="100" y="136" text-anchor="middle" fill="rgba(255,77,173,.38)" font-size="7" font-family="Noto Sans SC,sans-serif">老年人口主导</text>
+        <text x="160" cy="196" y="218" text-anchor="middle" fill="rgba(255,77,173,.45)" font-size="7" font-family="Noto Sans SC,sans-serif">双向停留 · 优先干预</text>
+      </svg>
+    </div>
+    <div class="strip">
+      <div class="kv"><span class="k">角色定义</span><span class="v">人群活动的承载单元</span></div>
+      <div class="subtypes">
+        <span class="st">工作人口主导</span>
+        <span class="st">老年人口主导</span>
+        <span class="st">双向停留</span>
+      </div>
+      <div class="desc">以<strong>停留人群结构</strong>区分亚型。双向停留型中老年人与工作人口共存比例最高，<strong>两类人群均可获益</strong>，为系统优先干预对象。</div>
+    </div>
+  </div>
+
+  <!-- ── N-02 资源节点 ── 视觉语言：六边形蜂巢资源格网 + 辐射层级 -->
+  <div class="card">
+    <div class="ch"><span class="badge">N-02</span><span class="name">资源节点</span></div>
+    <div class="diag">
+      <svg viewBox="0 0 320 268" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="r2g" cx="50%" cy="50%">
+            <stop offset="0%"   stop-color="#E91E8C" stop-opacity=".22"/>
+            <stop offset="70%"  stop-color="#E91E8C" stop-opacity=".05"/>
+            <stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="r2core" cx="50%" cy="50%">
+            <stop offset="0%"   stop-color="#FF4DAD" stop-opacity=".35"/>
+            <stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+
+        <!-- background glow -->
+        <ellipse cx="160" cy="128" rx="128" ry="110" fill="url(#r2g)"/>
+
+        <!-- outer dotted orbit -->
+        <circle cx="160" cy="128" r="104" fill="none" stroke="rgba(233,30,140,.07)" stroke-width="1" stroke-dasharray="2 7"/>
+        <!-- mid orbit -->
+        <circle cx="160" cy="128" r="68"  fill="none" stroke="rgba(233,30,140,.12)" stroke-width="1" stroke-dasharray="3 5"/>
+        <!-- inner orbit -->
+        <circle cx="160" cy="128" r="36"  fill="none" stroke="rgba(233,30,140,.18)" stroke-width="1"/>
+
+        <!-- 6 resource cells on mid orbit, as hexagonal markers -->
+        <!-- angles: 0°=right, 60° steps. Using top-start: -90°, -30°, 30°, 90°, 150°, 210° -->
+        <!-- cell positions (r=68): -->
+        <!-- top:          160, 60  -->
+        <!-- top-right:    219, 94  -->
+        <!-- bot-right:    219, 162 -->
+        <!-- bottom:       160, 196 -->
+        <!-- bot-left:     101, 162 -->
+        <!-- top-left:     101, 94  -->
+
+        <!-- spokes -->
+        <line x1="160" y1="128" x2="160" y2="60"  stroke="rgba(233,30,140,.22)" stroke-width="1"/>
+        <line x1="160" y1="128" x2="219" y2="94"  stroke="rgba(233,30,140,.22)" stroke-width="1"/>
+        <line x1="160" y1="128" x2="219" y2="162" stroke="rgba(233,30,140,.22)" stroke-width="1"/>
+        <line x1="160" y1="128" x2="160" y2="196" stroke="rgba(233,30,140,.22)" stroke-width="1"/>
+        <line x1="160" y1="128" x2="101" y2="162" stroke="rgba(233,30,140,.22)" stroke-width="1"/>
+        <line x1="160" y1="128" x2="101" y2="94"  stroke="rgba(233,30,140,.22)" stroke-width="1"/>
+
+        <!-- hexagon helper macro: draw hex outline -->
+        <!-- cell 1: top — 体育场馆 -->
+        <polygon points="160,46 170,51 170,63 160,68 150,63 150,51" fill="rgba(233,30,140,.14)" stroke="#E91E8C" stroke-width="1.2"/>
+        <text x="160" y="60" text-anchor="middle" fill="#FF4DAD" font-size="8" font-family="IBM Plex Mono,monospace" font-weight="500">SPORT</text>
+        <text x="160" y="78" text-anchor="middle" fill="rgba(255,77,173,.42)" font-size="7" font-family="Noto Sans SC,sans-serif">体育场馆</text>
+
+        <!-- cell 2: top-right — 商业综合体 -->
+        <polygon points="219,80 229,85 229,97 219,102 209,97 209,85" fill="rgba(233,30,140,.12)" stroke="#E91E8C" stroke-width="1.2"/>
+        <text x="219" y="92" text-anchor="middle" fill="#FF4DAD" font-size="8" font-family="IBM Plex Mono,monospace" font-weight="500">RETAIL</text>
+        <text x="230" y="110" text-anchor="middle" fill="rgba(255,77,173,.42)" font-size="7" font-family="Noto Sans SC,sans-serif">商业综合体</text>
+
+        <!-- cell 3: bot-right — 科创园区 -->
+        <polygon points="219,148 229,153 229,165 219,170 209,165 209,153" fill="rgba(233,30,140,.12)" stroke="#E91E8C" stroke-width="1.2"/>
+        <text x="219" y="161" text-anchor="middle" fill="#FF4DAD" font-size="8" font-family="IBM Plex Mono,monospace" font-weight="500">TECH</text>
+        <text x="232" y="178" text-anchor="middle" fill="rgba(255,77,173,.42)" font-size="7" font-family="Noto Sans SC,sans-serif">科创园区</text>
+
+        <!-- cell 4: bottom — 社区服务 -->
+        <polygon points="160,182 170,187 170,199 160,204 150,199 150,187" fill="rgba(233,30,140,.14)" stroke="#E91E8C" stroke-width="1.2"/>
+        <text x="160" y="197" text-anchor="middle" fill="#FF4DAD" font-size="8" font-family="IBM Plex Mono,monospace" font-weight="500">CIVIC</text>
+        <text x="160" y="215" text-anchor="middle" fill="rgba(255,77,173,.42)" font-size="7" font-family="Noto Sans SC,sans-serif">社区服务</text>
+
+        <!-- cell 5: bot-left — 文化设施 -->
+        <polygon points="101,148 111,153 111,165 101,170 91,165 91,153" fill="rgba(233,30,140,.12)" stroke="#E91E8C" stroke-width="1.2"/>
+        <text x="101" y="161" text-anchor="middle" fill="#FF4DAD" font-size="8" font-family="IBM Plex Mono,monospace" font-weight="500">CULT</text>
+        <text x="88"  y="178" text-anchor="middle" fill="rgba(255,77,173,.42)" font-size="7" font-family="Noto Sans SC,sans-serif">文化设施</text>
+
+        <!-- cell 6: top-left — 医疗健康 -->
+        <polygon points="101,80 111,85 111,97 101,102 91,97 91,85" fill="rgba(233,30,140,.12)" stroke="#E91E8C" stroke-width="1.2"/>
+        <text x="101" y="92" text-anchor="middle" fill="#FF4DAD" font-size="8" font-family="IBM Plex Mono,monospace" font-weight="500">HEALTH</text>
+        <text x="88"  y="110" text-anchor="middle" fill="rgba(255,77,173,.42)" font-size="7" font-family="Noto Sans SC,sans-serif">医疗健康</text>
+
+        <!-- center core -->
+        <circle cx="160" cy="128" r="26" fill="url(#r2core)"/>
+        <circle cx="160" cy="128" r="26" fill="none" stroke="#FF4DAD" stroke-width=".8" opacity="0">
+          <animate attributeName="r"       values="26;50" dur="2.2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values=".5;0"  dur="2.2s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="160" cy="128" r="13" fill="#E91E8C"/>
+        <text x="160" y="125" text-anchor="middle" fill="#fff" font-size="6.5" font-family="IBM Plex Mono,monospace" font-weight="500">COGNITIVE</text>
+        <text x="160" y="134" text-anchor="middle" fill="rgba(255,255,255,.65)" font-size="6" font-family="IBM Plex Mono,monospace">ASSETS</text>
+      </svg>
+    </div>
+    <div class="strip">
+      <div class="kv"><span class="k">资源类型</span><span class="v">体育 · 商业 · 科技 · 文化 · 医疗</span></div>
+      <div class="subtypes">
+        <span class="st">体育场馆</span>
+        <span class="st">商业综合体</span>
+        <span class="st">科创园区</span>
+        <span class="st">文化 · 医疗</span>
+      </div>
+      <div class="desc">大徐家汇区域汇聚的<strong>老年人认知资源库</strong>。体育场馆激活身体，商业空间维持社会参与，科技与文化设施提供叙事与符号认同，医疗资源锚定日常节律，共同构成<strong>可调用的干预资产</strong>。</div>
+    </div>
+  </div>
+
+  <!-- ── N-03 廊道空间 ── 视觉语言：路径流线 + 可达性阈值层 -->
+  <div class="card">
+    <div class="ch"><span class="badge">N-03</span><span class="name">廊道空间</span></div>
+    <div class="diag">
+      <svg viewBox="0 0 320 268" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="cflow" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%"   stop-color="#E91E8C" stop-opacity=".70"/>
+            <stop offset="50%"  stop-color="#FF4DAD" stop-opacity=".90"/>
+            <stop offset="100%" stop-color="#E91E8C" stop-opacity=".70"/>
+          </linearGradient>
+          <linearGradient id="cband" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%"   stop-color="#E91E8C" stop-opacity=".10"/>
+            <stop offset="50%"  stop-color="#FF4DAD" stop-opacity=".16"/>
+            <stop offset="100%" stop-color="#E91E8C" stop-opacity=".10"/>
+          </linearGradient>
+          <radialGradient id="cglL" cx="50%" cy="50%">
+            <stop offset="0%"   stop-color="#E91E8C" stop-opacity=".22"/>
+            <stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="cglR" cx="50%" cy="50%">
+            <stop offset="0%"   stop-color="#E91E8C" stop-opacity=".22"/>
+            <stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+
+        <!-- node halos -->
+        <circle cx="56"  cy="134" r="48" fill="url(#cglL)"/>
+        <circle cx="264" cy="134" r="48" fill="url(#cglR)"/>
+
+        <!-- walkable radius rings around each node -->
+        <circle cx="56"  cy="134" r="38" fill="none" stroke="rgba(233,30,140,.10)" stroke-width="1" stroke-dasharray="2 6"/>
+        <circle cx="56"  cy="134" r="24" fill="none" stroke="rgba(233,30,140,.18)" stroke-width="1" stroke-dasharray="3 4"/>
+        <circle cx="264" cy="134" r="38" fill="none" stroke="rgba(233,30,140,.10)" stroke-width="1" stroke-dasharray="2 6"/>
+        <circle cx="264" cy="134" r="24" fill="none" stroke="rgba(233,30,140,.18)" stroke-width="1" stroke-dasharray="3 4"/>
+
+        <!-- corridor band fill -->
+        <path d="M78 118 C130 104 190 104 242 118 L242 150 C190 164 130 164 78 150 Z" fill="url(#cband)"/>
+
+        <!-- corridor edges -->
+        <path d="M78 118 C130 104 190 104 242 118" fill="none" stroke="rgba(233,30,140,.35)" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M78 150 C130 164 190 164 242 150" fill="none" stroke="rgba(233,30,140,.35)" stroke-width="1.5" stroke-linecap="round"/>
+
+        <!-- centre axis line -->
+        <path d="M78 134 C130 134 190 134 242 134" fill="none" stroke="url(#cflow)" stroke-width="1.2" stroke-dasharray="6 4"/>
+
+        <!-- animated flow particles -->
+        <circle r="3" fill="#FF4DAD" opacity=".85">
+          <animate attributeName="cx" values="82;240" dur="2.0s" repeatCount="indefinite"/>
+          <animate attributeName="cy" values="134;134" dur="2.0s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;.9;0" dur="2.0s" repeatCount="indefinite"/>
+        </circle>
+        <circle r="2.5" fill="#FF4DAD" opacity=".65">
+          <animate attributeName="cx" values="82;240" dur="2.0s" begin="0.7s" repeatCount="indefinite"/>
+          <animate attributeName="cy" values="124;124" dur="2.0s" begin="0.7s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;.7;0" dur="2.0s" begin="0.7s" repeatCount="indefinite"/>
+        </circle>
+        <circle r="2.5" fill="#FF4DAD" opacity=".55">
+          <animate attributeName="cx" values="82;240" dur="2.0s" begin="1.3s" repeatCount="indefinite"/>
+          <animate attributeName="cy" values="144;144" dur="2.0s" begin="1.3s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;.6;0" dur="2.0s" begin="1.3s" repeatCount="indefinite"/>
+        </circle>
+        <!-- reverse direction particle -->
+        <circle r="2" fill="#E91E8C" opacity=".50">
+          <animate attributeName="cx" values="240;82" dur="2.6s" begin="0.4s" repeatCount="indefinite"/>
+          <animate attributeName="cy" values="134;134" dur="2.6s" begin="0.4s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;.5;0" dur="2.6s" begin="0.4s" repeatCount="indefinite"/>
+        </circle>
+
+        <!-- left node — 潜力节点 -->
+        <circle cx="56" cy="134" r="22" fill="rgba(233,30,140,.14)" stroke="#E91E8C" stroke-width="1.4"/>
+        <circle cx="56" cy="134" r="9"  fill="#E91E8C"/>
+        <text x="56" cy="134" y="170" text-anchor="middle" fill="rgba(255,77,173,.52)" font-size="7.5" font-family="Noto Sans SC,sans-serif">潜力节点</text>
+
+        <!-- right node — 资源节点 -->
+        <circle cx="264" cy="134" r="22" fill="rgba(233,30,140,.14)" stroke="#E91E8C" stroke-width="1.4"/>
+        <circle cx="264" cy="134" r="9"  fill="#E91E8C"/>
+        <text x="264" cy="134" y="170" text-anchor="middle" fill="rgba(255,77,173,.52)" font-size="7.5" font-family="Noto Sans SC,sans-serif">资源节点</text>
+
+        <!-- barrier markers on corridor -->
+        <rect x="148" y="108" width="4" height="8" rx="1" fill="rgba(233,30,140,.55)" transform="rotate(-10,150,112)"/>
+        <rect x="164" y="155" width="4" height="8" rx="1" fill="rgba(233,30,140,.40)" transform="rotate(8,166,159)"/>
+        <text x="160" y="102" text-anchor="middle" fill="rgba(255,77,173,.38)" font-size="6.5" font-family="IBM Plex Mono,monospace">barrier · accessibility gap</text>
+
+        <!-- labels -->
+        <text x="160" y="82" text-anchor="middle" fill="rgba(255,77,173,.55)" font-size="8"   font-family="IBM Plex Mono,monospace" letter-spacing=".1em">CORRIDOR · 双向链接</text>
+        <text x="160" y="198" text-anchor="middle" fill="rgba(255,77,173,.45)" font-size="7.5" font-family="Noto Sans SC,sans-serif">步行可达 · 无障碍优先</text>
+
+        <!-- distance ruler -->
+        <line x1="82"  y1="220" x2="238" y2="220" stroke="rgba(233,30,140,.20)" stroke-width="1"/>
+        <line x1="82"  y1="215" x2="82"  y2="225" stroke="rgba(233,30,140,.20)" stroke-width="1"/>
+        <line x1="238" y1="215" x2="238" y2="225" stroke="rgba(233,30,140,.20)" stroke-width="1"/>
+        <text x="160" y="234" text-anchor="middle" fill="rgba(233,30,140,.32)" font-size="7" font-family="IBM Plex Mono,monospace">walkable distance threshold</text>
+      </svg>
+    </div>
+    <div class="strip">
+      <div class="kv"><span class="k">链接对象</span><span class="v">潜力节点 ↔ 资源节点</span></div>
+      <div class="subtypes">
+        <span class="st">步行廊道</span>
+        <span class="st">无障碍路径</span>
+        <span class="st">过渡空间</span>
+      </div>
+      <div class="desc"><strong>完成潜力与资源之间的物理链接</strong>，是系统可达性的基础条件。廊道品质直接决定老年人能否真实触达资源节点，<strong>无障碍连续性</strong>是首要改善维度。</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

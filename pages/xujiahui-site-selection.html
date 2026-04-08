@@ -1,0 +1,3921 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人机触媒-认知轴线-场域系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="../lib/xujiahui-osm-boundary.js"></script>
+<script src="../lib/ac-dom-aggregate.js"></script>
+<script src="../lib/cluster-field-circles.js"></script>
+<script src="../lib/catalyst-seam-clusters.js"></script>
+<script src="../lib/corridor-bottleneck-routing.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,300&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --magenta: #e91e8c;
+    --magenta-bright: #ff4dad;
+    --magenta-soft: rgba(233, 30, 140, 0.75);
+    --magenta-dim: rgba(233, 30, 140, 0.45);
+    --magenta-bg: rgba(233, 30, 140, 0.12);
+    --magenta-2: #ff6b9d;
+    --magenta-3: #c2186d;
+    --field-a: #ff4dad;
+    --field-b: #ff6b9d;
+    --field-c: #e91e8c;
+    --cyan: #00d4ff;
+    --cyan-soft: rgba(0, 212, 255, 0.7);
+    --cyan-dim: rgba(0, 212, 255, 0.35);
+    --amber: #ffb300;
+    --amber-soft: rgba(255, 179, 0, 0.7);
+    --green: #4ceb9a;
+    --bg-panel: rgba(12, 12, 14, 0.94);
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --text-primary: rgba(255, 255, 255, 0.9);
+    --text-secondary: rgba(255, 255, 255, 0.55);
+    --text-dim: rgba(255, 255, 255, 0.3);
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;font-family:'DM Sans','Noto Sans SC',sans-serif;background:#08080a}
+  #map{width:100%;height:100%;z-index:1;cursor:crosshair}
+  #map.mode-browse{cursor:grab}
+  .leaflet-control-attribution{display:none!important}
+  .leaflet-control-zoom{display:none!important}
+  .leaflet-control-zoom a{
+    background:rgba(12,12,14,0.94)!important;
+    color:var(--magenta-bright)!important;
+    border-color:rgba(233,30,140,0.35)!important;
+  }
+  .leaflet-control-zoom a:hover{background:rgba(233,30,140,0.15)!important;}
+
+  /* 资源场域 / 地标：地图上小号青框卡片（与资源聚类同源样式） */
+  .map-chip-leaflet-root{background:none!important;border:none!important}
+  .map-chip-cyan{
+    box-sizing:border-box;max-width:3.4rem;min-width:0;
+    padding:1px 3px;border-radius:2px;
+    font-size:7px;font-weight:700;line-height:1.12;text-align:center;
+    white-space:normal;word-break:break-all;
+    border:1px solid;background:rgba(0,20,28,0.93);
+    box-shadow:0 1px 4px rgba(0,0,0,0.42);
+    pointer-events:none;
+  }
+
+  .panel-header{
+    position:fixed;top:0;left:0;right:0;
+    padding:20px 28px 18px;
+    background:linear-gradient(180deg,rgba(8,8,10,0.94) 0%,rgba(8,8,10,0.7) 65%,transparent 100%);
+    z-index:1000;pointer-events:none;
+  }
+  .panel-header .tag{
+    font-size:10px;letter-spacing:3px;text-transform:uppercase;
+    color:var(--magenta-dim);font-weight:500;margin-bottom:4px;
+  }
+  .panel-header h1{font-size:22px;font-weight:700;color:#f0f0f0;letter-spacing:-0.3px}
+  .panel-header .sub{
+    font-size:12px;color:rgba(255,255,255,0.4);font-weight:300;
+    font-style:italic;margin-top:3px;
+  }
+
+  /* Legend */
+  .legend-panel{
+    position:fixed;top:100px;left:28px;
+    background:rgba(12,12,14,0.94);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px;
+    padding:18px 20px;
+    z-index:1000;
+    backdrop-filter:blur(14px);
+    width:300px;
+    max-height:calc(100vh - 140px);
+    overflow-y:auto;
+  }
+  .legend-panel::-webkit-scrollbar{width:3px}
+  .legend-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
+
+  .lg-section{margin-bottom:14px}
+  .lg-section:last-child{margin-bottom:0}
+  .lg-title{
+    font-size:10px;letter-spacing:2px;text-transform:uppercase;
+    margin-bottom:8px;font-weight:500;color:var(--magenta-soft);
+  }
+  .lg-item{
+    display:flex;align-items:flex-start;gap:10px;
+    margin-bottom:8px;font-size:11px;line-height:1.45;
+  }
+  .lg-symbol{
+    flex-shrink:0;width:20px;height:20px;
+    display:flex;align-items:center;justify-content:center;
+    margin-top:1px;
+  }
+  .lg-label{color:rgba(255,255,255,0.75)}
+  .lg-label .lg-sub{
+    display:block;font-size:10px;color:rgba(255,255,255,0.35);
+    margin-top:2px;font-style:italic;
+  }
+  .lg-divider{
+    border:none;border-top:1px solid rgba(255,255,255,0.06);
+    margin:12px 0;
+  }
+
+  /* Tooltip */
+  .node-tooltip{
+    background:rgba(12,12,14,0.96)!important;
+    border:1px solid rgba(255,255,255,0.15)!important;
+    border-radius:8px!important;
+    padding:10px 14px!important;
+    font-family:'DM Sans','Noto Sans SC',sans-serif!important;
+    font-size:11px!important;
+    color:#e0e0e0!important;
+    max-width:260px!important;
+    box-shadow:0 8px 32px rgba(0,0,0,0.5)!important;
+  }
+  .tt-type{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px;font-weight:500}
+  .tt-type.t-catalyst{color:var(--magenta-bright)}
+  .tt-type.t-corridor{color:var(--magenta-2)}
+  .tt-type.t-field{color:var(--field-c)}
+  .tt-name{font-size:13px;font-weight:600;color:#f5f5f5;margin-bottom:6px}
+  .tt-r{display:flex;justify-content:space-between;gap:12px;color:rgba(255,255,255,0.5);margin-bottom:2px}
+  .tt-r b{color:var(--magenta-bright);font-weight:600}
+  .tt-sep{border:none;border-top:1px solid rgba(255,255,255,0.08);margin:6px 0}
+  .tt-note{font-size:10px;color:rgba(255,255,255,0.35);font-style:italic}
+
+  .map-loading{
+    position:fixed;inset:0;z-index:800;pointer-events:none;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(8,8,10,0.35);
+    color:var(--magenta-bright);font-size:13px;font-weight:600;
+    letter-spacing:0.5px;text-shadow:0 0 12px rgba(233,30,140,0.5);
+    transition:opacity 0.25s ease;
+  }
+  .map-loading.done{opacity:0;visibility:hidden}
+
+  .leaflet-tooltip.boundary-tt{
+    background:rgba(12,12,14,0.94)!important;
+    border:1px solid rgba(233,30,140,0.4)!important;
+    color:rgba(255,255,255,0.88)!important;
+    font-size:11px!important;
+    padding:6px 10px!important;
+    border-radius:8px!important;
+    box-shadow:0 4px 20px rgba(0,0,0,0.45)!important;
+  }
+
+  /* ── Site selection UI ── */
+  .toolbar-wrap{
+    position:fixed;top:72px;left:50%;transform:translateX(-50%);
+    z-index:1001;
+    display:flex;flex-direction:column;align-items:center;
+    gap:6px;
+  }
+  .toolbar{
+    display:flex;gap:2px;
+    background:var(--bg-panel);
+    border:1px solid var(--border-subtle);
+    border-radius:10px;padding:4px;
+    backdrop-filter:blur(14px);
+  }
+  .toolbar-draft-row{
+    display:flex;gap:6px;align-items:center;
+    background:var(--bg-panel);
+    border:1px solid var(--border-subtle);
+    border-radius:10px;padding:4px 8px;
+    backdrop-filter:blur(14px);
+  }
+  .toolbar-draft-btn{
+    padding:6px 12px;border:none;border-radius:7px;
+    font-family:inherit;font-size:10px;font-weight:500;
+    color:var(--text-secondary);background:rgba(255,255,255,0.04);
+    cursor:pointer;transition:all 0.2s;white-space:nowrap;
+  }
+  .toolbar-draft-btn:hover{color:var(--text-primary);background:rgba(255,255,255,0.08)}
+  .toolbar-draft-status{
+    font-size:9px;color:var(--text-dim);max-width:160px;line-height:1.35;
+    padding:0 4px;
+  }
+  .draft-sync-toast{
+    position:fixed;bottom:52px;left:50%;transform:translateX(-50%);
+    z-index:1004;padding:8px 14px;border-radius:8px;
+    background:rgba(18,18,22,0.95);border:1px solid var(--border-subtle);
+    font-size:10px;color:var(--text-secondary);
+    opacity:0;pointer-events:none;transition:opacity 0.25s;
+  }
+  .draft-sync-toast.visible{opacity:1}
+  .toolbar button{
+    padding:8px 14px;border:none;border-radius:7px;
+    font-family:inherit;font-size:11px;font-weight:500;
+    color:var(--text-secondary);background:transparent;
+    cursor:pointer;transition:all 0.2s;white-space:nowrap;
+    display:flex;align-items:center;gap:6px;
+  }
+  .toolbar button:hover{color:var(--text-primary);background:rgba(255,255,255,0.05)}
+  .toolbar button.active{color:#fff;background:var(--magenta);box-shadow:0 2px 12px rgba(233,30,140,0.4)}
+  .toolbar button.active-cyan{color:#fff;background:var(--cyan);box-shadow:0 2px 12px rgba(0,212,255,0.45)}
+  .toolbar button.toolbar-subaxis{
+    border:1px dashed rgba(255,77,173,0.45);color:var(--magenta-bright);
+  }
+  .toolbar button.toolbar-subaxis:hover{background:rgba(233,30,140,0.12)}
+  .toolbar .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+  .axis-dock{
+    position:fixed;top:132px;left:336px;
+    width:280px;max-height:calc(100vh - 240px);
+    z-index:1000;
+    pointer-events:none;
+  }
+  .axis-dock>*{pointer-events:auto}
+
+  .selection-dock{
+    position:fixed;bottom:28px;left:28px;
+    width:300px;max-height:min(48vh,440px);
+    min-height:140px;
+    z-index:1003;
+    display:none;flex-direction:column;
+    pointer-events:none;
+  }
+  .selection-dock.visible{display:flex}
+  .selection-dock>*{pointer-events:auto}
+  .sel-landhint{
+    font-size:9px;color:var(--text-dim);line-height:1.45;
+    padding:0 16px 8px;margin:0;
+    border-bottom:1px solid var(--border-subtle);
+  }
+  .sel-landhint code{font-size:8px;color:var(--text-secondary)}
+
+  .panel-fold-head{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:12px 14px;cursor:pointer;user-select:none;
+    border-bottom:1px solid var(--border-subtle);
+  }
+  .panel-fold-head .panel-title{margin:0;padding:0;border:none}
+  .panel-fold-chevron{
+    font-size:10px;color:var(--text-dim);transition:transform 0.2s ease;
+    flex-shrink:0;width:20px;text-align:center;
+  }
+  .panel-card.fold-collapsed .panel-fold-chevron{transform:rotate(-90deg)}
+  .panel-card.fold-collapsed .panel-fold-body{display:none}
+
+  .map-site-card-wrap{
+    background:transparent!important;border:none!important;
+    pointer-events:none;
+  }
+  .map-site-card{
+    pointer-events:auto;
+    min-width:168px;max-width:220px;
+    width:max-content;
+    background:var(--bg-panel);
+    border:1px solid rgba(233,30,140,0.35);
+    border-radius:10px;
+    padding:6px 8px 8px;
+    box-shadow:0 8px 28px rgba(0,0,0,0.45);
+    backdrop-filter:blur(12px);
+  }
+  .map-site-card.msc-active{
+    border-color:var(--magenta-bright);
+    box-shadow:0 0 0 1px rgba(233,30,140,0.28),0 8px 28px rgba(0,0,0,0.45);
+  }
+  .map-site-card.msc-collapsed{
+    min-width:0;max-width:120px;padding:2px 4px 3px;
+    border-radius:6px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.38);
+  }
+  .map-site-card.msc-collapsed.msc-active{
+    box-shadow:0 0 0 1px rgba(233,30,140,0.35),0 2px 10px rgba(0,0,0,0.4);
+  }
+  .msc-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px}
+  .map-site-card.msc-collapsed .msc-head{margin-bottom:0;gap:3px}
+  .msc-name{
+    font-size:11px;font-weight:700;color:var(--text-primary);
+    line-height:1.2;flex:1;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .map-site-card.msc-collapsed .msc-name{
+    font-size:8.5px;font-weight:600;line-height:1.15;
+    max-width:86px;
+  }
+  .msc-fold{
+    flex-shrink:0;width:22px;height:22px;border:none;border-radius:4px;
+    background:rgba(255,255,255,0.06);color:var(--magenta-bright);
+    cursor:pointer;font-size:11px;line-height:1;display:flex;
+    align-items:center;justify-content:center;padding:0;
+  }
+  .map-site-card.msc-collapsed .msc-fold{
+    width:15px;height:15px;border-radius:3px;font-size:8px;
+  }
+  .msc-fold:hover{background:rgba(233,30,140,0.2)}
+  .msc-body{font-size:10px;color:var(--text-secondary);line-height:1.45}
+  .msc-row.msc-muted{color:var(--text-dim);font-size:9px;margin-top:2px}
+  .map-site-card.msc-expanded{min-width:252px;max-width:288px;padding:7px 9px 9px}
+  .msc-body-expanded{margin-top:4px}
+  .msc-body-expanded .msc-sum{
+    font-size:10px;color:var(--text-secondary);margin-bottom:8px;padding-bottom:6px;
+    border-bottom:1px solid var(--border-subtle);line-height:1.4;
+  }
+  .msc-sec{
+    font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--cyan-soft);
+    margin:8px 0 4px;font-weight:500;
+  }
+  .msc-body-expanded .msc-sec:first-of-type{margin-top:2px}
+  .msc-bar{display:flex;width:100%;height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.06);margin-bottom:6px}
+  .msc-bar > span{min-width:3px;height:100%}
+  .msc-lu-list{max-height:92px;overflow-y:auto;padding-right:2px}
+  .msc-lu-row{
+    font-size:9px;color:var(--text-secondary);display:flex;align-items:center;gap:5px;
+    margin-bottom:3px;line-height:1.3;
+  }
+  .msc-lu-dot{width:6px;height:6px;border-radius:2px;flex-shrink:0}
+  .msc-lu-n{color:var(--magenta-bright);font-weight:600;margin-left:auto;flex-shrink:0}
+  .msc-poi-sum{
+    font-size:9px;color:var(--amber-soft);line-height:1.45;margin-bottom:6px;
+    word-break:break-word;
+  }
+  .msc-poi-scroll{max-height:128px;overflow-y:auto;padding-right:3px}
+  .msc-poi-row{
+    font-size:9px;margin-bottom:3px;line-height:1.35;
+    display:flex;gap:5px;flex-wrap:wrap;align-items:baseline;
+  }
+  .msc-poi-cat{color:var(--text-dim);flex-shrink:0;max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .msc-poi-nm{color:var(--text-primary);word-break:break-word}
+  .msc-muted2{font-size:9px;color:var(--text-dim);font-style:italic}
+  .msc-blurb-top-wrap{
+    margin-bottom:8px;padding-bottom:8px;
+    border-bottom:1px solid var(--border-subtle);
+  }
+  .msc-blurb-top-title{
+    font-size:12px;font-weight:700;color:#fff;line-height:1.35;
+    letter-spacing:0.02em;margin-bottom:6px;
+  }
+  .msc-blurb-edit{
+    min-height:34px;max-height:52px;overflow-y:auto;
+    font-size:9px;line-height:1.4;color:var(--text-secondary);
+    padding:5px 6px;border-radius:5px;
+    border:1px dashed rgba(233,30,140,0.28);
+    background:rgba(255,255,255,0.03);
+    outline:none;cursor:text;
+  }
+  .msc-blurb-edit.msc-blurb-edit-top{
+    min-height:38px;max-height:56px;
+    font-size:12px;font-weight:700;line-height:1.45;color:#fff;
+    padding:6px 8px;border-radius:6px;
+    border:1px dashed rgba(255,255,255,0.22);
+    background:rgba(255,255,255,0.06);
+  }
+  .msc-blurb-edit:focus{border-color:rgba(233,30,140,0.5);background:rgba(233,30,140,0.06)}
+  .msc-blurb-edit.msc-blurb-edit-top:focus{
+    border-color:rgba(255,255,255,0.35);background:rgba(255,255,255,0.1);
+  }
+  .msc-blurb-edit:empty::before{
+    content:attr(data-placeholder);
+    color:var(--text-dim);font-style:italic;
+  }
+  .msc-blurb-edit.msc-blurb-edit-top:empty::before{
+    color:rgba(255,255,255,0.42);font-style:italic;font-weight:500;
+  }
+
+  .selection-card{
+    display:flex;flex-direction:column;
+    flex:1;min-height:0;overflow:hidden;
+  }
+  .selection-card .selection-list{flex:1;min-height:72px}
+
+  .panel-card{
+    background:var(--bg-panel);
+    border:1px solid var(--border-subtle);
+    border-radius:12px;
+    backdrop-filter:blur(14px);
+    overflow:hidden;
+  }
+
+  .axis-panel{display:none;flex-shrink:0;flex-direction:column}
+  .axis-panel.visible{display:flex}
+  .panel-title{
+    font-size:9px;letter-spacing:2.5px;text-transform:uppercase;
+    color:var(--magenta-soft);font-weight:500;margin-bottom:10px;
+  }
+  .axis-list{display:flex;flex-direction:column;gap:6px}
+  .axis-item{
+    display:flex;align-items:center;gap:8px;
+    padding:7px 9px;border-radius:8px;
+    background:rgba(255,255,255,0.02);
+    border:1px solid transparent;
+    cursor:pointer;transition:all 0.15s;
+  }
+  .axis-item:hover{border-color:rgba(255,255,255,0.08)}
+  .axis-item.active{border-color:var(--magenta-dim);background:var(--magenta-bg)}
+  .axis-item.drawing{border-color:var(--magenta-dim);background:var(--magenta-bg)}
+  .axis-badge{
+    font-size:10px;font-weight:700;
+    width:26px;height:18px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:4px;flex-shrink:0;
+  }
+  .axis-badge.h{background:rgba(233,30,140,0.22);color:#ffb3d9}
+  .axis-badge.v{background:rgba(233,30,140,0.32);color:#ff4dad}
+  .axis-badge.s{
+    background:rgba(233,30,140,0.12);color:#ff4dad;
+    border:1px dashed rgba(255,77,173,0.55);font-size:9px;
+  }
+  .axis-info{flex:1;min-width:0}
+  .axis-info .axis-name{font-size:11px;color:var(--text-primary);font-weight:500}
+  .axis-info .axis-pts{font-size:10px;color:var(--text-dim)}
+  .axis-actions{display:flex;gap:4px}
+  .axis-actions button{
+    width:22px;height:22px;border:none;border-radius:4px;
+    background:rgba(255,255,255,0.05);color:var(--text-dim);
+    cursor:pointer;font-size:10px;
+  }
+  .axis-actions button:hover{background:rgba(255,255,255,0.1);color:var(--text-primary)}
+  .axis-actions button.btn-delete:hover{background:rgba(255,80,80,0.2);color:#ff5050}
+  .axis-hint{
+    font-size:10px;color:var(--text-dim);font-style:italic;
+    margin-top:8px;padding-top:8px;
+    border-top:1px solid var(--border-subtle);
+    line-height:1.45;
+  }
+
+  .selection-list{
+    flex:1;overflow-y:auto;padding:8px 16px 12px;
+    display:flex;flex-direction:column;gap:6px;
+  }
+  .sel-item{
+    padding:9px 11px;border-radius:8px;
+    background:rgba(255,255,255,0.02);
+    border:1px solid var(--border-subtle);
+    cursor:pointer;transition:all 0.15s;
+  }
+  .sel-item:hover{border-color:rgba(233,30,140,0.3)}
+  .sel-item.active{border-color:var(--magenta-dim);background:var(--magenta-bg)}
+  .sel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+  .sel-name{font-size:11px;font-weight:600;color:var(--text-primary)}
+  .sel-delete{
+    width:20px;height:20px;border:none;border-radius:4px;
+    background:transparent;color:var(--text-dim);cursor:pointer;font-size:11px;
+  }
+  .sel-delete:hover{background:rgba(255,80,80,0.2);color:#ff5050}
+  .sel-stats{display:flex;gap:10px;flex-wrap:wrap}
+  .sel-stat{font-size:10px;color:var(--text-dim)}
+  .sel-stat span{color:var(--magenta-bright);font-weight:600}
+  .sel-empty{text-align:center;padding:20px 0;font-size:10px;color:var(--text-dim);font-style:italic}
+  .sel-section-title{font-size:9px;font-weight:600;margin:10px 0 6px;letter-spacing:0.02em}
+  .sel-section-title.sel-sec-res{color:var(--cyan-soft)}
+  .sel-section-title.sel-sec-pot{color:var(--magenta-soft)}
+  .sel-poi-tag{
+    display:inline-block;padding:2px 7px;margin:2px 3px 2px 0;
+    border-radius:4px;font-size:9px;
+    background:rgba(233,30,140,0.1);color:var(--magenta-bright);
+    border:1px solid rgba(233,30,140,0.2);
+  }
+  .sel-landuse-bar{margin-top:6px;height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.05);display:flex}
+  .sel-landuse-seg{height:100%}
+
+  .draw-hint{
+    position:fixed;bottom:120px;left:50%;transform:translateX(-50%);
+    background:var(--bg-panel);border:1px solid var(--border-subtle);
+    border-radius:10px;padding:9px 18px;
+    z-index:1001;backdrop-filter:blur(14px);
+    font-size:11px;color:var(--text-secondary);
+    display:none;align-items:center;gap:8px;
+  }
+  .draw-hint.visible{display:flex}
+  .draw-hint .key{
+    padding:2px 6px;border-radius:4px;
+    background:rgba(255,255,255,0.08);color:var(--text-primary);
+    font-size:10px;font-weight:600;font-family:monospace;
+  }
+
+  .info-card{
+    position:absolute;
+    background:var(--bg-panel);
+    border:1px solid rgba(233,30,140,0.25);
+    border-radius:10px;padding:12px 14px;
+    z-index:1002;pointer-events:none;
+    backdrop-filter:blur(14px);
+    min-width:180px;max-width:260px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.5);
+    opacity:0;transition:opacity 0.15s;
+  }
+  .info-card.visible{opacity:1}
+  .info-card .ic-name{font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:4px}
+  .info-card .ic-row{font-size:10px;color:var(--text-secondary);margin-bottom:2px}
+  .info-card .ic-row b{color:var(--text-primary);font-weight:500}
+
+  .coord-display{
+    position:fixed;bottom:18px;right:18px;
+    background:var(--bg-panel);border:1px solid var(--border-subtle);
+    border-radius:8px;padding:5px 10px;
+    z-index:1000;font-size:10px;color:var(--text-dim);
+    font-family:ui-monospace,monospace;
+  }
+
+  .custom-zoom{
+    position:fixed;bottom:18px;right:78px;
+    display:flex;gap:4px;z-index:1000;
+  }
+  .custom-zoom button{
+    width:30px;height:30px;border:1px solid var(--border-subtle);
+    border-radius:8px;background:var(--bg-panel);
+    color:var(--magenta-bright);cursor:pointer;
+    font-size:15px;display:flex;align-items:center;justify-content:center;
+  }
+  .custom-zoom button:hover{background:rgba(233,30,140,0.1)}
+
+  .modal-overlay{
+    position:fixed;inset:0;z-index:2000;
+    background:rgba(0,0,0,0.6);
+    display:none;align-items:center;justify-content:center;
+    backdrop-filter:blur(4px);
+  }
+  .modal-overlay.visible{display:flex}
+  .modal{
+    background:rgba(18,18,22,0.98);
+    border:1px solid var(--border-subtle);
+    border-radius:14px;padding:22px 26px;
+    width:480px;max-height:80vh;overflow-y:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal h2{font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:4px}
+  .modal .modal-sub{font-size:10px;color:var(--text-dim);margin-bottom:14px}
+  .modal label{display:block;font-size:10px;color:var(--text-secondary);margin-bottom:3px;font-weight:500}
+  .modal textarea{
+    width:100%;height:130px;border:1px solid var(--border-subtle);
+    border-radius:8px;background:rgba(255,255,255,0.03);
+    color:var(--text-primary);font-family:ui-monospace,monospace;
+    font-size:10px;padding:8px 10px;resize:vertical;
+    margin-bottom:12px;
+  }
+  .modal textarea:focus{outline:none;border-color:var(--magenta-dim)}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end}
+  .modal-actions button{
+    padding:7px 16px;border-radius:7px;border:none;
+    font-family:inherit;font-size:11px;font-weight:500;cursor:pointer;
+  }
+  .btn-primary{background:var(--magenta);color:#fff}
+  .btn-primary:hover{filter:brightness(1.08)}
+  .btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--border-subtle)!important}
+  .btn-ghost:hover{background:rgba(255,255,255,0.05)}
+
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:2px}
+
+  /* ── 导出 / 截图模式：?export 或 ?export=clean（隐藏地图上选址小卡片）── */
+  html.export-screenshot-mode .panel-header,
+  html.export-screenshot-mode .legend-panel,
+  html.export-screenshot-mode .toolbar-wrap,
+  html.export-screenshot-mode .draft-sync-toast,
+  html.export-screenshot-mode .axis-dock,
+  html.export-screenshot-mode .selection-dock,
+  html.export-screenshot-mode .draw-hint,
+  html.export-screenshot-mode .coord-display,
+  html.export-screenshot-mode .custom-zoom,
+  html.export-screenshot-mode .info-card,
+  html.export-screenshot-mode .modal-overlay{
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+  }
+  html.export-screenshot-mode #map-loading{
+    display:none!important;
+  }
+  html.export-screenshot-mode.export-hide-map-cards .map-site-card-wrap{
+    display:none!important;
+  }
+  .export-map-attribution{
+    display:none;
+    position:fixed;left:0;right:0;bottom:0;z-index:20000;
+    padding:8px 12px 10px;
+    font-size:10px;line-height:1.35;
+    color:rgba(255,255,255,0.82);
+    background:linear-gradient(0deg,rgba(6,6,8,0.92) 0%,transparent 100%);
+    pointer-events:none;
+    font-family:'DM Sans','Noto Sans SC',sans-serif;
+  }
+  html.export-screenshot-mode .export-map-attribution{display:block}
+</style>
+</head>
+<body>
+<script>
+(function () {
+  try {
+    var p = new URLSearchParams(window.location.search);
+    if (!p.has('export')) return;
+    document.documentElement.classList.add('export-screenshot-mode');
+    var v = p.get('export');
+    if (v === 'clean') document.documentElement.classList.add('export-hide-map-cards');
+  } catch (e) {}
+})();
+</script>
+
+<div id="map-loading" class="map-loading" aria-live="polite">加载路网与分类中…</div>
+<div id="map" class="mode-browse"></div>
+<div class="export-map-attribution" aria-hidden="true">
+  底图 Carto Dark（数据 © OpenStreetMap contributors，ODbL）· 研究区边界与选址标注为本项目数据
+</div>
+
+<div class="panel-header">
+  <div class="tag">Prototype ③ — Field System</div>
+  <h1>人机触媒-认知轴线-场域系统</h1>
+  <div class="sub">节点分类、触媒 DBSCAN、接缝与廊道计算均在<strong>大徐家汇边界内</strong>边段上进行（边段中点与节点地图同源）。场域总量固定 <strong>10 ha</strong>，按簇 <strong>Σpriority</strong> 比例分配；<strong>实线核心圆 + 虚线缓冲圆</strong>。<strong>簇跨度超标</strong>时子分裂后再取 Top-N。</div>
+</div>
+
+<!-- Legend -->
+<div class="legend-panel">
+  <div class="lg-section">
+    <div class="lg-title">原型一 · 触媒空间 CATALYST</div>
+    <div class="lg-item">
+      <div class="lg-symbol"><svg width="16" height="16"><circle cx="8" cy="8" r="5.5" fill="#ff4dad" fill-opacity="0.55" stroke="#ffb3d9" stroke-width="1.2"/></svg></div>
+      <div class="lg-label">激活节点（Canvas 圆点抽样）<span class="lg-sub">性能模式关闭悬停详情；斜土路/田子坊型仍按分类着色</span></div>
+    </div>
+  </div>
+  <hr class="lg-divider">
+  <div class="lg-section">
+    <div class="lg-title">原型三 · 场域系统 FIELD SYSTEM</div>
+    <div class="lg-item">
+      <div class="lg-symbol"><svg width="16" height="16"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="#e91e8c" stroke-width="1.5" stroke-dasharray="3,2"/></svg></div>
+      <div class="lg-label">潜力场域（触媒簇）<span class="lg-sub"><strong>实线</strong>核心圆 + <strong>虚线</strong>缓冲圆，玫红系；10 ha 按 Σpriority 比例</span></div>
+    </div>
+    <div class="lg-item">
+      <div class="lg-symbol"><svg width="16" height="16"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-dasharray="3,2"/></svg></div>
+      <div class="lg-label">资源场域（五主导，每类 ≤3 块）<span class="lg-sub">DBSCAN + 跨度分裂；聚类中心为<strong>小号青框</strong>（医/科/商/体/文·序号）；10 ha 按各簇 AC 总量比例</span></div>
+    </div>
+  </div>
+  <hr class="lg-divider">
+  <div class="lg-section">
+    <div class="lg-title">研究区 · Study area</div>
+    <div class="lg-item">
+      <div class="lg-symbol"><svg width="20" height="12" viewBox="0 0 20 12"><rect x="1" y="2" width="18" height="8" rx="1" fill="none" stroke="#ff4dad" stroke-width="1.4" stroke-dasharray="4 3"/></svg></div>
+      <div class="lg-label">大徐家汇边界 · OSM<span class="lg-sub">与节点地图同源；四街道行政并集</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="toolbar-wrap">
+  <div class="toolbar">
+    <button type="button" id="btn-browse" class="mode-tab active" onclick="setMode('browse')">
+      <span class="dot" style="background:rgba(255,255,255,0.4)"></span>浏览
+    </button>
+    <button type="button" id="btn-axis" class="mode-tab" onclick="setMode('axis')">
+      <span class="dot" style="background:var(--magenta-bright)"></span>轴线绘制
+    </button>
+    <button type="button" id="btn-select-res" class="mode-tab" onclick="setMode('select_res')">
+      <span class="dot" style="background:var(--cyan)"></span>资源区
+    </button>
+    <button type="button" id="btn-select-pot" class="mode-tab" onclick="setMode('select_pot')">
+      <span class="dot" style="background:var(--magenta)"></span>潜力区
+    </button>
+    <button type="button" id="btn-add-subaxis" class="toolbar-subaxis" onclick="addSubAxis()" title="添加一条虚线副轴（自动进入轴线模式）">
+      <span class="dot" style="background:transparent;border:1px dashed #ff4dad;width:6px;height:6px"></span>新增副轴
+    </button>
+  </div>
+  <div class="toolbar-draft-row">
+    <button type="button" class="toolbar-draft-btn" onclick="exportSiteSelectionDraft()" title="下载与仓库 data/site-selection-draft.json 同结构的 JSON">导出 JSON</button>
+    <button type="button" class="toolbar-draft-btn" onclick="document.getElementById('draftFileInput').click()" title="从文件恢复轴线与资源区/潜力区（会覆盖当前地图草稿）">导入 JSON</button>
+    <button type="button" id="btn-link-draft-open" class="toolbar-draft-btn" onclick="linkSiteSelectionDraftFileOpen()" title="选择项目内已有 JSON（如 data/site-selection-draft.json），之后每次编辑自动写入该文件">关联文件</button>
+    <button type="button" id="btn-link-draft-save" class="toolbar-draft-btn" onclick="linkSiteSelectionDraftFileSave()" title="另存为并关联；可保存到仓库 data 目录">另存关联</button>
+    <button type="button" id="btn-unlink-draft-file" class="toolbar-draft-btn" onclick="unlinkSiteSelectionDraftFile()" style="display:none" title="停止自动写入已关联的本地文件">解除关联</button>
+    <span id="draft-auto-save-status" class="toolbar-draft-status" aria-live="polite"></span>
+    <input type="file" id="draftFileInput" accept=".json,application/json" hidden />
+  </div>
+</div>
+
+<div id="draftSyncToast" class="draft-sync-toast" role="status"></div>
+
+<div class="axis-dock">
+  <div class="panel-card axis-panel" id="axisPanel">
+    <div class="panel-fold-head" role="button" tabindex="0" onclick="togglePanelFold('axisPanel')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePanelFold('axisPanel');}">
+      <div class="panel-title">轴线定义 · Axis Lines</div>
+      <span class="panel-fold-chevron" aria-hidden="true">▼</span>
+    </div>
+    <div class="panel-fold-body">
+      <div style="padding:0 16px 8px">
+        <div class="axis-list" id="axisList"></div>
+        <div class="axis-hint">
+          点击轴线名称进入绘制 → 在地图上逐点点击 → 按 <b>Enter</b> 完成 / <b>Esc</b> 取消<br>
+          主轴均为玫红<strong>实线</strong>（无顶点圆点）。<strong>商业 / 体育认知轴</strong>：轴名从<strong>最左端点</strong>向<strong>西</strong>引出，卡片整体落在研究区外；<strong>社会认知轴（V1 / V2 / V3）</strong>：每条均从最右端点向<strong>东</strong>引出至区外。<b>新增副轴</b> 为玫红<strong>虚线</strong>，无轴名标签<br>
+          用地数据加载后，在<strong>研究区</strong>内显示全部<strong>OSM 用地</strong>填色（按标签类型配色）；POI 不参与地图打点，仍参与资源区 / 潜力区统计。<br>
+          每个多边形在地图质心处有常驻卡片，可折叠；轴线与两区会<strong>自动保存</strong>在本浏览器。<strong>关联文件 / 另存关联</strong>（Chrome、Edge）可将草稿<strong>每次编辑后自动写入</strong>你选定的本地 JSON（建议指向仓库里的 <code style="font-size:9px">data/site-selection-draft.json</code>），再自行 git 提交推送；亦可使用<strong>导出 JSON</strong>。GitHub Pages 在<strong>无本地草稿</strong>时会尝试加载仓库中的该文件。
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="selection-dock visible" id="selectionDock">
+  <div class="panel-card selection-card" id="selectionPanelCard">
+    <div class="panel-fold-head" role="button" tabindex="0" onclick="togglePanelFold('selectionPanelCard')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePanelFold('selectionPanelCard');}">
+      <div class="panel-title" style="margin:0">资源区 / 潜力区</div>
+      <span class="panel-fold-chevron" aria-hidden="true">▼</span>
+    </div>
+    <div class="panel-fold-body" style="display:flex;flex-direction:column;flex:1;min-height:0">
+      <p class="sel-landhint">用地来自 <strong>OSM</strong>（Overpass）：含 <strong>landuse / natural / leisure</strong> 等面要素与 <strong>multipolygon</strong> 关系（成员 way 一并展开），抓取范围为<strong>研究区 ∪ 所有资源区 ∪ 所有潜力区</strong>外扩后的 bbox。统计遍历该全量数据中与多边形<strong>接触</strong>的要素；地图填色为研究区内全部用地。展开<strong>地图卡片</strong>可查看明细、POI 与一句话说明。</p>
+      <div class="selection-list" id="selectionList">
+        <div class="sel-empty" id="selEmpty">暂无手绘区 — 在「资源区」或「潜力区」模式下点击地图绘制多边形</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="draw-hint" id="drawHint">
+  <span id="drawHintText">在地图上点击添加顶点</span>
+  <span class="key" id="drawHintKey">Enter</span>
+  <span id="drawHintAction">完成</span>
+  <span class="key">Esc</span>
+  <span>取消</span>
+</div>
+
+<div class="coord-display" id="coordDisplay">---, ---</div>
+
+<div class="custom-zoom">
+  <button type="button" onclick="map.zoomIn()">+</button>
+  <button type="button" onclick="map.zoomOut()">−</button>
+</div>
+
+<div class="info-card" id="infoCard">
+  <div class="ic-name" id="icName"></div>
+  <div id="icBody"></div>
+</div>
+
+<script>
+// ============================================================
+//  MAP INIT
+// ============================================================
+const map = L.map('map', {
+  center: [31.195, 121.438],
+  zoom: 15,
+  zoomControl: false,
+  attributionControl: false,
+  preferCanvas: true,
+  zoomAnimation: false,
+  fadeAnimation: false
+});
+
+map.createPane('fsPane');
+map.getPane('fsPane').style.zIndex = 390;
+map.getPane('fsPane').style.pointerEvents = 'none';
+map.createPane('boundaryPane');
+map.getPane('boundaryPane').style.zIndex = 400;
+map.getPane('boundaryPane').style.pointerEvents = 'none';
+map.createPane('dataPane');
+map.getPane('dataPane').style.zIndex = 550;
+map.createPane('userPane');
+map.getPane('userPane').style.zIndex = 620;
+map.createPane('selCardPane');
+map.getPane('selCardPane').style.zIndex = 640;
+map.getPane('selCardPane').style.pointerEvents = 'none';
+
+map.getContainer().addEventListener('mousedown', (ev) => {
+  if (ev.target.closest('.msc-blurb-edit')) ev.stopPropagation();
+}, true);
+map.getContainer().addEventListener('click', (ev) => {
+  if (ev.target.closest('.msc-blurb-edit')) {
+    ev.stopPropagation();
+    return;
+  }
+  const btn = ev.target.closest('.msc-fold');
+  if (!btn || !map.getContainer().contains(btn)) return;
+  const id = btn.getAttribute('data-sel-id');
+  if (!id) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  const sel = selections.find((x) => x.id === id);
+  if (!sel) return;
+  sel.mapCardCollapsed = !sel.mapCardCollapsed;
+  ensureSelectionMapCard(sel);
+  persistMapDrafts();
+});
+map.getContainer().addEventListener('input', (ev) => {
+  const el = ev.target.closest('.msc-blurb-edit');
+  if (!el || !map.getContainer().contains(el)) return;
+  const id = el.getAttribute('data-sel-id');
+  if (!id) return;
+  const sel = selections.find((x) => x.id === id);
+  if (!sel) return;
+  sel.blurb = el.textContent;
+  persistMapDrafts();
+});
+map.getContainer().addEventListener('blur', (ev) => {
+  const el = ev.target.closest('.msc-blurb-edit');
+  if (!el || !map.getContainer().contains(el)) return;
+  const id = el.getAttribute('data-sel-id');
+  if (!id) return;
+  const sel = selections.find((x) => x.id === id);
+  if (!sel) return;
+  sel.blurb = el.textContent.trim();
+  if (el.textContent !== sel.blurb) el.textContent = sel.blurb;
+  persistMapDrafts();
+}, true);
+
+/* 默认 EPSG:3857 瓦片 + WGS84 经纬度；与 CSV lon/lat、GeoJSON [lng,lat] 同一大地基准，无 GCJ/BD 偏移层 */
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  maxZoom: 19,
+  subdomains: 'abcd',
+  updateWhenIdle: true,
+  keepBuffer: 1
+}).addTo(map);
+
+const STUDY_GEOJSON_URL = '../data/daxujiahui-four-streets-union.geojson';
+const boundaryLayerGroup = L.layerGroup({ pane: 'boundaryPane' }).addTo(map);
+/** 研究区外轮廓环 [[lat,lng],…]，供 POI 等统计裁剪；与地图边界同源 */
+let studyAreaRings = null;
+
+function pickStudyGeometry(j) {
+  let geom = null;
+  if (j.type === 'Feature' && j.geometry) geom = j.geometry;
+  else if (j.type === 'FeatureCollection' && j.features && j.features[0] && j.features[0].geometry) geom = j.features[0].geometry;
+  else if (j.type === 'Polygon' || j.type === 'MultiPolygon') geom = j;
+  return geom;
+}
+
+function ringsFromGeometry(geom) {
+  if (!geom) return [];
+  if (geom.type === 'Polygon') return [geom.coordinates[0].map((c) => [c[1], c[0]])];
+  if (geom.type === 'MultiPolygon') return geom.coordinates.map((poly) => poly[0].map((c) => [c[1], c[0]]));
+  return [];
+}
+
+function ringsFromGeoJSONData(j) {
+  const rings = [];
+  function addGeom(geom) {
+    if (!geom) return;
+    rings.push(...ringsFromGeometry(geom));
+  }
+  if (j.type === 'FeatureCollection' && j.features) {
+    for (let fi = 0; fi < j.features.length; fi++) addGeom(j.features[fi].geometry);
+  } else addGeom(pickStudyGeometry(j));
+  return rings;
+}
+
+function renderStudyBoundaryFromData(j) {
+  boundaryLayerGroup.clearLayers();
+  if (!j) return;
+  if (j.type === 'FeatureCollection' || j.type === 'Feature') {
+    L.geoJSON(j, {
+      pane: 'boundaryPane',
+      interactive: false,
+      style: {
+        color: '#ff4dad',
+        weight: 2,
+        opacity: 0.9,
+        fillColor: '#e91e8c',
+        fillOpacity: 0.06,
+        dashArray: '10 7'
+      }
+    }).addTo(boundaryLayerGroup);
+  } else if (j.type === 'Polygon' || j.type === 'MultiPolygon') {
+    L.geoJSON(j, {
+      pane: 'boundaryPane',
+      interactive: false,
+      style: {
+        color: '#ff4dad',
+        weight: 2,
+        opacity: 0.9,
+        fillColor: '#e91e8c',
+        fillOpacity: 0.06,
+        dashArray: '10 7'
+      }
+    }).addTo(boundaryLayerGroup);
+  }
+}
+
+function loadDefaultStudyBoundary() {
+  return fetch(STUDY_GEOJSON_URL, { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => {
+      if (!j) return;
+      studyAreaRings = ringsFromGeoJSONData(j);
+      renderStudyBoundaryFromData(j);
+    })
+    .catch(() => {});
+}
+
+// ============================================================
+//  JENKS（与 map_intervention_nodes 一致；大样本退回三分位）
+// ============================================================
+function jenks(data, nClasses) {
+  const sorted = [...data].sort((a, b) => a - b);
+  const n = sorted.length;
+  if (n <= nClasses) return sorted;
+  const lc = Array.from({ length: n + 1 }, () => new Float64Array(nClasses + 1).fill(Infinity));
+  const variance = Array.from({ length: n + 1 }, () => new Float64Array(nClasses + 1).fill(Infinity));
+  for (let i = 1; i <= nClasses; i++) {
+    lc[1][i] = 1;
+    variance[1][i] = 0;
+  }
+  for (let l = 2; l <= n; l++) {
+    let sum = 0, sumSq = 0;
+    for (let m = 1; m <= l; m++) {
+      const val = sorted[l - m];
+      sum += val;
+      sumSq += val * val;
+      const w = m;
+      const v = sumSq - (sum * sum) / w;
+      const i4 = l - m;
+      if (i4 !== 0) {
+        for (let j = 2; j <= nClasses; j++) {
+          if (variance[l][j] >= v + variance[i4][j - 1]) {
+            lc[l][j] = i4 + 1;
+            variance[l][j] = v + variance[i4][j - 1];
+          }
+        }
+      }
+    }
+    lc[l][1] = 1;
+    variance[l][1] = sumSq - (sum * sum) / l;
+  }
+  const breaks = [];
+  let k = n;
+  for (let j = nClasses; j >= 2; j--) {
+    const idx = lc[k][j] - 2;
+    breaks.unshift(sorted[idx]);
+    k = lc[k][j] - 1;
+  }
+  return breaks;
+}
+const JENKS_MAX_N = 4096;
+function getClassificationBreaks(values, nClasses) {
+  const n = values.length;
+  if (n === 0) return [0, 1];
+  if (n <= JENKS_MAX_N) return jenks(values, nClasses);
+  const sorted = [...values].sort((a, b) => a - b);
+  const i1 = Math.floor(n / 3);
+  const i2 = Math.floor((2 * n) / 3);
+  let b0 = sorted[Math.min(i1, n - 1)];
+  let b1 = sorted[Math.min(Math.max(i2, i1 + 1), n - 1)];
+  if (b1 <= b0 && n > 2) b1 = sorted[n - 1] + 1e-12;
+  return [b0, b1];
+}
+function classifyJenks(value, breaks) {
+  if (value < breaks[0]) return 0;
+  if (value < breaks[1]) return 1;
+  return 2;
+}
+
+/** 与 map_intervention_nodes 一致：W 两轴用研究区内经验分位后再 Jenks */
+function addEmpiricalPercentileRanks(edges) {
+  const n = edges.length;
+  if (!n) return;
+  function ranksFor(getter, setter) {
+    if (n === 1) {
+      edges[0][setter] = 0.5;
+      return;
+    }
+    const idx = edges.map((_, i) => i);
+    idx.sort((ia, ib) => {
+      const va = getter(edges[ia]);
+      const vb = getter(edges[ib]);
+      const a = Number.isFinite(va) ? va : 0;
+      const b = Number.isFinite(vb) ? vb : 0;
+      return a - b;
+    });
+    const pr = new Array(n);
+    let j = 0;
+    while (j < n) {
+      let k = j;
+      const vj = getter(edges[idx[j]]);
+      const base = Number.isFinite(vj) ? vj : 0;
+      while (k + 1 < n) {
+        const vk = getter(edges[idx[k + 1]]);
+        const vb = Number.isFinite(vk) ? vk : 0;
+        if (vb !== base) break;
+        k++;
+      }
+      const mid = (j + k) / 2;
+      const p = mid / (n - 1);
+      for (let t = j; t <= k; t++) pr[idx[t]] = p;
+      j = k + 1;
+    }
+    for (let i = 0; i < n; i++) edges[i][setter] = pr[i];
+  }
+  ranksFor(e => e.W_elder, 'p_elder');
+  ranksFor(e => e.W_work, 'p_work');
+}
+
+// ============================================================
+//  UTILITY
+// ============================================================
+function gaussRand(mean, std) {
+  let u=0,v=0;
+  while(u===0) u=Math.random();
+  while(v===0) v=Math.random();
+  return mean + std * Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+}
+
+function haversineM(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLon = (lon2-lon1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+/** DBSCAN 邻域：局部平面米制坐标（相对质心），避免 O(n²) 次 haversine */
+function attachPlanarMetersXY(points) {
+  const n = points.length;
+  if (n === 0) return;
+  let slat = 0, slon = 0;
+  for (let i = 0; i < n; i++) {
+    slat += points[i].lat;
+    slon += points[i].lon;
+  }
+  const clat = slat / n;
+  const clon = slon / n;
+  const mLat = 111320;
+  const mLon = 111320 * Math.cos(clat * Math.PI / 180);
+  for (let i = 0; i < n; i++) {
+    const p = points[i];
+    p._mx = (p.lon - clon) * mLon;
+    p._my = (p.lat - clat) * mLat;
+  }
+}
+
+/** 用于 fitBounds：圆的外接矩形四角（近似） */
+function appendCircleCornerPoints(lat, lon, radiusM, allPts) {
+  const dLat = radiusM / 111320;
+  const dLon = radiusM / (111320 * Math.cos(lat * Math.PI / 180));
+  allPts.push(
+    [lat - dLat, lon - dLon],
+    [lat - dLat, lon + dLon],
+    [lat + dLat, lon - dLon],
+    [lat + dLat, lon + dLon]
+  );
+}
+
+// ============================================================
+//  SIMULATE EDGES (same logic as source file)
+// ============================================================
+function simulateEdges() {
+  const centerLon = 121.438, centerLat = 31.195, spread = 0.018;
+  const gridSize = 28;
+  const nodes = {};
+  let nid = 0;
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      nodes[nid] = {
+        lon: centerLon - spread + (i/gridSize)*spread*2 + gaussRand(0,0.0003),
+        lat: centerLat - spread + (j/gridSize)*spread*2 + gaussRand(0,0.00025),
+        id: nid
+      };
+      nid++;
+    }
+  }
+  const edges = [];
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      const id = i*gridSize + j;
+      if (j < gridSize-1 && Math.random()>0.06) edges.push({u: id, v: i*gridSize+j+1});
+      if (i < gridSize-1 && Math.random()>0.06) edges.push({u: id, v: (i+1)*gridSize+j});
+    }
+  }
+  edges.forEach(e => {
+    const n1 = nodes[e.u], n2 = nodes[e.v];
+    e.midLon = (n1.lon + n2.lon)/2;
+    e.midLat = (n1.lat + n2.lat)/2;
+    e.from = n1; e.to = n2;
+
+    const dx = e.midLon - centerLon, dy = e.midLat - centerLat;
+    const distC = Math.sqrt(dx*dx + dy*dy) / spread;
+    const dSW = Math.sqrt(Math.pow(e.midLon-(centerLon-0.008),2) + Math.pow(e.midLat-(centerLat-0.006),2));
+    const proxSW = Math.max(0, 1 - dSW/0.008);
+    const dSE = Math.sqrt(Math.pow(e.midLon-(centerLon+0.007),2) + Math.pow(e.midLat-(centerLat-0.004),2));
+    const proxSE = Math.max(0, 1 - dSE/0.007);
+    const proxCenter = Math.max(0, 1 - distC*1.5);
+
+    e.csvi_E = Math.max(0.05, Math.min(0.95, gaussRand(0.35 + proxSW*0.3 + proxCenter*0.2, 0.10)));
+    e.csvi_S_env = Math.max(0, Math.min(0.4, gaussRand(0.08, 0.03)));
+    e.csvi_S_contact = Math.max(0, Math.min(0.8, gaussRand(0.35 + proxSE*0.2, 0.08)));
+    e.N_YP = Math.max(0.1, Math.min(0.9, gaussRand(0.45 + proxSE*0.25 + proxCenter*0.1, 0.08)));
+    e.N08 = Math.max(0, Math.min(1, gaussRand(0.48, 0.14)));
+
+    const dPark1 = Math.sqrt(Math.pow(e.midLon-(centerLon-0.005),2) + Math.pow(e.midLat-(centerLat+0.006),2));
+    const parkProx = Math.max(0, 1 - dPark1/0.006);
+    const corridorDist = Math.abs(e.midLat - (centerLat - 0.005));
+    const inCorridor = corridorDist < 0.003 && e.midLon > centerLon-0.01 && e.midLon < centerLon+0.01;
+    e.csvi_AC_phys = Math.max(0.001, Math.min(0.3, gaussRand(0.04 + parkProx*0.15 - (inCorridor?0.03:0), 0.025)));
+    e.csvi_AC_social = Math.max(0, Math.min(0.4, gaussRand(0.06 + proxCenter*0.15, 0.04)));
+
+    e.priority = Math.max(0, Math.min(1,
+      e.csvi_E * (e.csvi_S_env + e.csvi_S_contact) / Math.max(0.001, e.csvi_AC_phys * e.csvi_AC_social + 0.01)
+    ));
+    e.priority = Math.min(1, e.priority / 30);
+    const b = e.csvi_AC_phys;
+    e.AC_med_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    e.AC_tech_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    e.AC_mkt_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    e.AC_sport_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    e.AC_soc_cul_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    if (typeof window !== 'undefined' && window.ACDomAggregate) {
+      e.acPhysEff = window.ACDomAggregate.effectiveAcPhys(e);
+      e.resourceDom = window.ACDomAggregate.resourceDomType(e);
+    } else {
+      e.acPhysEff = e.csvi_AC_phys;
+      e.resourceDom = null;
+    }
+    e.W_elder = e.csvi_E * (e.acPhysEff + 1);
+    e.W_work = Math.max(0, e.N_YP * e.N08);
+    const sTotal = e.csvi_S_env + e.csvi_S_contact;
+    e.S_contact_ratio = sTotal > 0 ? e.csvi_S_contact / sTotal : 0;
+  });
+  return edges;
+}
+
+const CSV_FILENAME = '../data/cld/cld_priority.csv';
+
+function estimateNodePositions(rawEdges) {
+  const nodes = new Set();
+  rawEdges.forEach(r => { nodes.add(r.u); nodes.add(r.v); });
+  const sum = {}, cnt = {};
+  nodes.forEach(n => { sum[n] = [0, 0]; cnt[n] = 0; });
+  rawEdges.forEach(r => {
+    const mx = r.lon, my = r.lat;
+    [r.u, r.v].forEach(id => {
+      sum[id][0] += mx; sum[id][1] += my; cnt[id]++;
+    });
+  });
+  const pos = {};
+  nodes.forEach(n => {
+    pos[n] = { lon: sum[n][0] / cnt[n], lat: sum[n][1] / cnt[n] };
+  });
+  const iters = rawEdges.length > 12000 ? 8 : 24;
+  for (let iter = 0; iter < iters; iter++) {
+    rawEdges.forEach(r => {
+      const mx = r.lon, my = r.lat;
+      pos[r.u].lon = 2 * mx - pos[r.v].lon;
+      pos[r.u].lat = 2 * my - pos[r.v].lat;
+    });
+  }
+  return pos;
+}
+
+function buildEdgesFromCsvRows(rows) {
+  const raw = rows.map((r) => ({
+    u: String(r.u),
+    v: String(r.v),
+    lon: +r.lon,
+    lat: +r.lat,
+    csvi_E: +r.csvi_E,
+    csvi_S_env: +r.csvi_S_env,
+    csvi_S_contact: +r.csvi_S_contact,
+    csvi_AC_phys: +r.csvi_AC_phys,
+    csvi_AC_social: +r.csvi_AC_social,
+    N_YP: +r.N_YP,
+    N08: +r.N08,
+    priority: +r.priority,
+    AC_med_dom: r.AC_med_dom,
+    AC_tech_dom: r.AC_tech_dom,
+    AC_mkt_dom: r.AC_mkt_dom,
+    AC_sport_dom: r.AC_sport_dom,
+    AC_soc_cul_dom: r.AC_soc_cul_dom
+  }));
+  const pos = estimateNodePositions(raw);
+  return raw.map((r) => {
+    const from = pos[r.u],
+      to = pos[r.v];
+    const midLon = (from.lon + to.lon) / 2;
+    const midLat = (from.lat + to.lat) / 2;
+    const sTotal = r.csvi_S_env + r.csvi_S_contact;
+    const rowForAc = {
+      csvi_AC_phys: r.csvi_AC_phys,
+      AC_med_dom: r.AC_med_dom,
+      AC_tech_dom: r.AC_tech_dom,
+      AC_mkt_dom: r.AC_mkt_dom,
+      AC_sport_dom: r.AC_sport_dom,
+      AC_soc_cul_dom: r.AC_soc_cul_dom
+    };
+    let acPhysEff = r.csvi_AC_phys;
+    let resourceDom = null;
+    if (typeof window !== 'undefined' && window.ACDomAggregate) {
+      acPhysEff = window.ACDomAggregate.effectiveAcPhys(rowForAc);
+      resourceDom = window.ACDomAggregate.resourceDomType(rowForAc);
+    }
+    return {
+      u: r.u,
+      v: r.v,
+      from,
+      to,
+      midLon,
+      midLat,
+      csvi_E: r.csvi_E,
+      csvi_S_env: r.csvi_S_env,
+      csvi_S_contact: r.csvi_S_contact,
+      csvi_AC_phys: r.csvi_AC_phys,
+      csvi_AC_social: r.csvi_AC_social,
+      N_YP: r.N_YP,
+      N08: r.N08,
+      priority: r.priority,
+      AC_med_dom: r.AC_med_dom,
+      AC_tech_dom: r.AC_tech_dom,
+      AC_mkt_dom: r.AC_mkt_dom,
+      AC_sport_dom: r.AC_sport_dom,
+      AC_soc_cul_dom: r.AC_soc_cul_dom,
+      acPhysEff,
+      resourceDom,
+      W_elder: r.csvi_E * (acPhysEff + 1),
+      W_work: Math.max(0, (+r.N_YP || 0) * (+r.N08 || 0)),
+      S_contact_ratio: sTotal > 0 ? r.csvi_S_contact / sTotal : 0
+    };
+  });
+}
+
+async function loadEdges() {
+  try {
+    const rows = await d3.csv(CSV_FILENAME, d3.autoType);
+    if (!rows || !rows.length) throw new Error('empty');
+    if (rows[0].priority === undefined || rows[0].N08 === undefined) throw new Error('需要 priority、N08 等列（W_work=N_YP×N08）');
+    return buildEdgesFromCsvRows(rows);
+  } catch (err) {
+    console.warn('未加载 ' + CSV_FILENAME + '，使用模拟路网。', err);
+    return simulateEdges();
+  }
+}
+
+// ============================================================
+//  CLASSIFICATION（与 map_intervention_nodes 同逻辑）
+// ============================================================
+function vertPosFromActivatedEdges(activatedEdgeList) {
+  const m = new Map();
+  for (let i = 0; i < activatedEdgeList.length; i++) {
+    const ev = activatedEdgeList[i];
+    m.set(ev.u, ev.from);
+    m.set(ev.v, ev.to);
+  }
+  return m;
+}
+
+function classifyNodes(edges) {
+  addEmpiricalPercentileRanks(edges);
+  const len = edges.length;
+  const pri = new Array(len);
+  const pElderArr = new Array(len);
+  const pWorkArr = new Array(len);
+  const acPhysArr = new Array(len);
+  for (let i = 0; i < len; i++) {
+    const e = edges[i];
+    pri[i] = e.priority;
+    pElderArr[i] = e.p_elder;
+    pWorkArr[i] = e.p_work;
+    acPhysArr[i] = e.csvi_AC_phys;
+  }
+  const csviBreaks = getClassificationBreaks(pri, 3);
+  const wElderBreaks = getClassificationBreaks(pElderArr, 3);
+  const wWorkBreaks = getClassificationBreaks(pWorkArr, 3);
+  acPhysArr.sort((a, b) => a - b);
+  const nAc = acPhysArr.length;
+  const acPhys50 = nAc ? acPhysArr[Math.floor((nAc - 1) / 2)] : 0;
+
+  edges.forEach(e => {
+    e.csviClass = classifyJenks(e.priority, csviBreaks);
+    e.wElderClass = classifyJenks(e.p_elder, wElderBreaks);
+    e.wWorkClass = classifyJenks(e.p_work, wWorkBreaks);
+  });
+
+  const acPhysEffVals = edges.map((e) => Number(e.acPhysEff) || 0);
+  const acPhysEffBreaks = getClassificationBreaks(acPhysEffVals, 3);
+  edges.forEach((e) => {
+    e.acPhysClass = classifyJenks(Number(e.acPhysEff) || 0, acPhysEffBreaks);
+  });
+
+  const activated = [], bottleneck = [], critical = [];
+
+  edges.forEach(e => {
+    if (e.csviClass === 2 && (e.wElderClass === 2 || e.wWorkClass === 2)) {
+      if (e.wElderClass === 2 && e.wWorkClass <= 1) e.nodeType = 'act_elder';
+      else if (e.wWorkClass === 2 && e.wElderClass <= 1) e.nodeType = 'act_work';
+      else e.nodeType = 'act_both';
+      activated.push(e);
+      return;
+    }
+    e.nodeType = null;
+  });
+
+  edges.forEach((e) => {
+    if (e.nodeType != null) return;
+    if (e.acPhysClass === 2) e.nodeType = 'resource';
+  });
+
+  const vertPosAct = vertPosFromActivatedEdges(activated);
+  const aligned = CatalystSeamClusters.collectAlignedSeamEdgesWithDb(
+    edges,
+    activated,
+    critical,
+    vertPosAct
+  );
+  const connectorSeamSet = aligned.seam;
+  const seamEdges = Array.from(connectorSeamSet);
+
+  const clusterCirclesByClusterLabel =
+    typeof ClusterFieldCircles !== 'undefined'
+      ? ClusterFieldCircles.dbscanCirclesForCorridor(aligned.db, MAX_TOTAL_FIELD_AREA_M2)
+      : null;
+
+  const routePack = CorridorBottleneck.compute({
+    edges,
+    activatedEdges: activated,
+    criticalEdges: critical,
+    vertPos: vertPosAct,
+    connectorSeamSet,
+    acPhys50,
+    catalystDb: aligned.db,
+    clusterCirclesByClusterLabel
+  });
+  for (let bi = 0; bi < routePack.bottleneckEdges.length; bi++) {
+    const e = routePack.bottleneckEdges[bi];
+    e.nodeType = 'bottleneck';
+    bottleneck.push(e);
+  }
+
+  return {
+    activated,
+    bottleneck,
+    critical,
+    seamEdges,
+    acPhysMedian: acPhys50,
+    corridorPaths: routePack.corridorPaths,
+    corridorEdgeSet: routePack.corridorEdgeSet,
+    catalystDb: aligned.db
+  };
+}
+
+// ============================================================
+//  FIELD SYSTEM SELECTION ALGORITHM
+//  DBSCAN → 跨度达标则子分裂 → Top-N 簇 → 质心圆 + 10 ha 按比例
+// ============================================================
+/** 场域面积之和的目标总量（10 ha），按簇 priority 比例分配 */
+const MAX_TOTAL_FIELD_AREA_M2 = 100000;
+
+/** 最终保留的场域块数上限（分裂后按 Σpriority 截断） */
+const MAX_FIELD_SYSTEMS = 6;
+
+/**
+ * 达标分裂：单簇触媒点「跨度」过大时再拆区。
+ * 跨度 = 簇内任意两点平面距离的最大值（米）。
+ */
+const SPLIT_MAX_CLUSTER_DIAMETER_M = 520;
+const SPLIT_MIN_MEMBERS_FOR_SPLIT = 5;
+const SPLIT_INNER_EPS_FACTOR = 0.48;
+const SPLIT_REFINEMENT_PASSES = 3;
+const SPLIT_INNER_EPS_MIN_M = 40;
+
+function clusterMaxPairwiseDistanceM(members) {
+  const n = members.length;
+  if (n < 2) return 0;
+  attachPlanarMetersXY(members);
+  let maxD = 0;
+  for (let i = 0; i < n; i++) {
+    const pi = members[i];
+    for (let j = i + 1; j < n; j++) {
+      const pj = members[j];
+      const dx = pi._mx - pj._mx;
+      const dy = pi._my - pj._my;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > maxD) maxD = d;
+    }
+  }
+  return maxD;
+}
+
+/**
+ * 对「又密又长」的母簇：仅在跨度超阈值时，用更小的 ε 再 DBSCAN；
+ * 仅当能拆出 ≥2 个有效子簇（各 ≥2 点）时才替换母簇，否则保留。
+ */
+function refineClustersByDiameterSplit(clusters, dbscanEps, minPts) {
+  let cur = clusters;
+  for (let pass = 0; pass < SPLIT_REFINEMENT_PASSES; pass++) {
+    const next = [];
+    let anySplit = false;
+    for (let ci = 0; ci < cur.length; ci++) {
+      const cl = cur[ci];
+      if (cl.members.length < SPLIT_MIN_MEMBERS_FOR_SPLIT) {
+        next.push(cl);
+        continue;
+      }
+      const diam = clusterMaxPairwiseDistanceM(cl.members);
+      if (diam <= SPLIT_MAX_CLUSTER_DIAMETER_M) {
+        next.push(cl);
+        continue;
+      }
+      const subEps = Math.max(SPLIT_INNER_EPS_MIN_M, dbscanEps * SPLIT_INNER_EPS_FACTOR);
+      const subMinPts = Math.min(minPts, Math.max(2, Math.min(3, Math.floor(cl.members.length / 4))));
+      const subResult = dbscan(cl.members, subEps, subMinPts);
+      const subClusters = [];
+      for (let c = 0; c < subResult.nClusters; c++) {
+        const mem = [];
+        for (let i = 0; i < cl.members.length; i++) {
+          if (subResult.labels[i] === c) mem.push(cl.members[i]);
+        }
+        if (mem.length >= 2) {
+          subClusters.push({
+            members: mem,
+            sumPriority: mem.reduce((s, m) => s + m.edge.priority, 0)
+          });
+        }
+      }
+      if (subClusters.length >= 2) {
+        for (let si = 0; si < subClusters.length; si++) next.push(subClusters[si]);
+        anySplit = true;
+      } else {
+        next.push(cl);
+      }
+    }
+    cur = next;
+    if (!anySplit) break;
+  }
+  return cur;
+}
+
+function dbscan(points, eps, minPts) {
+  // points: [{lat,lon,...}] → 写入 _mx,_my
+  const n = points.length;
+  attachPlanarMetersXY(points);
+  const eps2 = eps * eps;
+  const labels = new Int32Array(n).fill(-1); // -1=unvisited
+  let clusterId = 0;
+
+  function regionQuery(pIdx) {
+    const neighbors = [];
+    const p = points[pIdx];
+    const px = p._mx, py = p._my;
+    for (let i = 0; i < n; i++) {
+      const q = points[i];
+      const dx = px - q._mx, dy = py - q._my;
+      if (dx * dx + dy * dy <= eps2) neighbors.push(i);
+    }
+    return neighbors;
+  }
+
+  for (let i=0; i<n; i++) {
+    if (labels[i] !== -1) continue;
+    const neighbors = regionQuery(i);
+    if (neighbors.length < minPts) { labels[i] = -2; continue; } // noise
+    labels[i] = clusterId;
+    const seeds = [...neighbors];
+    let si = 0;
+    while (si < seeds.length) {
+      const q = seeds[si++];
+      if (labels[q] !== -1 && labels[q] !== -2 && labels[q] !== clusterId) continue;
+      if (labels[q] === -1 || labels[q] === -2) labels[q] = clusterId;
+      const qNeighbors = regionQuery(q);
+      if (qNeighbors.length >= minPts) {
+        for (const nn of qNeighbors) {
+          if (labels[nn] === -1 || labels[nn] === -2) seeds.push(nn);
+        }
+      }
+    }
+    clusterId++;
+  }
+  return { labels, nClusters: clusterId };
+}
+
+function selectFieldSystems(edges, classified) {
+  const db =
+    classified.catalystDb ||
+    CatalystSeamClusters.runCatalystDbscan(classified.activated, classified.critical);
+  const { points, labels, nClusters, eps, minPts } = db;
+  const result = { labels, nClusters };
+
+  // Score each cluster by sum of priority
+  const clusters = [];
+  for (let c=0; c<result.nClusters; c++) {
+    const members = [];
+    for (let i=0; i<points.length; i++) {
+      if (result.labels[i] === c) members.push(points[i]);
+    }
+    if (members.length < 2) continue;
+    const sumPriority = members.reduce((s,m) => s+m.edge.priority, 0);
+    clusters.push({id:c, members, sumPriority});
+  }
+
+  clusters.sort((a, b) => b.sumPriority - a.sumPriority);
+  const expanded = refineClustersByDiameterSplit(clusters, eps, minPts);
+  expanded.sort((a, b) => b.sumPriority - a.sumPriority);
+  const topClusters = expanded.slice(0, MAX_FIELD_SYSTEMS);
+
+  let totalPriority = 0;
+  for (let ti = 0; ti < topClusters.length; ti++) totalPriority += topClusters[ti].sumPriority;
+  if (totalPriority <= 1e-18) totalPriority = topClusters.length || 1;
+
+  const fieldSystems = topClusters.map((cl, fi) => {
+    const targetM2 = MAX_TOTAL_FIELD_AREA_M2 * (cl.sumPriority / totalPriority);
+    const pair =
+      typeof ClusterFieldCircles !== 'undefined'
+        ? ClusterFieldCircles.circlePairFromMembers(cl.members, targetM2)
+        : null;
+    const cLat = pair ? pair.centerLat : cl.members.reduce((s, m) => s + m.lat, 0) / cl.members.length;
+    const cLon = pair ? pair.centerLon : cl.members.reduce((s, m) => s + m.lon, 0) / cl.members.length;
+    const rIn = pair ? pair.radiusInnerM : Math.sqrt(Math.max(targetM2, 1) / Math.PI);
+    const rOut = pair ? pair.radiusOuterM : rIn;
+
+    return {
+      id: fi,
+      members: cl.members,
+      circleCenterLat: cLat,
+      circleCenterLon: cLon,
+      circleRadiusInnerM: rIn,
+      circleRadiusOuterM: rOut,
+      boundarySource: 'circle',
+      areaM2: targetM2,
+      areaHa: targetM2 / 10000,
+      sumPriority: cl.sumPriority,
+      targetM2,
+      catalystEdges: cl.members.map((m) => m.edge)
+    };
+  });
+
+  const corridorEdges = classified.corridorEdgeSet
+    ? [...classified.corridorEdgeSet]
+    : [];
+
+  return {
+    fieldSystems,
+    corridorEdges,
+    corridorPaths: classified.corridorPaths || [],
+    eps,
+    areaPlan: 'priority10ha',
+    splitParams: {
+      maxDiameterM: SPLIT_MAX_CLUSTER_DIAMETER_M,
+      minMembers: SPLIT_MIN_MEMBERS_FOR_SPLIT,
+      maxFields: MAX_FIELD_SYSTEMS
+    }
+  };
+}
+
+/** 资源场域：与触媒 DBSCAN 同源 + 跨度分裂；每主导域至多 3 块；总面积池 10 ha 按各块 ΣAC_agg 比例 */
+const MAX_TOTAL_RESOURCE_FIELD_AREA_M2 = 100000;
+const RESOURCE_DOM_ORDER = ['医疗', '体育', '科技', '商业', '文化'];
+const MAX_RESOURCE_CLUSTERS_PER_DOMAIN = 3;
+const MAX_DBSCAN_POINTS_RESOURCE = 200;
+
+function runResourceDomainDbscan(domainEdges) {
+  const sorted = [...domainEdges].sort(
+    (a, b) => (Number(b.acPhysEff) || 0) - (Number(a.acPhysEff) || 0)
+  );
+  const topN = Math.min(sorted.length, Math.ceil(sorted.length * 0.25));
+  const candidates = sorted.slice(
+    0,
+    Math.min(sorted.length, Math.max(topN, 20), MAX_DBSCAN_POINTS_RESOURCE)
+  );
+  const points = candidates.map((e, i) => ({ lat: e.midLat, lon: e.midLon, idx: i, edge: e }));
+  let eps = 180;
+  let minPts = 3;
+  let result;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    result = dbscan(points, eps, minPts);
+    if (result.nClusters >= 2) break;
+    eps += 60;
+    if (minPts > 2) minPts--;
+  }
+  return {
+    points,
+    labels: result.labels,
+    nClusters: result.nClusters,
+    eps,
+    minPts
+  };
+}
+
+function membersFromDbscanLabels(db) {
+  const clusters = [];
+  for (let c = 0; c < db.nClusters; c++) {
+    const members = [];
+    for (let i = 0; i < db.points.length; i++) {
+      if (db.labels[i] === c) members.push(db.points[i]);
+    }
+    if (members.length >= 2) {
+      const sumPriority = members.reduce((s, m) => s + (Number(m.edge.acPhysEff) || 0), 0);
+      clusters.push({ id: c, members, sumPriority });
+    }
+  }
+  return clusters;
+}
+
+function fallbackResourceClusterFromEdges(domainEdges) {
+  const cap = Math.min(domainEdges.length, MAX_DBSCAN_POINTS_RESOURCE);
+  const sorted = [...domainEdges].sort(
+    (a, b) => (Number(b.acPhysEff) || 0) - (Number(a.acPhysEff) || 0)
+  );
+  const members = sorted.slice(0, cap).map((e) => ({ lat: e.midLat, lon: e.midLon, edge: e }));
+  if (members.length < 2) return null;
+  const sumPriority = members.reduce((s, m) => s + (Number(m.edge.acPhysEff) || 0), 0);
+  return { id: 0, members, sumPriority };
+}
+
+function selectResourceFieldSystems(edges) {
+  const resourceEdges = edges.filter((e) => e.nodeType === 'resource');
+  const flat = [];
+  for (let di = 0; di < RESOURCE_DOM_ORDER.length; di++) {
+    const domLabel = RESOURCE_DOM_ORDER[di];
+    const domainEdges = resourceEdges.filter(
+      (e) => e.resourceDom && e.resourceDom.label === domLabel
+    );
+    if (domainEdges.length < 2) continue;
+    const db = runResourceDomainDbscan(domainEdges);
+    let clusters = membersFromDbscanLabels(db);
+    if (!clusters.length) {
+      const fb = fallbackResourceClusterFromEdges(domainEdges);
+      if (fb) clusters = [fb];
+    }
+    if (!clusters.length) continue;
+    clusters.sort((a, b) => b.sumPriority - a.sumPriority);
+    const expanded = refineClustersByDiameterSplit(clusters, db.eps, db.minPts);
+    expanded.sort((a, b) => b.sumPriority - a.sumPriority);
+    const picked = expanded
+      .filter((c) => c.members && c.members.length >= 2)
+      .slice(0, MAX_RESOURCE_CLUSTERS_PER_DOMAIN);
+    const nPick = picked.length;
+    for (let pi = 0; pi < nPick; pi++) {
+      const cl = picked[pi];
+      flat.push({
+        domainLabel: domLabel,
+        resourceClusterLabel: nPick > 1 ? `${domLabel}·${pi + 1}` : domLabel,
+        members: cl.members,
+        sumPriority: cl.sumPriority
+      });
+    }
+  }
+  let totalP = 0;
+  for (let i = 0; i < flat.length; i++) totalP += flat[i].sumPriority;
+  if (totalP <= 1e-18) totalP = flat.length || 1;
+  const fieldSystems = flat.map((pd, fi) => {
+    const targetM2 = MAX_TOTAL_RESOURCE_FIELD_AREA_M2 * (pd.sumPriority / totalP);
+    const pair =
+      typeof ClusterFieldCircles !== 'undefined'
+        ? ClusterFieldCircles.circlePairFromMembers(pd.members, targetM2)
+        : null;
+    const cLat = pair ? pair.centerLat : pd.members.reduce((s, m) => s + m.lat, 0) / pd.members.length;
+    const cLon = pair ? pair.centerLon : pd.members.reduce((s, m) => s + m.lon, 0) / pd.members.length;
+    const rIn = pair ? pair.radiusInnerM : Math.sqrt(Math.max(targetM2, 1) / Math.PI);
+    const rOut = pair ? pair.radiusOuterM : rIn;
+    return {
+      id: fi,
+      domainLabel: pd.domainLabel,
+      resourceClusterLabel: pd.resourceClusterLabel,
+      members: pd.members,
+      circleCenterLat: cLat,
+      circleCenterLon: cLon,
+      circleRadiusInnerM: rIn,
+      circleRadiusOuterM: rOut,
+      boundarySource: 'circle',
+      areaM2: targetM2,
+      areaHa: targetM2 / 10000,
+      sumPriority: pd.sumPriority,
+      targetM2,
+      resourceEdges: pd.members.map((m) => m.edge)
+    };
+  });
+  return { fieldSystems, areaPlan: 'resourceDom10ha' };
+}
+
+// ============================================================
+//  RENDER（瓶颈边段全量绘制；底网/触媒仍抽样以减负）
+// ============================================================
+const FIELD_COLORS = ['#ff4dad', '#ff6b9d', '#e91e8c', '#ff8ec7', '#d81b87', '#f48fb1'];
+const RESOURCE_FIELD_COLORS = ['#00e5ff', '#26c6da', '#4dd0e1', '#18ffff', '#a7ffeb'];
+
+/** 绘制上限（瓶颈除外；统计仍用全量） */
+const PERF = {
+  maxCatalystMarkersPerField: 18,
+  maxCorridorMidMarkers: 0,
+  maxBaseSegs: 140
+};
+
+function takeTopByPriority(edgeArr, maxN) {
+  if (edgeArr.length <= maxN) return edgeArr;
+  return [...edgeArr].sort((a, b) => b.priority - a.priority).slice(0, maxN);
+}
+
+/** 资源场域标签缩短：医疗→医 … 文化→文 */
+function shortenResourceFieldLabel(lab) {
+  const map = { 医疗: '医', 科技: '科', 商业: '商', 体育: '体', 文化: '文' };
+  return String(lab).replace(/^(医疗|科技|商业|体育|文化)/, (m) => map[m] || m);
+}
+
+/** 小号青框 divIcon（资源聚类中心标签） */
+function compactCyanChipDivIcon(labelText, borderColor) {
+  const c = borderColor || '#00e5ff';
+  const esc = escapeHtml(shortenResourceFieldLabel(labelText));
+  return L.divIcon({
+    className: 'map-chip-leaflet-root',
+    html: `<div class="map-chip-cyan" style="color:${c};border-color:${c}">${esc}</div>`,
+    iconSize: [52, 18],
+    iconAnchor: [26, 9]
+  });
+}
+
+function render(edges, classified, fields, resourceFields, onDone) {
+  const resFs = resourceFields && resourceFields.fieldSystems ? resourceFields.fieldSystems : [];
+  const vectorRenderer = L.canvas({ padding: 0.5, pane: 'fsPane' });
+
+  function phaseLines() {
+    const plen = edges.length;
+    const pp = new Float64Array(plen);
+    for (let i = 0; i < plen; i++) pp[i] = edges[i].priority;
+    pp.sort();
+    const idx = plen ? Math.min(Math.floor(plen * 0.993), plen - 1) : 0;
+    const pThresh = plen ? pp[idx] : 0;
+    const cand = [];
+    for (let i = 0; i < plen; i++) {
+      const e = edges[i];
+      if (e.priority >= pThresh) cand.push(e);
+    }
+    const baseShow = cand.length <= PERF.maxBaseSegs ? cand : takeTopByPriority(cand, PERF.maxBaseSegs);
+    const netSegs = baseShow.map(e => [[e.from.lat, e.from.lon], [e.to.lat, e.to.lon]]);
+    if (netSegs.length) {
+      L.polyline(netSegs, {
+        pane: 'fsPane',
+        renderer: vectorRenderer, interactive: false, smoothFactor: 0,
+        color: 'rgba(233,30,140,0.09)', weight: 1, opacity: 0.5
+      }).addTo(map);
+    }
+  }
+
+  function phasePolygonsAndLabels() {
+    fields.fieldSystems.forEach((fs, i) => {
+      const color = FIELD_COLORS[i] || '#fff';
+      const rIn = fs.circleRadiusInnerM;
+      const rOut = fs.circleRadiusOuterM;
+      const dual = Math.abs(rOut - rIn) >= 0.75;
+      if (dual) {
+        L.circle([fs.circleCenterLat, fs.circleCenterLon], {
+          pane: 'fsPane',
+          radius: rOut,
+          renderer: vectorRenderer,
+          color: color,
+          weight: 2,
+          opacity: 0.65,
+          fillColor: color,
+          fillOpacity: 0.03,
+          dashArray: '10,8',
+          interactive: false
+        }).addTo(map);
+      }
+      L.circle([fs.circleCenterLat, fs.circleCenterLon], {
+        pane: 'fsPane',
+        radius: dual ? rIn : rOut,
+        renderer: vectorRenderer,
+        color: color,
+        weight: 2.5,
+        opacity: 0.9,
+        fillColor: color,
+        fillOpacity: dual ? 0.09 : 0.08,
+        interactive: false
+      }).addTo(map);
+    });
+    resFs.forEach((fs, i) => {
+      const color = RESOURCE_FIELD_COLORS[i % RESOURCE_FIELD_COLORS.length];
+      const rIn = fs.circleRadiusInnerM;
+      const rOut = fs.circleRadiusOuterM;
+      const dual = Math.abs(rOut - rIn) >= 0.75;
+      if (dual) {
+        L.circle([fs.circleCenterLat, fs.circleCenterLon], {
+          pane: 'fsPane',
+          radius: rOut,
+          renderer: vectorRenderer,
+          color: color,
+          weight: 2,
+          opacity: 0.7,
+          fillColor: color,
+          fillOpacity: 0.04,
+          dashArray: '10,8',
+          interactive: false
+        }).addTo(map);
+      }
+      L.circle([fs.circleCenterLat, fs.circleCenterLon], {
+        pane: 'fsPane',
+        radius: dual ? rIn : rOut,
+        renderer: vectorRenderer,
+        color: color,
+        weight: 2.5,
+        opacity: 0.95,
+        fillColor: color,
+        fillOpacity: dual ? 0.1 : 0.09,
+        interactive: false
+      }).addTo(map);
+    });
+  }
+
+  function phaseCatalystDots() {
+    fields.fieldSystems.forEach((fs, i) => {
+      const color = FIELD_COLORS[i] || '#fff';
+      const catSrc = fs.catalystEdges;
+      const catShow = catSrc.length <= PERF.maxCatalystMarkersPerField
+        ? catSrc
+        : takeTopByPriority(catSrc, PERF.maxCatalystMarkersPerField);
+      for (let j = 0; j < catShow.length; j++) {
+        const e = catShow[j];
+        L.circleMarker([e.midLat, e.midLon], {
+          pane: 'fsPane',
+          renderer: vectorRenderer,
+          radius: 4.5,
+          fillColor: '#ff4dad',
+          color: color,
+          weight: 1,
+          fillOpacity: 0.45,
+          opacity: 0.92,
+          interactive: false
+        }).addTo(map);
+      }
+    });
+  }
+
+  function phaseResourceDotsAndLabels() {
+    resFs.forEach((fs, i) => {
+      const color = RESOURCE_FIELD_COLORS[i % RESOURCE_FIELD_COLORS.length];
+      const src = fs.resourceEdges || [];
+      const show =
+        src.length <= PERF.maxCatalystMarkersPerField
+          ? src
+          : [...src]
+              .sort((a, b) => (Number(b.acPhysEff) || 0) - (Number(a.acPhysEff) || 0))
+              .slice(0, PERF.maxCatalystMarkersPerField);
+      for (let j = 0; j < show.length; j++) {
+        const e = show[j];
+        L.circleMarker([e.midLat, e.midLon], {
+          pane: 'fsPane',
+          renderer: vectorRenderer,
+          radius: 4.2,
+          fillColor: '#00e5ff',
+          color: color,
+          weight: 1.2,
+          fillOpacity: 0.42,
+          opacity: 0.95,
+          interactive: false
+        }).addTo(map);
+      }
+      const lab = fs.resourceClusterLabel
+        ? String(fs.resourceClusterLabel)
+        : fs.domainLabel
+          ? String(fs.domainLabel)
+          : '';
+      if (lab) {
+        L.marker([fs.circleCenterLat, fs.circleCenterLon], {
+          pane: 'userPane',
+          interactive: false,
+          zIndexOffset: 280,
+          icon: compactCyanChipDivIcon(lab, color)
+        }).addTo(map);
+      }
+    });
+  }
+
+  /** 本页不绘制廊道/瓶颈折线，算法内部仍计算 corridorPaths 供统计参考 */
+  function phaseBottleneckOverlay() {}
+
+  function phaseStatsAndFit() {
+    const allPts = [];
+    fields.fieldSystems.forEach((fs) => {
+      appendCircleCornerPoints(fs.circleCenterLat, fs.circleCenterLon, fs.circleRadiusOuterM, allPts);
+    });
+    resFs.forEach((fs) => {
+      appendCircleCornerPoints(fs.circleCenterLat, fs.circleCenterLon, fs.circleRadiusOuterM, allPts);
+    });
+    if (allPts.length) {
+      let minLat = allPts[0][0], maxLat = allPts[0][0], minLon = allPts[0][1], maxLon = allPts[0][1];
+      for (let k = 1; k < allPts.length; k++) {
+        const p = allPts[k];
+        if (p[0] < minLat) minLat = p[0];
+        if (p[0] > maxLat) maxLat = p[0];
+        if (p[1] < minLon) minLon = p[1];
+        if (p[1] > maxLon) maxLon = p[1];
+      }
+      map.fitBounds([[minLat - 0.003, minLon - 0.003], [maxLat + 0.003, maxLon + 0.003]], { animate: false });
+    }
+    if (typeof onDone === 'function') onDone();
+  }
+
+  requestAnimationFrame(() => {
+    phaseLines();
+    requestAnimationFrame(() => {
+      phasePolygonsAndLabels();
+      requestAnimationFrame(() => {
+        phaseCatalystDots();
+        phaseResourceDotsAndLabels();
+        requestAnimationFrame(() => {
+          phaseBottleneckOverlay();
+          requestAnimationFrame(phaseStatsAndFit);
+        });
+      });
+    });
+  });
+}
+
+// ============================================================
+//  MAIN（分帧让「加载中」有机会绘制，避免长时间同步脚本看起来像死锁）
+// ============================================================
+const mapLoadingEl = document.getElementById('map-loading');
+function hideMapLoading() {
+  if (mapLoadingEl) mapLoadingEl.classList.add('done');
+}
+
+loadEdges().then(async (edgesAll) => {
+  let edges = edgesAll;
+  if (typeof filterEdgeRecordsToDaxujiahuiStudy === 'function') {
+    edges = await filterEdgeRecordsToDaxujiahuiStudy(edgesAll);
+  }
+  setTimeout(() => {
+    let classified, fields;
+    try {
+      classified = classifyNodes(edges);
+      fields = selectFieldSystems(edges, classified);
+    } catch (err) {
+      console.error(err);
+      hideMapLoading();
+      return;
+    }
+    let resourceFields;
+    try {
+      resourceFields = selectResourceFieldSystems(edges);
+    } catch (err) {
+      console.error(err);
+      resourceFields = { fieldSystems: [] };
+    }
+    setTimeout(() => {
+      try {
+        render(edges, classified, fields, resourceFields, () => requestAnimationFrame(hideMapLoading));
+      } catch (err) {
+        console.error(err);
+        hideMapLoading();
+      }
+    }, 0);
+  }, 0);
+});
+
+// ═══════════════════════════════════════════════════════════
+// 资源区 / 潜力区手绘、轴线、数据层（与场域底图共用 map）
+// ═══════════════════════════════════════════════════════════
+
+let currentMode = 'browse';
+let landuseLayers = null;
+let landuseData = null;
+/** 最近一次 Overpass 用地查询所用的经纬度 bbox；用于判断是否需要扩大范围重拉 */
+let landuseOverpassBboxLast = null;
+let poiData = null;
+
+/** OpenStreetMap Overpass（多镜像依次尝试） */
+const OVERPASS_INTERPRETER_URLS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://lz4.overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter'
+];
+/** 研究区未加载时的默认 bbox（大徐家汇一带） */
+const FALLBACK_LANDUSE_BBOX = { south: 31.155, west: 121.395, north: 31.235, east: 121.495 };
+/** data/poi_data 汇总 GeoJSON（仅用于资源区 / 潜力区统计，不在地图上打点） */
+const STATIC_POI_URL = '../data/poi_data/poi_all.geojson';
+const AXIS_MAGENTA = '#ff4dad';
+
+const axes = [
+  { id: 'H1', label: '商业认知轴', type: 'h', points: [], layer: null, markersLayer: null },
+  { id: 'H2', label: '体育认知轴', type: 'h', points: [], layer: null, markersLayer: null },
+  { id: 'V1', label: '社会认知轴', type: 'v', points: [], layer: null, markersLayer: null },
+  { id: 'V2', label: '社会认知轴', type: 'v', points: [], layer: null, markersLayer: null },
+  { id: 'V3', label: '社会认知轴', type: 'v', points: [], layer: null, markersLayer: null }
+];
+let subAxes = [];
+let subAxisCounter = 0;
+let drawingAxis = null;
+let tempAxisPoints = [];
+let tempAxisLayer = null;
+let tempAxisMarkers = null;
+
+let selections = [];
+let selectionIdCounter = 0;
+let drawingSelection = false;
+let tempSelPoints = [];
+let tempSelLayer = null;
+let tempSelMarkers = null;
+let activeSelectionId = null;
+
+const LOCAL_STORAGE_KEY = 'xujiahui-site-selection-drafts-v1';
+/** 随仓库发布：无本地 localStorage 草稿时 fetch 此路径（可导出 JSON 后保存为该文件并 git push） */
+const STATIC_DRAFT_URL = '../data/site-selection-draft.json';
+
+const FS_IDB_NAME = 'xujiahui-site-selection-fs';
+const FS_IDB_STORE = 'handles';
+const FS_IDB_KEY = 'draftFile';
+
+let linkedDraftFileHandle = null;
+let draftFileSyncTimer = null;
+let draftSyncToastTimer = null;
+
+function supportsDraftFileAutoSave() {
+  return typeof window.showSaveFilePicker === 'function';
+}
+
+function openFsIdb() {
+  return new Promise((resolve, reject) => {
+    const r = indexedDB.open(FS_IDB_NAME, 1);
+    r.onupgradeneeded = (ev) => {
+      const db = ev.target.result;
+      if (!db.objectStoreNames.contains(FS_IDB_STORE)) db.createObjectStore(FS_IDB_STORE);
+    };
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+
+async function idbGetDraftFileHandle() {
+  const db = await openFsIdb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(FS_IDB_STORE, 'readonly');
+    const req = tx.objectStore(FS_IDB_STORE).get(FS_IDB_KEY);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbSetDraftFileHandle(handle) {
+  const db = await openFsIdb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(FS_IDB_STORE, 'readwrite');
+    tx.objectStore(FS_IDB_STORE).put(handle, FS_IDB_KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function idbDeleteDraftFileHandle() {
+  const db = await openFsIdb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(FS_IDB_STORE, 'readwrite');
+    tx.objectStore(FS_IDB_STORE).delete(FS_IDB_KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function updateDraftLinkUi() {
+  const bo = document.getElementById('btn-link-draft-open');
+  const bs = document.getElementById('btn-link-draft-save');
+  const bu = document.getElementById('btn-unlink-draft-file');
+  const st = document.getElementById('draft-auto-save-status');
+  const ok = supportsDraftFileAutoSave();
+  if (!ok) {
+    if (bo) bo.style.display = 'none';
+    if (bs) bs.style.display = 'none';
+    if (bu) bu.style.display = 'none';
+    if (st) st.textContent = '自动写盘需 Chrome/Edge';
+    return;
+  }
+  if (linkedDraftFileHandle) {
+    if (bo) bo.style.display = 'none';
+    if (bs) bs.style.display = 'none';
+    if (bu) bu.style.display = '';
+    if (st && !String(st.textContent || '').includes('失败')) st.textContent = '已关联 · 编辑后自动写盘';
+  } else {
+    if (bo) bo.style.display = '';
+    if (bs) bs.style.display = '';
+    if (bu) bu.style.display = 'none';
+    if (st) st.textContent = '';
+  }
+}
+
+function showDraftSyncToastBrief(msg) {
+  const el = document.getElementById('draftSyncToast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('visible');
+  clearTimeout(draftSyncToastTimer);
+  draftSyncToastTimer = setTimeout(() => el.classList.remove('visible'), 1600);
+}
+
+async function syncDraftToLinkedFile() {
+  const h = linkedDraftFileHandle;
+  if (!h || !supportsDraftFileAutoSave()) return;
+  try {
+    let perm = await h.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') {
+      perm = await h.requestPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') return;
+    }
+    const w = await h.createWritable();
+    const text = JSON.stringify(buildMapDraftPayload(), null, 2);
+    await w.write(text);
+    await w.close();
+    const st = document.getElementById('draft-auto-save-status');
+    if (st) st.textContent = '已关联 · 编辑后自动写盘';
+    showDraftSyncToastBrief('已写入关联的 JSON 文件');
+  } catch (e) {
+    console.warn('[选址草稿] 自动写盘失败', e);
+    const st = document.getElementById('draft-auto-save-status');
+    if (st) st.textContent = '写盘失败，请重新关联';
+  }
+}
+
+function scheduleDraftFileSync() {
+  if (!linkedDraftFileHandle) return;
+  clearTimeout(draftFileSyncTimer);
+  draftFileSyncTimer = setTimeout(() => void syncDraftToLinkedFile(), 500);
+}
+
+async function linkSiteSelectionDraftFileOpen() {
+  if (!window.showOpenFilePicker) {
+    alert('当前浏览器不支持「选择已有文件」，请使用「另存关联」或换用 Chrome / Edge。');
+    return;
+  }
+  try {
+    const arr = await window.showOpenFilePicker({
+      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+      multiple: false
+    });
+    const handle = arr[0];
+    const perm = await handle.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') {
+      alert('需要写入权限才能自动保存');
+      return;
+    }
+    linkedDraftFileHandle = handle;
+    await idbSetDraftFileHandle(handle);
+    updateDraftLinkUi();
+    await syncDraftToLinkedFile();
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+    console.warn(e);
+    alert('关联失败：' + (e && e.message ? e.message : String(e)));
+  }
+}
+
+async function linkSiteSelectionDraftFileSave() {
+  if (!supportsDraftFileAutoSave()) {
+    alert('当前浏览器不支持本地文件自动保存，请使用 Chrome 或 Edge。');
+    return;
+  }
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: 'site-selection-draft.json',
+      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+    });
+    const perm = await handle.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') {
+      alert('需要写入权限才能自动保存');
+      return;
+    }
+    linkedDraftFileHandle = handle;
+    await idbSetDraftFileHandle(handle);
+    updateDraftLinkUi();
+    await syncDraftToLinkedFile();
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+    console.warn(e);
+    alert('关联失败：' + (e && e.message ? e.message : String(e)));
+  }
+}
+
+async function unlinkSiteSelectionDraftFile() {
+  linkedDraftFileHandle = null;
+  clearTimeout(draftFileSyncTimer);
+  draftFileSyncTimer = null;
+  try {
+    await idbDeleteDraftFileHandle();
+  } catch (e) {
+    console.warn(e);
+  }
+  updateDraftLinkUi();
+}
+
+async function restoreLinkedDraftFileHandleFromIdb() {
+  if (!supportsDraftFileAutoSave()) {
+    updateDraftLinkUi();
+    return;
+  }
+  try {
+    const h = await idbGetDraftFileHandle();
+    if (!h) {
+      updateDraftLinkUi();
+      return;
+    }
+    linkedDraftFileHandle = h;
+    updateDraftLinkUi();
+    scheduleDraftFileSync();
+  } catch (e) {
+    console.warn('[选址草稿] 恢复文件句柄失败', e);
+    linkedDraftFileHandle = null;
+    updateDraftLinkUi();
+  }
+}
+
+const SEL_POLY_RESOURCE = {
+  color: '#00bcd4',
+  weight: 2,
+  opacity: 0.9,
+  fillColor: '#00bcd4',
+  fillOpacity: 0.16
+};
+const SEL_POLY_POTENTIAL = {
+  color: '#e91e8c',
+  weight: 2,
+  opacity: 0.85,
+  fillColor: '#e91e8c',
+  fillOpacity: 0.15
+};
+
+function polygonStyleForSelectionKind(kind) {
+  return kind === 'potential' ? { ...SEL_POLY_POTENTIAL } : { ...SEL_POLY_RESOURCE };
+}
+
+function tempSelVertexColor(kind) {
+  return kind === 'potential' ? '#e91e8c' : '#00bcd4';
+}
+
+function getAllAxesList() {
+  return axes.concat(subAxes);
+}
+
+function findAxisById(id) {
+  return axes.find((a) => a.id === id) || subAxes.find((a) => a.id === id);
+}
+
+function axisBadgeClass(axis) {
+  if (axis.type === 'sub') return 's';
+  return axis.type;
+}
+
+function axisStrokeStyle(axis) {
+  if (axis.type === 'sub') {
+    return { color: AXIS_MAGENTA, dashArray: '10,6', weight: 2.5 };
+  }
+  return { color: AXIS_MAGENTA, dashArray: null, weight: 3 };
+}
+
+function applyAxisGeometryToMap(axis) {
+  if (axis.layer) {
+    map.removeLayer(axis.layer);
+    axis.layer = null;
+  }
+  if (axis.markersLayer) {
+    map.removeLayer(axis.markersLayer);
+    axis.markersLayer = null;
+  }
+  if (!axis.points || axis.points.length < 2) return;
+  const st = axisStrokeStyle(axis);
+  axis.layer = L.polyline(axis.points, {
+    pane: 'userPane',
+    color: st.color,
+    weight: st.weight,
+    opacity: 0.88,
+    dashArray: st.dashArray
+  }).addTo(map);
+  axis.markersLayer = L.layerGroup({ pane: 'userPane' }).addTo(map);
+  if (axis.type !== 'sub') {
+    const iconW = 152;
+    const iconH = 52;
+    let startLat;
+    let startLng;
+    let labLat;
+    let labLng;
+    if (axis.id === 'H1' || axis.id === 'H2') {
+      [startLat, startLng] = axisPolylineLeftmostEndpoint(axis.points);
+      [labLat, labLng] = findAxisLabelAnchorWestward(startLat, startLng);
+      [labLat, labLng] = nudgeAxisLabelCardOutsideStudy(labLat, labLng, iconW, iconH, -1);
+    } else {
+      [startLat, startLng] = axisPolylineRightmostEndpoint(axis.points);
+      [labLat, labLng] = findAxisLabelAnchorEastward(startLat, startLng);
+      [labLat, labLng] = nudgeAxisLabelCardOutsideStudy(labLat, labLng, iconW, iconH, 1);
+    }
+    L.polyline(
+      [
+        [startLat, startLng],
+        [labLat, labLng]
+      ],
+      {
+        pane: 'userPane',
+        color: 'rgba(173,20,87,0.88)',
+        weight: 1.5,
+        dashArray: '6,5',
+        opacity: 0.82
+      }
+    ).addTo(axis.markersLayer);
+    const nameHtml = escapeHtml(axis.label || axis.id);
+    L.marker([labLat, labLng], {
+      pane: 'userPane',
+      zIndexOffset: 450,
+      icon: L.divIcon({
+        className: '',
+        html: `<div style="background:#ad1457;color:#fff;font-size:10px;font-weight:700;padding:3px 7px;border-radius:3px;max-width:140px;line-height:1.25;white-space:normal;word-break:break-all;border:1px solid rgba(255,255,255,0.35);box-shadow:0 2px 10px rgba(0,0,0,0.35)">${nameHtml}</div>`,
+        iconSize: [iconW, iconH],
+        iconAnchor: [iconW / 2, iconH]
+      })
+    }).addTo(axis.markersLayer);
+  }
+}
+
+function rebuildSelectionFromSaved(s) {
+  const kind = s.kind === 'potential' ? 'potential' : 'resource';
+  const st = polygonStyleForSelectionKind(kind);
+  const pts = s.points.map((p) => [p[0], p[1]]);
+  const coords = pts.map((p) => [p[1], p[0]]);
+  coords.push(coords[0]);
+  const polygon = L.polygon(pts, {
+    pane: 'userPane',
+    ...st
+  }).addTo(map);
+  const area = calcPolygonArea(pts);
+  const analysis = analyzeSelection(pts);
+  const sel = {
+    id: s.id,
+    name: s.name,
+    kind,
+    points: pts,
+    coordsGeoJSON: coords,
+    layer: polygon,
+    area,
+    analysis,
+    mapCardCollapsed: !!s.mapCardCollapsed,
+    blurb: s.blurb != null ? String(s.blurb) : '',
+    cardMarker: null
+  };
+  polygon.on('click', () => {
+    if (currentMode === 'select_res' || currentMode === 'select_pot') {
+      activeSelectionId = sel.id;
+      sel.mapCardCollapsed = false;
+      renderSelectionList();
+      refreshAllSelectionMapCards();
+      persistMapDrafts();
+    }
+  });
+  ensureSelectionMapCard(sel);
+  return sel;
+}
+
+function resetMapDraftGeometry() {
+  cancelAxisDrawing();
+  cancelSelectionDrawing();
+  selections.forEach((sel) => {
+    removeSelectionMapCard(sel);
+    if (sel.layer) map.removeLayer(sel.layer);
+  });
+  selections = [];
+  axes.forEach((a) => {
+    if (a.layer) {
+      map.removeLayer(a.layer);
+      a.layer = null;
+    }
+    if (a.markersLayer) {
+      map.removeLayer(a.markersLayer);
+      a.markersLayer = null;
+    }
+    a.points = [];
+  });
+  subAxes.forEach((a) => {
+    if (a.layer) map.removeLayer(a.layer);
+    if (a.markersLayer) map.removeLayer(a.markersLayer);
+  });
+  subAxes = [];
+  subAxisCounter = 0;
+  selectionIdCounter = 0;
+  activeSelectionId = null;
+  drawingAxis = null;
+}
+
+function buildMapDraftPayload() {
+  return {
+    version: 1,
+    axes: axes.map((a) => ({ id: a.id, points: a.points.map((p) => [p[0], p[1]]) })),
+    subAxes: subAxes.map((a) => ({
+      id: a.id,
+      label: a.label,
+      points: a.points.map((p) => [p[0], p[1]])
+    })),
+    subAxisCounter,
+    selections: selections.map((s) => ({
+      id: s.id,
+      name: s.name,
+      kind: s.kind === 'potential' ? 'potential' : 'resource',
+      points: s.points.map((p) => [p[0], p[1]]),
+      mapCardCollapsed: !!s.mapCardCollapsed,
+      blurb: s.blurb != null ? String(s.blurb) : ''
+    })),
+    selectionIdCounter,
+    activeSelectionId
+  };
+}
+
+function applyDraftPayload(data) {
+  if (!data || data.version !== 1) return;
+
+  resetMapDraftGeometry();
+
+  if (Array.isArray(data.axes)) {
+    data.axes.forEach((snap) => {
+      const ax = axes.find((a) => a.id === snap.id);
+      if (!ax || !snap.points) return;
+      ax.points = snap.points.map((p) => [p[0], p[1]]);
+    });
+  }
+
+  if (Array.isArray(data.subAxes)) {
+    let maxSubNum = 0;
+    data.subAxes.forEach((snap) => {
+      const m = /^S(\d+)$/.exec(snap.id || '');
+      if (m) maxSubNum = Math.max(maxSubNum, +m[1]);
+      const axis = {
+        id: snap.id,
+        label: snap.label || snap.id,
+        type: 'sub',
+        points: (snap.points || []).map((p) => [p[0], p[1]]),
+        layer: null,
+        markersLayer: null
+      };
+      subAxes.push(axis);
+    });
+    subAxisCounter = Math.max(data.subAxisCounter || 0, maxSubNum);
+  }
+
+  let maxSelNum = 0;
+  if (Array.isArray(data.selections)) {
+    data.selections.forEach((snap) => {
+      if (!snap.points || snap.points.length < 3) return;
+      const m = /^S(\d+)$/.exec(snap.id || '');
+      if (m) maxSelNum = Math.max(maxSelNum, +m[1]);
+      const sel = rebuildSelectionFromSaved({
+        id: snap.id,
+        name: snap.name || snap.id,
+        kind: snap.kind,
+        points: snap.points.map((p) => [p[0], p[1]]),
+        mapCardCollapsed: snap.mapCardCollapsed,
+        blurb: snap.blurb
+      });
+      selections.push(sel);
+    });
+    selectionIdCounter = Math.max(data.selectionIdCounter || 0, maxSelNum);
+    recomputeSelectionDisplayNames();
+  } else {
+    selectionIdCounter = data.selectionIdCounter || selectionIdCounter;
+  }
+
+  activeSelectionId = data.activeSelectionId || null;
+  if (activeSelectionId && !selections.some((s) => s.id === activeSelectionId)) {
+    activeSelectionId = null;
+  }
+  refreshAllSelectionMapCards();
+}
+
+function persistMapDrafts() {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(buildMapDraftPayload()));
+  } catch (e) {
+    console.warn('本地保存失败（可能超出浏览器存储配额）', e);
+  }
+  scheduleDraftFileSync();
+}
+
+/** @returns {boolean} 是否已从 localStorage 恢复 */
+function restoreMapDrafts() {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || data.version !== 1) return false;
+    applyDraftPayload(data);
+    return true;
+  } catch (e) {
+    console.warn('本地草稿恢复失败', e);
+    return false;
+  }
+}
+
+async function tryLoadPublishedDraftFromRepo() {
+  try {
+    const r = await fetch(STATIC_DRAFT_URL, { cache: 'no-store' });
+    if (!r.ok) return;
+    const data = await r.json();
+    if (!data || data.version !== 1) return;
+    applyDraftPayload(data);
+    persistMapDrafts();
+    renderAxisList();
+    console.info('[选址草稿] 已从', STATIC_DRAFT_URL, '加载并写入本地缓存');
+  } catch (e) {
+    console.warn('[选址草稿] 未加载仓库默认文件（可忽略：尚未提交该 JSON）', e);
+  }
+}
+
+function exportSiteSelectionDraft() {
+  const payload = buildMapDraftPayload();
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+  const a = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  a.href = url;
+  a.download = 'site-selection-draft.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function onSiteSelectionDraftFile(ev) {
+  const input = ev.target;
+  const f = input.files && input.files[0];
+  input.value = '';
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(String(reader.result || ''));
+      if (!data || data.version !== 1) throw new Error('需要 version 为 1 的选址草稿 JSON');
+      applyDraftPayload(data);
+      persistMapDrafts();
+      renderAxisList();
+      axes.forEach((a) => {
+        if (a.points && a.points.length >= 2) applyAxisGeometryToMap(a);
+      });
+      subAxes.forEach((a) => {
+        if (a.points && a.points.length >= 2) applyAxisGeometryToMap(a);
+      });
+      loadStaticDataLayers().then(() => {
+        setMode(currentMode);
+        void refetchLanduseIfSelectionsExceedCachedBbox();
+      });
+    } catch (err) {
+      alert('导入失败：' + (err && err.message ? err.message : String(err)));
+    }
+  };
+  reader.readAsText(f, 'UTF-8');
+}
+
+function addSubAxis() {
+  if (currentMode !== 'axis') setMode('axis');
+  subAxisCounter += 1;
+  const id = 'S' + subAxisCounter;
+  subAxes.push({
+    id,
+    label: '副轴 ' + subAxisCounter,
+    type: 'sub',
+    points: [],
+    layer: null,
+    markersLayer: null
+  });
+  renderAxisList();
+  persistMapDrafts();
+}
+
+function setMode(mode) {
+  cancelAxisDrawing();
+  cancelSelectionDrawing();
+  currentMode = mode;
+  document.querySelectorAll('.toolbar .mode-tab').forEach((b) => b.classList.remove('active', 'active-cyan'));
+  if (mode === 'browse') document.getElementById('btn-browse').classList.add('active');
+  else if (mode === 'axis') document.getElementById('btn-axis').classList.add('active');
+  else if (mode === 'select_res') {
+    document.getElementById('btn-select-res').classList.add('active', 'active-cyan');
+  } else if (mode === 'select_pot') {
+    document.getElementById('btn-select-pot').classList.add('active');
+  }
+  const mapEl = document.getElementById('map');
+  mapEl.className = `mode-${mode}`;
+  document.getElementById('axisPanel').classList.toggle('visible', mode === 'axis');
+  document.getElementById('selectionDock').classList.add('visible');
+  if (mode === 'axis') renderAxisList();
+  if (mode === 'select_res' || mode === 'select_pot') renderSelectionList();
+  updateDrawHint();
+}
+
+function renderAxisList() {
+  const el = document.getElementById('axisList');
+  el.innerHTML = getAllAxesList()
+    .map((a) => {
+      const isDrawing = drawingAxis === a.id;
+      const cls = isDrawing ? 'axis-item drawing' : 'axis-item';
+      const ptCount = a.points.length;
+      const bcls = axisBadgeClass(a);
+      return `
+      <div class="${cls}" onclick="startAxisDraw('${a.id}')">
+        <div class="axis-badge ${bcls}">${a.id}</div>
+        <div class="axis-info">
+          <div class="axis-name">${a.label}</div>
+          <div class="axis-pts">${ptCount ? ptCount + ' 个节点' : '未绘制'}</div>
+        </div>
+        <div class="axis-actions">
+          ${ptCount || a.type === 'sub' ? `<button type="button" class="btn-delete" onclick="event.stopPropagation();clearAxis('${a.id}')" title="清除">${a.type === 'sub' && !ptCount ? '删' : '✕'}</button>` : ''}
+        </div>
+      </div>`;
+    })
+    .join('');
+}
+
+function startAxisDraw(axisId) {
+  if (currentMode !== 'axis') return;
+  if (drawingAxis === axisId) return;
+  cancelAxisDrawing();
+  drawingAxis = axisId;
+  tempAxisPoints = [];
+  if (tempAxisLayer) map.removeLayer(tempAxisLayer);
+  if (tempAxisMarkers) map.removeLayer(tempAxisMarkers);
+  tempAxisLayer = L.layerGroup({ pane: 'userPane' }).addTo(map);
+  tempAxisMarkers = L.layerGroup({ pane: 'userPane' }).addTo(map);
+  renderAxisList();
+  updateDrawHint();
+}
+
+function cancelAxisDrawing() {
+  if (!drawingAxis) return;
+  drawingAxis = null;
+  tempAxisPoints = [];
+  if (tempAxisLayer) {
+    map.removeLayer(tempAxisLayer);
+    tempAxisLayer = null;
+  }
+  if (tempAxisMarkers) {
+    map.removeLayer(tempAxisMarkers);
+    tempAxisMarkers = null;
+  }
+  renderAxisList();
+  updateDrawHint();
+}
+
+function finishAxisDrawing() {
+  if (!drawingAxis || tempAxisPoints.length < 2) return;
+  const axis = findAxisById(drawingAxis);
+  if (!axis) return;
+  axis.points = [...tempAxisPoints];
+  applyAxisGeometryToMap(axis);
+  drawingAxis = null;
+  tempAxisPoints = [];
+  if (tempAxisLayer) {
+    map.removeLayer(tempAxisLayer);
+    tempAxisLayer = null;
+  }
+  if (tempAxisMarkers) {
+    map.removeLayer(tempAxisMarkers);
+    tempAxisMarkers = null;
+  }
+  renderAxisList();
+  updateDrawHint();
+  persistMapDrafts();
+  updateLanduseLayerNearAxes();
+}
+
+function clearAxis(axisId) {
+  const si = subAxes.findIndex((a) => a.id === axisId);
+  if (si >= 0) {
+    const axis = subAxes[si];
+    if (axis.layer) {
+      map.removeLayer(axis.layer);
+      axis.layer = null;
+    }
+    if (axis.markersLayer) {
+      map.removeLayer(axis.markersLayer);
+      axis.markersLayer = null;
+    }
+    subAxes.splice(si, 1);
+    renderAxisList();
+    persistMapDrafts();
+    updateLanduseLayerNearAxes();
+    return;
+  }
+  const axis = axes.find((a) => a.id === axisId);
+  if (!axis) return;
+  axis.points = [];
+  applyAxisGeometryToMap(axis);
+  renderAxisList();
+  persistMapDrafts();
+  updateLanduseLayerNearAxes();
+}
+
+function updateTempAxisLine() {
+  if (!tempAxisLayer) return;
+  tempAxisLayer.clearLayers();
+  if (tempAxisPoints.length >= 2) {
+    const axis = findAxisById(drawingAxis);
+    if (!axis) return;
+    const st = axisStrokeStyle(axis);
+    L.polyline(tempAxisPoints, {
+      pane: 'userPane',
+      color: st.color,
+      weight: Math.max(2, st.weight - 1),
+      opacity: 0.55,
+      dashArray: st.dashArray || '5,5'
+    }).addTo(tempAxisLayer);
+  }
+}
+
+function startSelectionDraw() {
+  drawingSelection = true;
+  tempSelPoints = [];
+  if (tempSelLayer) map.removeLayer(tempSelLayer);
+  if (tempSelMarkers) map.removeLayer(tempSelMarkers);
+  tempSelLayer = L.layerGroup({ pane: 'userPane' }).addTo(map);
+  tempSelMarkers = L.layerGroup({ pane: 'userPane' }).addTo(map);
+  updateDrawHint();
+}
+
+function cancelSelectionDrawing() {
+  drawingSelection = false;
+  tempSelPoints = [];
+  if (tempSelLayer) {
+    map.removeLayer(tempSelLayer);
+    tempSelLayer = null;
+  }
+  if (tempSelMarkers) {
+    map.removeLayer(tempSelMarkers);
+    tempSelMarkers = null;
+  }
+  updateDrawHint();
+}
+
+function finishSelectionDrawing() {
+  if (!drawingSelection || tempSelPoints.length < 3) return;
+  const kind = currentMode === 'select_pot' ? 'potential' : 'resource';
+  const st = polygonStyleForSelectionKind(kind);
+  selectionIdCounter++;
+  const id = 'S' + selectionIdCounter;
+  const coords = tempSelPoints.map((p) => [p[1], p[0]]);
+  coords.push(coords[0]);
+  const polygon = L.polygon(tempSelPoints, {
+    pane: 'userPane',
+    ...st
+  }).addTo(map);
+  const area = calcPolygonArea(tempSelPoints);
+  const analysis = analyzeSelection(tempSelPoints);
+  const sel = {
+    id,
+    name: kind === 'potential' ? '潜力区' : '资源区',
+    kind,
+    points: [...tempSelPoints],
+    coordsGeoJSON: coords,
+    layer: polygon,
+    area,
+    analysis,
+    mapCardCollapsed: false,
+    blurb: '',
+    cardMarker: null
+  };
+  polygon.on('click', () => {
+    if (currentMode === 'select_res' || currentMode === 'select_pot') {
+      activeSelectionId = sel.id;
+      sel.mapCardCollapsed = false;
+      renderSelectionList();
+      refreshAllSelectionMapCards();
+      persistMapDrafts();
+    }
+  });
+  selections.push(sel);
+  recomputeSelectionDisplayNames();
+  ensureSelectionMapCard(sel);
+  drawingSelection = false;
+  tempSelPoints = [];
+  if (tempSelLayer) {
+    map.removeLayer(tempSelLayer);
+    tempSelLayer = null;
+  }
+  if (tempSelMarkers) {
+    map.removeLayer(tempSelMarkers);
+    tempSelMarkers = null;
+  }
+  renderSelectionList();
+  activeSelectionId = sel.id;
+  sel.mapCardCollapsed = false;
+  refreshAllSelectionMapCards();
+  updateDrawHint();
+  persistMapDrafts();
+  void refetchLanduseIfSelectionsExceedCachedBbox();
+}
+
+function deleteSelection(id) {
+  const idx = selections.findIndex((s) => s.id === id);
+  if (idx === -1) return;
+  removeSelectionMapCard(selections[idx]);
+  map.removeLayer(selections[idx].layer);
+  selections.splice(idx, 1);
+  if (activeSelectionId === id) {
+    activeSelectionId = null;
+  }
+  recomputeSelectionDisplayNames();
+  renderSelectionList();
+  persistMapDrafts();
+}
+
+function updateTempSelPoly() {
+  if (!tempSelLayer) return;
+  const c = tempSelVertexColor(currentMode === 'select_pot' ? 'potential' : 'resource');
+  tempSelLayer.clearLayers();
+  if (tempSelPoints.length >= 2) {
+    L.polyline([...tempSelPoints, tempSelPoints[0]], {
+      pane: 'userPane',
+      color: c,
+      weight: 2,
+      opacity: 0.5,
+      dashArray: '4,4'
+    }).addTo(tempSelLayer);
+  }
+  if (tempSelPoints.length >= 3) {
+    L.polygon(tempSelPoints, {
+      pane: 'userPane',
+      color: c,
+      weight: 1,
+      opacity: 0.35,
+      fillColor: c,
+      fillOpacity: 0.08
+    }).addTo(tempSelLayer);
+  }
+}
+
+function activationMaxLatitude(sel) {
+  let m = -Infinity;
+  (sel.points || []).forEach(([lat]) => {
+    if (lat > m) m = lat;
+  });
+  return m;
+}
+
+function recomputeSelectionDisplayNames() {
+  function rankSubset(arr, prefix) {
+    const order = arr
+      .map((s, idx) => ({ s, idx, north: activationMaxLatitude(s) }))
+      .sort((a, b) => b.north - a.north || a.idx - b.idx);
+    order.forEach((item, rank) => {
+      item.s.name = `${prefix} ${rank + 1}`;
+    });
+  }
+  rankSubset(
+    selections.filter((s) => s.kind !== 'potential'),
+    '资源区'
+  );
+  rankSubset(
+    selections.filter((s) => s.kind === 'potential'),
+    '潜力区'
+  );
+}
+
+function selectionListSectionHtml(title, items, secClass) {
+  if (!items.length) return '';
+  const rows = items
+    .map((s) => {
+      const cls = s.id === activeSelectionId ? 'sel-item active' : 'sel-item';
+      return `
+      <div class="${cls}" onclick="selectSelection('${s.id}')">
+        <div class="sel-head">
+          <div class="sel-name">${s.name}</div>
+          <button type="button" class="sel-delete" onclick="event.stopPropagation();deleteSelection('${s.id}')" title="删除">✕</button>
+        </div>
+        <div class="sel-stats">
+          <div class="sel-stat">面积 <span>${formatArea(s.area)}</span></div>
+          <div class="sel-stat">顶点 <span>${s.points.length}</span></div>
+          ${s.analysis.poiCount ? `<div class="sel-stat">POI <span>${s.analysis.poiCount}</span></div>` : ''}
+        </div>
+      </div>`;
+    })
+    .join('');
+  return `<div class="sel-section-title ${secClass}">${title}</div>${rows}`;
+}
+
+function renderSelectionList() {
+  const el = document.getElementById('selectionList');
+  if (selections.length === 0) {
+    el.innerHTML =
+      '<div class="sel-empty">暂无手绘区 — 在「资源区」（青色）或「潜力区」（玫红）模式下点击地图绘制多边形</div>';
+    refreshAllSelectionMapCards();
+    return;
+  }
+  const res = selections.filter((s) => s.kind !== 'potential');
+  const pot = selections.filter((s) => s.kind === 'potential');
+  const parts = [
+    selectionListSectionHtml('资源区', res, 'sel-sec-res'),
+    selectionListSectionHtml('潜力区', pot, 'sel-sec-pot')
+  ].filter(Boolean);
+  el.innerHTML = parts.join('') || '<div class="sel-empty">暂无</div>';
+  refreshAllSelectionMapCards();
+}
+
+function selectSelection(id) {
+  activeSelectionId = id;
+  const sel = selections.find((s) => s.id === id);
+  if (sel) sel.mapCardCollapsed = false;
+  renderSelectionList();
+  if (sel) {
+    map.fitBounds(sel.layer.getBounds(), { padding: [60, 60] });
+  }
+  refreshAllSelectionMapCards();
+  persistMapDrafts();
+}
+
+function hideInfoCard() {
+  document.getElementById('infoCard').classList.remove('visible');
+}
+
+function updateDrawHint() {
+  const el = document.getElementById('drawHint');
+  if (drawingAxis) {
+    el.classList.add('visible');
+    document.getElementById('drawHintText').textContent = `绘制 ${drawingAxis} — 点击添加节点 (${tempAxisPoints.length} 点)`;
+    document.getElementById('drawHintKey').textContent = 'Enter';
+    document.getElementById('drawHintAction').textContent = '完成';
+  } else if (drawingSelection) {
+    el.classList.add('visible');
+    const zoneLabel = currentMode === 'select_pot' ? '潜力区' : '资源区';
+    document.getElementById('drawHintText').textContent = `绘制${zoneLabel}多边形 — 点击添加顶点 (${tempSelPoints.length} 点)`;
+    document.getElementById('drawHintKey').textContent = 'Enter';
+    document.getElementById('drawHintAction').textContent = '完成';
+  } else if (currentMode === 'select_res' || currentMode === 'select_pot') {
+    el.classList.add('visible');
+    const zoneLabel = currentMode === 'select_pot' ? '潜力区（玫红）' : '资源区（青色）';
+    document.getElementById('drawHintText').textContent = `在地图上点击开始绘制${zoneLabel}多边形`;
+    document.getElementById('drawHintKey').textContent = '';
+    document.getElementById('drawHintAction').textContent = '';
+  } else {
+    el.classList.remove('visible');
+  }
+}
+
+map.on('mousemove', (e) => {
+  document.getElementById('coordDisplay').textContent = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+});
+
+map.on('click', function (e) {
+  const latlng = [e.latlng.lat, e.latlng.lng];
+  if (drawingAxis) {
+    tempAxisPoints.push(latlng);
+    L.circleMarker(latlng, {
+      pane: 'userPane',
+      radius: 5,
+      fillColor: AXIS_MAGENTA,
+      fillOpacity: 1,
+      color: '#fff',
+      weight: 1.5,
+      opacity: 0.8
+    }).addTo(tempAxisMarkers);
+    updateTempAxisLine();
+    updateDrawHint();
+    return;
+  }
+  if (currentMode === 'select_res' || currentMode === 'select_pot') {
+    if (!drawingSelection) startSelectionDraw();
+    tempSelPoints.push(latlng);
+    const vc = tempSelVertexColor(currentMode === 'select_pot' ? 'potential' : 'resource');
+    L.circleMarker(latlng, {
+      pane: 'userPane',
+      radius: 5,
+      fillColor: vc,
+      fillOpacity: 1,
+      color: '#fff',
+      weight: 1.5,
+      opacity: 0.8
+    }).addTo(tempSelMarkers);
+    updateTempSelPoly();
+    updateDrawHint();
+  }
+});
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') {
+    if (drawingAxis) {
+      finishAxisDrawing();
+      return;
+    }
+    if (drawingSelection && tempSelPoints.length >= 3) {
+      finishSelectionDrawing();
+      return;
+    }
+  }
+  if (e.key === 'Escape') {
+    if (drawingAxis) {
+      cancelAxisDrawing();
+      return;
+    }
+    if (drawingSelection) {
+      cancelSelectionDrawing();
+      return;
+    }
+  }
+  if (e.key === 'Backspace') {
+    if (drawingAxis && tempAxisPoints.length > 0) {
+      tempAxisPoints.pop();
+      tempAxisMarkers.clearLayers();
+      tempAxisPoints.forEach((p) => {
+        L.circleMarker(p, {
+          pane: 'userPane',
+          radius: 5,
+          fillColor: AXIS_MAGENTA,
+          fillOpacity: 1,
+          color: '#fff',
+          weight: 1.5,
+          opacity: 0.8
+        }).addTo(tempAxisMarkers);
+      });
+      updateTempAxisLine();
+      updateDrawHint();
+      return;
+    }
+    if (drawingSelection && tempSelPoints.length > 0) {
+      tempSelPoints.pop();
+      tempSelMarkers.clearLayers();
+      const vc = tempSelVertexColor(currentMode === 'select_pot' ? 'potential' : 'resource');
+      tempSelPoints.forEach((p) => {
+        L.circleMarker(p, {
+          pane: 'userPane',
+          radius: 5,
+          fillColor: vc,
+          fillOpacity: 1,
+          color: '#fff',
+          weight: 1.5,
+          opacity: 0.8
+        }).addTo(tempSelMarkers);
+      });
+      updateTempSelPoly();
+      updateDrawHint();
+    }
+  }
+});
+
+function calcPolygonArea(points) {
+  if (points.length < 3) return 0;
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const center = points.reduce((a, p) => [a[0] + p[0] / points.length, a[1] + p[1] / points.length], [0, 0]);
+  const cosLat = Math.cos(toRad(center[0]));
+  const projected = points.map((p) => [(p[1] - center[1]) * toRad(1) * R * cosLat, (p[0] - center[0]) * toRad(1) * R]);
+  let area = 0;
+  for (let i = 0; i < projected.length; i++) {
+    const j = (i + 1) % projected.length;
+    area += projected[i][0] * projected[j][1];
+    area -= projected[j][0] * projected[i][1];
+  }
+  return Math.abs(area) / 2;
+}
+
+function formatArea(m2) {
+  if (m2 >= 10000) return (m2 / 10000).toFixed(2) + ' ha';
+  return m2.toFixed(0) + ' m²';
+}
+
+function togglePanelFold(panelId) {
+  const el = document.getElementById(panelId);
+  if (el) el.classList.toggle('fold-collapsed');
+}
+
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function selectionCentroidLatLng(points) {
+  if (!points || !points.length) return null;
+  let la = 0;
+  let lo = 0;
+  points.forEach(([lat, lng]) => {
+    la += lat;
+    lo += lng;
+  });
+  const n = points.length;
+  return L.latLng(la / n, lo / n);
+}
+
+function formatPoiCategoryStats(pois) {
+  if (!pois || !pois.length) return '';
+  const m = {};
+  for (let i = 0; i < pois.length; i++) {
+    const k = String(pois[i].category || '').trim() || '未分类';
+    m[k] = (m[k] || 0) + 1;
+  }
+  return Object.entries(m)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, n]) => `${k} ${n}`)
+    .join(' · ');
+}
+
+function buildMapSelectionCardIcon(sel) {
+  const collapsed = !!sel.mapCardCollapsed;
+  const active = sel.id === activeSelectionId;
+  const esc = escapeHtml;
+  const w = collapsed ? 120 : 284;
+  let body = '';
+  let iconH = collapsed ? 26 : 452;
+  if (!collapsed) {
+    const sumLine = `${esc(formatArea(sel.area))} · ${sel.points.length} 顶点 · POI ${sel.analysis.poiCount || 0}`;
+    let landBlock = '';
+    const lu = sel.analysis.landuse;
+    if (lu && lu.length) {
+      const total = lu.reduce((s, x) => s + x.count, 0);
+      const barSpans = lu
+        .map((l) => `<span style="flex:${l.count};min-width:3px;background:${colorForLanduseType(l.type)}"></span>`)
+        .join('');
+      const rows = lu
+        .map(
+          (l) =>
+            `<div class="msc-lu-row"><span class="msc-lu-dot" style="background:${colorForLanduseType(
+              l.type
+            )}"></span><span>${esc(String(l.type))}</span><span class="msc-lu-n">${l.count}</span></div>`
+        )
+        .join('');
+      landBlock = `<div class="msc-sec">用地类型</div><div class="msc-bar">${barSpans}</div><div class="msc-lu-list">${rows}</div>`;
+    } else {
+      landBlock = `<div class="msc-sec">用地类型</div><div class="msc-muted2">暂无</div>`;
+    }
+    let poiBlock = '';
+    const pois = sel.analysis.pois || [];
+    if (pois.length) {
+      const stat = esc(formatPoiCategoryStats(pois));
+      const maxN = 100;
+      const slice = pois.slice(0, maxN);
+      const lines = slice
+        .map((p) => {
+          const cat = p.category ? `<span class="msc-poi-cat">${esc(p.category)}</span>` : '';
+          return `<div class="msc-poi-row">${cat}<span class="msc-poi-nm">${esc(p.name)}</span></div>`;
+        })
+        .join('');
+      const more = pois.length > maxN ? `<div class="msc-muted2">… 另有 ${pois.length - maxN} 条</div>` : '';
+      poiBlock = `<div class="msc-sec">POI</div><div class="msc-poi-sum">${stat}</div><div class="msc-poi-scroll">${lines}${more}</div>`;
+    } else {
+      poiBlock = `<div class="msc-sec">POI</div><div class="msc-muted2">暂无</div>`;
+    }
+    const blurbBlock = `<div class="msc-blurb-top-wrap"><div class="msc-blurb-top-title">一句话说明</div><div class="msc-blurb-edit msc-blurb-edit-top" contenteditable="true" spellcheck="false" data-sel-id="${esc(
+      sel.id
+    )}" data-placeholder="（可在此填写）"></div></div>`;
+    body = `<div class="msc-body msc-body-expanded">${blurbBlock}<div class="msc-sum">${sumLine}</div>${landBlock}${poiBlock}</div>`;
+    iconH = 452;
+  }
+  const html = `<div class="map-site-card${active ? ' msc-active' : ''}${collapsed ? ' msc-collapsed' : ' msc-expanded'}">
+      <div class="msc-head">
+        <span class="msc-name">${esc(sel.name)}</span>
+        <button type="button" class="msc-fold" data-sel-id="${esc(sel.id)}" title="展开/折叠">${collapsed ? '▸' : '▾'}</button>
+      </div>
+      ${body}
+    </div>`;
+  return {
+    html,
+    iconSize: [w, iconH],
+    iconAnchor: [w / 2, iconH]
+  };
+}
+
+function ensureSelectionMapCard(sel) {
+  const ll = selectionCentroidLatLng(sel.points);
+  if (!ll) return;
+  const { html, iconSize, iconAnchor } = buildMapSelectionCardIcon(sel);
+  const icon = L.divIcon({
+    className: 'map-site-card-wrap',
+    html,
+    iconSize,
+    iconAnchor
+  });
+  if (!sel.cardMarker) {
+    sel.cardMarker = L.marker(ll, {
+      icon,
+      pane: 'selCardPane',
+      interactive: true,
+      zIndexOffset: 900
+    }).addTo(map);
+  } else {
+    sel.cardMarker.setLatLng(ll);
+    sel.cardMarker.setIcon(icon);
+  }
+  const iconEl = sel.cardMarker.getElement && sel.cardMarker.getElement();
+  if (iconEl) {
+    const be = iconEl.querySelector('.msc-blurb-edit');
+    if (be) be.textContent = sel.blurb != null ? String(sel.blurb) : '';
+  }
+}
+
+function removeSelectionMapCard(sel) {
+  if (sel.cardMarker) {
+    map.removeLayer(sel.cardMarker);
+    sel.cardMarker = null;
+  }
+}
+
+function refreshAllSelectionMapCards() {
+  selections.forEach((s) => ensureSelectionMapCard(s));
+}
+
+function pointInPolygon(point, polygon) {
+  const [x, y] = point;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi + 1e-18) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInStudyArea(lat, lng) {
+  if (!studyAreaRings || studyAreaRings.length === 0) return true;
+  return studyAreaRings.some((ring) => pointInPolygon([lat, lng], ring));
+}
+
+/** 沿东-北方向（米）移动 distM，返回 [lat,lng] */
+function offsetLatLngByEN(lat, lng, dirEast, dirNorth, distM) {
+  const mPerLat = 111320;
+  const mPerLng = 111320 * Math.cos((lat * Math.PI) / 180);
+  const len = Math.sqrt(dirEast * dirEast + dirNorth * dirNorth) || 1;
+  const e = (dirEast / len) * distM;
+  const n = (dirNorth / len) * distM;
+  return [lat + n / mPerLat, lng + e / mPerLng];
+}
+
+/** 折线两个端点中经度较大者（地图右侧端点） */
+function axisPolylineRightmostEndpoint(points) {
+  const a = points[0];
+  const b = points[points.length - 1];
+  return a[1] >= b[1] ? a : b;
+}
+
+/** 折线两个端点中经度较小者（地图左侧端点） */
+function axisPolylineLeftmostEndpoint(points) {
+  const a = points[0];
+  const b = points[points.length - 1];
+  return a[1] <= b[1] ? a : b;
+}
+
+/** 轴名 div 底边中点为锚点时，四角 [lat,lng]（用于判断是否整卡在研究区外） */
+function axisLabelCardCornerLatLngs(anchorLat, anchorLng, iconWpx, iconHpx) {
+  const c = map.latLngToLayerPoint(L.latLng(anchorLat, anchorLng));
+  const half = iconWpx / 2;
+  const pts = [
+    L.point(c.x - half, c.y - iconHpx),
+    L.point(c.x + half, c.y - iconHpx),
+    L.point(c.x - half, c.y),
+    L.point(c.x + half, c.y)
+  ];
+  return pts.map((p) => {
+    const ll = map.layerPointToLatLng(p);
+    return [ll.lat, ll.lng];
+  });
+}
+
+/** 沿东西向微移锚点，直至轴名卡片四角均不在研究区内；dirEastSign 为 +1 向东、-1 向西 */
+function nudgeAxisLabelCardOutsideStudy(anchorLat, anchorLng, iconWpx, iconHpx, dirEastSign) {
+  if (!map || !studyAreaRings || studyAreaRings.length === 0) return [anchorLat, anchorLng];
+  let lat = anchorLat;
+  let lng = anchorLng;
+  for (let step = 0; step < 500; step++) {
+    const corners = axisLabelCardCornerLatLngs(lat, lng, iconWpx, iconHpx);
+    const anyInside = corners.some(([alat, alng]) => pointInStudyArea(alat, alng));
+    if (!anyInside) return [lat, lng];
+    const moved = offsetLatLngByEN(lat, lng, dirEastSign, 0, 28);
+    lat = moved[0];
+    lng = moved[1];
+  }
+  return [lat, lng];
+}
+
+/** 从起点沿正东走出研究区后再外移，供轴名卡片落点 */
+function findAxisLabelAnchorEastward(startLat, startLng) {
+  const dirE = 1;
+  const dirN = 0;
+  if (!studyAreaRings || studyAreaRings.length === 0) {
+    return offsetLatLngByEN(startLat, startLng, dirE, dirN, 420);
+  }
+  let clat = startLat;
+  let clng = startLng;
+  let inside = pointInStudyArea(clat, clng);
+  for (let step = 0; step < 600; step++) {
+    const [nlat, nlng] = offsetLatLngByEN(clat, clng, dirE, dirN, 18);
+    clat = nlat;
+    clng = nlng;
+    const in2 = pointInStudyArea(clat, clng);
+    if (inside && !in2) {
+      return offsetLatLngByEN(clat, clng, dirE, dirN, 100);
+    }
+    inside = in2;
+  }
+  if (!inside) {
+    return offsetLatLngByEN(clat, clng, dirE, dirN, 80);
+  }
+  return offsetLatLngByEN(startLat, startLng, dirE, dirN, 480);
+}
+
+/** 从起点沿正西走出研究区后再外移（商业 / 体育认知轴） */
+function findAxisLabelAnchorWestward(startLat, startLng) {
+  const dirE = -1;
+  const dirN = 0;
+  if (!studyAreaRings || studyAreaRings.length === 0) {
+    return offsetLatLngByEN(startLat, startLng, dirE, dirN, 420);
+  }
+  let clat = startLat;
+  let clng = startLng;
+  let inside = pointInStudyArea(clat, clng);
+  for (let step = 0; step < 600; step++) {
+    const [nlat, nlng] = offsetLatLngByEN(clat, clng, dirE, dirN, 18);
+    clat = nlat;
+    clng = nlng;
+    const in2 = pointInStudyArea(clat, clng);
+    if (inside && !in2) {
+      return offsetLatLngByEN(clat, clng, dirE, dirN, 100);
+    }
+    inside = in2;
+  }
+  if (!inside) {
+    return offsetLatLngByEN(clat, clng, dirE, dirN, 80);
+  }
+  return offsetLatLngByEN(startLat, startLng, dirE, dirN, 480);
+}
+
+const LANDUSE_COLORS = {
+  用地: '#ce93d8',
+  商业: '#e91e8c',
+  居住: '#00d4ff',
+  办公: '#ffb300',
+  公共服务: '#4ceb9a',
+  绿地: '#27ae60',
+  交通: '#95a5a6',
+  工业: '#e67e22',
+  教育: '#9b59b6',
+  医疗: '#e74c3c',
+  文化: '#f39c12',
+  未分类: '#78909c',
+  R: '#5c6bc0',
+  C: '#26a69a',
+  G: '#66bb6a',
+  M: '#ffa726',
+  U: '#8d6e63',
+  S: '#b0bec5',
+  residential: '#5c6bc0',
+  commercial: '#e91e8c',
+  industrial: '#e67e22',
+  retail: '#ff8a65',
+  farmland: '#c0ca33',
+  farm: '#9e9d24',
+  meadow: '#9ccc65',
+  forest: '#2e7d32',
+  grass: '#66bb6a',
+  orchard: '#7cb342',
+  vineyard: '#8bc34a',
+  allotments: '#aed581',
+  cemetery: '#90a4ae',
+  water: '#1e88e5',
+  wetland: '#26c6da',
+  sand: '#ffe082',
+  beach: '#ffcc80',
+  scrub: '#8d6e63',
+  wood: '#33691e',
+  park: '#43a047',
+  garden: '#66bb6a',
+  playground: '#7cb342',
+  pitch: '#558b2f',
+  stadium: '#558b2f',
+  golf_course: '#558b2f',
+  recreation_ground: '#689f38'
+};
+
+function getLanduseTypeKey(props) {
+  if (!props) return '未分类';
+  const raw =
+    props.landuse_type ??
+    props.landuse ??
+    props.natural ??
+    props.leisure ??
+    props.landcover ??
+    props.amenity ??
+    props.waterway ??
+    props.LANDUSE ??
+    props.用地性质 ??
+    props.YDLX ??
+    props.TYPE ??
+    props.name;
+  const s = raw != null && String(raw).trim() !== '' ? String(raw).trim() : '';
+  return s || '未分类';
+}
+
+function colorForLanduseType(t) {
+  const key = String(t || '').trim() || '未分类';
+  if (LANDUSE_COLORS[key]) return LANDUSE_COLORS[key];
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (((h << 5) - h + key.charCodeAt(i)) | 0) >>> 0;
+  const hue = h % 360;
+  return `hsl(${hue}, 58%, 48%)`;
+}
+
+function coordsNearLL(a, b, eps = 1e-9) {
+  return Math.abs(a[0] - b[0]) < eps && Math.abs(a[1] - b[1]) < eps;
+}
+
+function closedLatLngRing(ring) {
+  if (!ring || ring.length < 2) return ring;
+  const f = ring[0];
+  const l = ring[ring.length - 1];
+  if (coordsNearLL(f, l)) return ring;
+  return [...ring, [f[0], f[1]]];
+}
+
+function openLatLngRing(ringClosed) {
+  if (!ringClosed || ringClosed.length < 2) return ringClosed || [];
+  const f = ringClosed[0];
+  const l = ringClosed[ringClosed.length - 1];
+  if (coordsNearLL(f, l)) return ringClosed.slice(0, -1);
+  return ringClosed;
+}
+
+/** 线段相交（平面近似，顶点为 [lat,lng]，与 pointInPolygon 一致） */
+function segmentsIntersectLatLng(p1, p2, p3, p4) {
+  const eps = 1e-10;
+  const orient = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const onSeg = (a, b, c) =>
+    Math.min(a[0], c[0]) - eps <= b[0] &&
+    b[0] <= Math.max(a[0], c[0]) + eps &&
+    Math.min(a[1], c[1]) - eps <= b[1] &&
+    b[1] <= Math.max(a[1], c[1]) + eps;
+  const o1 = orient(p1, p2, p3);
+  const o2 = orient(p1, p2, p4);
+  const o3 = orient(p3, p4, p1);
+  const o4 = orient(p3, p4, p2);
+  if (Math.abs(o1) < eps && onSeg(p1, p3, p2)) return true;
+  if (Math.abs(o2) < eps && onSeg(p1, p4, p2)) return true;
+  if (Math.abs(o3) < eps && onSeg(p3, p1, p4)) return true;
+  if (Math.abs(o4) < eps && onSeg(p3, p2, p4)) return true;
+  return (o1 > eps && o2 < -eps && o3 > eps && o4 < -eps) || (o1 < -eps && o2 > eps && o3 < -eps && o4 > eps);
+}
+
+function ringEdgesIntersectClosed(ringA, ringB) {
+  for (let i = 0; i < ringA.length - 1; i++) {
+    for (let j = 0; j < ringB.length - 1; j++) {
+      if (segmentsIntersectLatLng(ringA[i], ringA[i + 1], ringB[j], ringB[j + 1])) return true;
+    }
+  }
+  return false;
+}
+
+/** GeoJSON 环 [lng,lat][] → [lat,lng][] */
+function lngLatRingToLatLng(ringLngLat) {
+  return ringLngLat.map(([lng, lat]) => [lat, lng]);
+}
+
+/** 手绘区多边形（开环顶点）与用地外环是否接触或重叠 */
+function activationTouchesLandRingLngLat(actPointsOpen, ringLngLat) {
+  if (!actPointsOpen || actPointsOpen.length < 2 || !ringLngLat || ringLngLat.length < 3) return false;
+  const landLL = lngLatRingToLatLng(ringLngLat);
+  const landClosed = closedLatLngRing(landLL);
+  const landOpen = openLatLngRing(landClosed);
+  const actClosed = closedLatLngRing(actPointsOpen);
+  const actOpen = openLatLngRing(actClosed);
+  for (let i = 0; i < landOpen.length; i++) {
+    if (pointInPolygon(landOpen[i], actPointsOpen)) return true;
+  }
+  for (let i = 0; i < actOpen.length; i++) {
+    if (pointInPolygon(actOpen[i], landOpen)) return true;
+  }
+  if (ringEdgesIntersectClosed(actClosed, landClosed)) return true;
+  const touchEps = 1e-7;
+  for (let i = 0; i < actOpen.length; i++) {
+    const a = actOpen[i];
+    for (let j = 0; j < landOpen.length; j++) {
+      const l = landOpen[j];
+      if (Math.abs(a[0] - l[0]) < touchEps && Math.abs(a[1] - l[1]) < touchEps) return true;
+    }
+  }
+  return false;
+}
+
+function landuseFeatureTouchesActivation(f, actPointsOpen) {
+  const g = f.geometry;
+  if (!g) return false;
+  if (g.type === 'Polygon' && g.coordinates && g.coordinates[0]) {
+    return activationTouchesLandRingLngLat(actPointsOpen, g.coordinates[0]);
+  }
+  if (g.type === 'MultiPolygon' && g.coordinates) {
+    for (let pi = 0; pi < g.coordinates.length; pi++) {
+      const poly = g.coordinates[pi];
+      const outer = poly && poly[0];
+      if (outer && activationTouchesLandRingLngLat(actPointsOpen, outer)) return true;
+    }
+  }
+  return false;
+}
+
+function analyzeSelection(points) {
+  const result = { poiCount: 0, pois: [], landuse: [] };
+  if (poiData && poiData.features) {
+    const insidePois = poiData.features.filter((f) => {
+      if (f.geometry.type !== 'Point') return false;
+      const [lng, lat] = f.geometry.coordinates;
+      if (!pointInStudyArea(lat, lng)) return false;
+      return pointInPolygon([lat, lng], points);
+    });
+    result.pois = insidePois.map((f) => ({
+      name: f.properties.name || '未命名',
+      category: f.properties.group || f.properties.category || f.properties.type || ''
+    }));
+    result.poiCount = result.pois.length;
+  }
+  // 用地：全量 landuseData（与地图研究区内填色同源）；逐要素几何接触判断
+  if (landuseData && landuseData.features) {
+    const typeCounts = {};
+    landuseData.features.forEach((f) => {
+      if (f.geometry.type !== 'Polygon' && f.geometry.type !== 'MultiPolygon') return;
+      if (!landuseFeatureTouchesActivation(f, points)) return;
+      const t = getLanduseTypeKey(f.properties);
+      typeCounts[t] = (typeCounts[t] || 0) + 1;
+    });
+    result.landuse = Object.entries(typeCounts)
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count);
+  }
+  return result;
+}
+
+function landuseFeatureCentroidLngLat(f) {
+  const g = f.geometry;
+  if (!g) return null;
+  let ring = null;
+  if (g.type === 'Polygon' && g.coordinates && g.coordinates[0]) {
+    ring = g.coordinates[0];
+  } else if (g.type === 'MultiPolygon' && g.coordinates && g.coordinates[0] && g.coordinates[0][0]) {
+    ring = g.coordinates[0][0];
+  }
+  if (!ring || !ring.length) return null;
+  const clng = ring.reduce((s, c) => s + c[0] / ring.length, 0);
+  const clat = ring.reduce((s, c) => s + c[1] / ring.length, 0);
+  return [clng, clat];
+}
+
+function updateLanduseLayerNearAxes() {
+  if (landuseLayers) {
+    map.removeLayer(landuseLayers);
+    landuseLayers = null;
+  }
+  if (!landuseData || !landuseData.features || !landuseData.features.length) return;
+  const filtered = landuseData.features.filter((f) => {
+    if (f.geometry.type !== 'Polygon' && f.geometry.type !== 'MultiPolygon') return false;
+    const c = landuseFeatureCentroidLngLat(f);
+    if (!c) return false;
+    const [clng, clat] = c;
+    return pointInStudyArea(clat, clng);
+  });
+  if (filtered.length === 0) return;
+  landuseLayers = L.geoJSON(
+    { type: 'FeatureCollection', features: filtered },
+    {
+      pane: 'dataPane',
+      style(f) {
+        const tKey = getLanduseTypeKey(f.properties);
+        const color = colorForLanduseType(tKey);
+        return { color, weight: 1, opacity: 0.62, fillColor: color, fillOpacity: 0.22 };
+      },
+      onEachFeature: (f, layer) => {
+        layer.on('mouseover', (e) => {
+          const card = document.getElementById('infoCard');
+          const tKey = getLanduseTypeKey(f.properties);
+          document.getElementById('icName').textContent = f.properties.name || tKey || '地块';
+          const osmRow =
+            f.properties.osm_relation_id != null
+              ? `<div class="ic-row"><b>OSM relation</b> ${f.properties.osm_relation_id}</div>`
+              : f.properties.osm_way_id != null
+                ? `<div class="ic-row"><b>OSM way</b> ${f.properties.osm_way_id}</div>`
+                : '';
+          document.getElementById('icBody').innerHTML = `<div class="ic-row"><b>用地类型</b> ${tKey}</div>${osmRow}${f.properties.description ? `<div class="ic-row">${f.properties.description}</div>` : ''}`;
+          const pt = map.latLngToContainerPoint(e.latlng);
+          card.style.left = pt.x + 16 + 'px';
+          card.style.top = pt.y - 20 + 'px';
+          card.classList.add('visible');
+        });
+        layer.on('mouseout', () => hideInfoCard());
+      }
+    }
+  ).addTo(map);
+}
+
+function mergeBoundingBoxes(a, b) {
+  return {
+    south: Math.min(a.south, b.south),
+    west: Math.min(a.west, b.west),
+    north: Math.max(a.north, b.north),
+    east: Math.max(a.east, b.east)
+  };
+}
+
+function bboxFromLatLngPoints(points, padDeg) {
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const [lat, lng] = points[i];
+    minLat = Math.min(minLat, lat);
+    maxLat = Math.max(maxLat, lat);
+    minLng = Math.min(minLng, lng);
+    maxLng = Math.max(maxLng, lng);
+  }
+  if (!Number.isFinite(minLat)) return { ...FALLBACK_LANDUSE_BBOX };
+  return {
+    south: minLat - padDeg,
+    west: minLng - padDeg,
+    north: maxLat + padDeg,
+    east: maxLng + padDeg
+  };
+}
+
+function bboxFromStudyAreaRings(padDeg) {
+  if (!studyAreaRings || !studyAreaRings.length) return null;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  studyAreaRings.forEach((ring) => {
+    ring.forEach(([lat, lng]) => {
+      minLat = Math.min(minLat, lat);
+      maxLat = Math.max(maxLat, lat);
+      minLng = Math.min(minLng, lng);
+      maxLng = Math.max(maxLng, lng);
+    });
+  });
+  if (!Number.isFinite(minLat)) return null;
+  return {
+    south: minLat - padDeg,
+    west: minLng - padDeg,
+    north: maxLat + padDeg,
+    east: maxLng + padDeg
+  };
+}
+
+/** Overpass 查询 bbox：研究区 ∪ 当前所有资源区 / 潜力区顶点包络（均外扩），覆盖地图填色与统计所需范围 */
+function computeLanduseOverpassBbox() {
+  const studyPad = 0.004;
+  const selPad = 0.009;
+  let bb = bboxFromStudyAreaRings(studyPad);
+  if (!bb) bb = { ...FALLBACK_LANDUSE_BBOX };
+  selections.forEach((s) => {
+    if (s.points && s.points.length) {
+      bb = mergeBoundingBoxes(bb, bboxFromLatLngPoints(s.points, selPad));
+    }
+  });
+  return bb;
+}
+
+function bboxOuterCoversInner(outer, inner) {
+  return (
+    outer.south <= inner.south + 1e-8 &&
+    outer.north >= inner.north - 1e-8 &&
+    outer.west <= inner.west + 1e-8 &&
+    outer.east >= inner.east - 1e-8
+  );
+}
+
+function buildOverpassLanduseQuery(south, west, north, east) {
+  const s = south.toFixed(5);
+  const w = west.toFixed(5);
+  const n = north.toFixed(5);
+  const e = east.toFixed(5);
+  return `[out:json][timeout:300];
+(
+  way["landuse"](${s},${w},${n},${e});
+  way["natural"~"wood|water|wetland|grassland|scrub|sand|beach|bare_rock|grass|heath|fell|bay|shingle|mud|rock|glacier"](${s},${w},${n},${e});
+  way["leisure"~"park|garden|playground|pitch|stadium|golf_course|recreation_ground|nature_reserve|marina|dog_park|common|swimming_pool|fitness_centre"](${s},${w},${n},${e});
+  way["landcover"](${s},${w},${n},${e});
+  way["waterway"~"riverbank|dock|basin|dam"](${s},${w},${n},${e});
+  way["amenity"~"university|college|hospital|school|kindergarten|grave_yard|parking|marketplace|community_centre|arts_centre|theatre|library|swimming_pool|townhall"](${s},${w},${n},${e});
+  relation["type"="multipolygon"]["landuse"](${s},${w},${n},${e});
+  relation["type"="multipolygon"]["natural"](${s},${w},${n},${e});
+  relation["type"="multipolygon"]["leisure"](${s},${w},${n},${e});
+  relation["type"="multipolygon"]["landcover"](${s},${w},${n},${e});
+  relation["type"="multipolygon"]["amenity"](${s},${w},${n},${e});
+  relation["type"="multipolygon"]["waterway"](${s},${w},${n},${e});
+);
+(._;>;);
+out geom;`;
+}
+
+function primaryOsmLandTag(tags) {
+  if (!tags) return '';
+  const w = tags.waterway;
+  const waterPoly = w && /^(riverbank|dock|basin|dam)$/i.test(String(w)) ? String(w) : '';
+  return tags.landuse || tags.natural || tags.leisure || tags.landcover || tags.amenity || waterPoly || '';
+}
+
+let osmtogeojsonLoadPromise = null;
+function loadOsmToGeojson() {
+  if (!osmtogeojsonLoadPromise) {
+    osmtogeojsonLoadPromise = import('https://esm.sh/osmtogeojson@3.0.0-beta.5?bundle').then((m) => {
+      const fn = m.default;
+      if (typeof fn !== 'function') throw new Error('osmtogeojson 未导出为函数');
+      return fn;
+    });
+  }
+  return osmtogeojsonLoadPromise;
+}
+
+function parseOsmFlatId(props) {
+  const id = props && props.id;
+  if (!id || typeof id !== 'string') return null;
+  const m = id.match(/^(way|relation)\/(\d+)$/);
+  if (!m) return null;
+  return { kind: m[1], num: Number(m[2]) };
+}
+
+/** 将 osmtogeojson 输出规范为与地图/统计一致的用地要素（仅面，且至少有一种用地相关主标签） */
+function normalizeLanduseFromOsmGeoJSON(gj) {
+  const features = [];
+  const list = gj && gj.features ? gj.features : [];
+  for (let i = 0; i < list.length; i++) {
+    const f = list[i];
+    const gt = f.geometry && f.geometry.type;
+    if (gt !== 'Polygon' && gt !== 'MultiPolygon') continue;
+    const p = f.properties || {};
+    const primary = primaryOsmLandTag(p);
+    if (!primary) continue;
+    const pid = parseOsmFlatId(p);
+    const props = {
+      ...p,
+      landuse_type: primary,
+      osm_way_id: pid && pid.kind === 'way' ? pid.num : p.osm_way_id,
+      osm_relation_id: pid && pid.kind === 'relation' ? pid.num : p.osm_relation_id
+    };
+    features.push({ type: 'Feature', properties: props, geometry: f.geometry });
+  }
+  return { type: 'FeatureCollection', features };
+}
+
+function closedLngLatRingFromOverpassGeometry(geometry) {
+  if (!geometry || geometry.length < 4) return null;
+  const coords = geometry.map((p) => [p.lon, p.lat]);
+  const a = coords[0];
+  const z = coords[coords.length - 1];
+  if (a[0] !== z[0] || a[1] !== z[1]) coords.push([a[0], a[1]]);
+  return coords;
+}
+
+function overpassLandElementsToGeoJSON(elements) {
+  const features = [];
+  if (!elements || !elements.length) return { type: 'FeatureCollection', features };
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i];
+    if (el.type !== 'way' || !el.tags || !el.geometry) continue;
+    const tagKey = primaryOsmLandTag(el.tags);
+    if (!tagKey) continue;
+    const ring = closedLngLatRingFromOverpassGeometry(el.geometry);
+    if (!ring) continue;
+    features.push({
+      type: 'Feature',
+      properties: {
+        landuse_type: String(tagKey),
+        landuse: el.tags.landuse || '',
+        natural: el.tags.natural || '',
+        leisure: el.tags.leisure || '',
+        name: el.tags.name || el.tags['name:zh'] || el.tags['name:en'] || '',
+        osm_way_id: el.id,
+        source: 'osm'
+      },
+      geometry: { type: 'Polygon', coordinates: [ring] }
+    });
+  }
+  return { type: 'FeatureCollection', features };
+}
+
+async function postOverpassInterpreter(query) {
+  const body = 'data=' + encodeURIComponent(query);
+  let lastErr = null;
+  for (let u = 0; u < OVERPASS_INTERPRETER_URLS.length; u++) {
+    try {
+      const res = await fetch(OVERPASS_INTERPRETER_URLS[u], {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+        mode: 'cors',
+        cache: 'no-store'
+      });
+      if (!res.ok) {
+        lastErr = new Error('HTTP ' + res.status);
+        continue;
+      }
+      return res.json();
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('Overpass 不可用');
+}
+
+async function fetchOsmLanduseFeatureCollection(bb) {
+  const q = buildOverpassLanduseQuery(bb.south, bb.west, bb.north, bb.east);
+  const osm = await postOverpassInterpreter(q);
+  try {
+    const osmtogeojson = await loadOsmToGeojson();
+    const gj = osmtogeojson(osm, { flatProperties: true });
+    return normalizeLanduseFromOsmGeoJSON(gj);
+  } catch (e) {
+    console.warn('[用地/OSM] osmtogeojson 转换失败，退回仅 way 解析（可能缺少 multipolygon relation）', e);
+    const elements = osm.elements || [];
+    return overpassLandElementsToGeoJSON(elements);
+  }
+}
+
+async function refetchLanduseIfSelectionsExceedCachedBbox() {
+  const need = computeLanduseOverpassBbox();
+  if (landuseOverpassBboxLast && bboxOuterCoversInner(landuseOverpassBboxLast, need)) return;
+  const qbox = landuseOverpassBboxLast ? mergeBoundingBoxes(landuseOverpassBboxLast, need) : need;
+  try {
+    landuseData = await fetchOsmLanduseFeatureCollection(qbox);
+    landuseOverpassBboxLast = qbox;
+    if (!landuseData.features.length) {
+      console.warn('[用地/OSM] 扩大 bbox 后仍未返回面要素');
+    }
+    updateLanduseLayerNearAxes();
+    selections.forEach((s) => {
+      s.analysis = analyzeSelection(s.points);
+    });
+    recomputeSelectionDisplayNames();
+    renderSelectionList();
+    refreshAllSelectionMapCards();
+    persistMapDrafts();
+  } catch (e) {
+    console.warn('[用地/OSM] 扩大范围重拉失败', e);
+  }
+}
+
+async function loadStaticDataLayers() {
+  const bb = computeLanduseOverpassBbox();
+  try {
+    landuseData = await fetchOsmLanduseFeatureCollection(bb);
+    landuseOverpassBboxLast = bb;
+    if (!landuseData.features.length) {
+      console.warn('[用地/OSM] 未返回面要素，可能 bbox 内无数据或查询被拒');
+    }
+    updateLanduseLayerNearAxes();
+  } catch (e) {
+    console.warn('[用地/OSM] Overpass 拉取失败', e);
+    landuseData = { type: 'FeatureCollection', features: [] };
+    landuseOverpassBboxLast = null;
+  }
+  try {
+    const pr = await fetch(STATIC_POI_URL, { cache: 'no-store' });
+    if (pr.ok) {
+      poiData = await pr.json();
+    } else {
+      console.warn('[POI] 未找到', STATIC_POI_URL);
+    }
+  } catch (e) {
+    console.warn('[POI] 加载失败', e);
+  }
+  selections.forEach((sel) => {
+    sel.analysis = analyzeSelection(sel.points);
+  });
+  recomputeSelectionDisplayNames();
+  renderSelectionList();
+  persistMapDrafts();
+}
+
+function isExportScreenshotMode() {
+  try {
+    return new URLSearchParams(location.search).has('export');
+  } catch (e) {
+    return false;
+  }
+}
+
+function fitMapBoundsForExportScreenshot() {
+  if (!map) return;
+  const pts = [];
+  if (studyAreaRings && studyAreaRings.length) {
+    studyAreaRings.forEach((ring) => {
+      ring.forEach((p) => pts.push(p));
+    });
+  }
+  selections.forEach((s) => {
+    if (s.points) s.points.forEach((p) => pts.push(p));
+  });
+  getAllAxesList().forEach((a) => {
+    if (a.points) a.points.forEach((p) => pts.push(p));
+  });
+  if (pts.length < 2) return;
+  let minLat = pts[0][0], maxLat = pts[0][0], minLon = pts[0][1], maxLon = pts[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    const [la, lo] = pts[i];
+    if (la < minLat) minLat = la;
+    if (la > maxLat) maxLat = la;
+    if (lo < minLon) minLon = lo;
+    if (lo > maxLon) maxLon = lo;
+  }
+  const padLat = Math.max(0.002, (maxLat - minLat) * 0.1);
+  const padLon = Math.max(0.002, (maxLon - minLon) * 0.1);
+  map.fitBounds(
+    [[minLat - padLat, minLon - padLon], [maxLat + padLat, maxLon + padLon]],
+    { animate: false, padding: [20, 20] }
+  );
+}
+
+function scheduleExportScreenshotLayout() {
+  if (!isExportScreenshotMode()) return;
+  const tick = () => {
+    try {
+      map.invalidateSize();
+      fitMapBoundsForExportScreenshot();
+    } catch (e) {
+      console.warn('[export]', e);
+    }
+  };
+  tick();
+  setTimeout(tick, 400);
+  setTimeout(tick, 1200);
+}
+
+document.getElementById('draftFileInput').addEventListener('change', onSiteSelectionDraftFile);
+
+void restoreLinkedDraftFileHandleFromIdb();
+
+const hadLocalDraft = restoreMapDrafts();
+renderAxisList();
+loadDefaultStudyBoundary()
+  .then(async () => {
+    if (!hadLocalDraft) await tryLoadPublishedDraftFromRepo();
+    axes.forEach((a) => {
+      if (a.points && a.points.length >= 2) applyAxisGeometryToMap(a);
+    });
+    subAxes.forEach((a) => {
+      if (a.points && a.points.length >= 2) applyAxisGeometryToMap(a);
+    });
+    return loadStaticDataLayers();
+  })
+  .then(() => setMode(currentMode))
+  .then(() => {
+    scheduleExportScreenshotLayout();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人物画像卡片模板</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --magenta: #E91E8C;
+    --magenta-light: #FF4DAD;
+    --magenta-dim: rgba(233, 30, 140, 0.15);
+    --magenta-border: rgba(233, 30, 140, 0.35);
+    --bg: #0C0C12;
+    --bg-card: #12121C;
+    --bg-panel: #1A1A28;
+    --bg-tag: #1E1E30;
+    --text-primary: #F0F0F8;
+    --text-secondary: #8888AA;
+    --text-dim: #555568;
+    --white: #FFFFFF;
+    --grid-line: rgba(233, 30, 140, 0.07);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Noto Sans SC', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+  }
+
+  /* ─── CARD ─────────────────────────────────────────── */
+  .card {
+    width: 380px;
+    background: var(--bg-card);
+    border: 1px solid var(--magenta-border);
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    box-shadow:
+      0 0 0 1px rgba(233,30,140,0.1),
+      0 0 40px rgba(233,30,140,0.08),
+      0 20px 60px rgba(0,0,0,0.6);
+  }
+
+  /* grid texture */
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* glow orb */
+  .card::after {
+    content: '';
+    position: absolute;
+    top: -80px; right: -60px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(233,30,140,0.18) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .card > * { position: relative; z-index: 1; }
+
+  /* ─── HEADER BAND ───────────────────────────────────── */
+  .card-header {
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--magenta-border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .type-badge {
+    background: var(--magenta);
+    color: #fff;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 4px;
+  }
+
+  .type-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    letter-spacing: 0.05em;
+  }
+
+  .header-dot {
+    margin-left: auto;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--magenta);
+    box-shadow: 0 0 8px var(--magenta);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--magenta); }
+    50% { opacity: 0.4; box-shadow: 0 0 3px var(--magenta); }
+  }
+
+  /* ─── TOP SECTION: illustration + stats ─────────────── */
+  .card-top {
+    display: grid;
+    grid-template-columns: 148px 1fr;
+    min-height: 170px;
+    border-bottom: 1px solid var(--magenta-border);
+  }
+
+  /* illustration placeholder */
+  .illus-box {
+    border-right: 1px solid var(--magenta-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(160deg, var(--bg-panel) 0%, var(--bg-card) 100%);
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .illus-box::after {
+    content: '';
+    position: absolute;
+    bottom: -30px; left: -30px;
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(233,30,140,0.12), transparent 70%);
+  }
+
+  .illus-placeholder {
+    width: 100px;
+    height: 110px;
+    border: 1.5px dashed var(--magenta-border);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: border-color 0.2s;
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+  }
+
+  .illus-placeholder:hover { border-color: var(--magenta); }
+
+  .illus-placeholder svg { opacity: 0.35; }
+
+  .illus-placeholder span {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  /* replace with actual image: */
+  /* .illus-box img { width:110px; border-radius:8px; } */
+
+  /* stats column */
+  .stats-col {
+    padding: 16px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .persona-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+  }
+
+  .stat-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .stat-value {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .stat-value.accent { color: var(--magenta-light); }
+
+  /* population donut */
+  .pop-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .donut-wrap {
+    position: relative;
+    width: 40px; height: 40px;
+    flex-shrink: 0;
+  }
+
+  .donut-wrap svg { transform: rotate(-90deg); }
+
+  .donut-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--magenta-light);
+  }
+
+  .pop-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  /* ─── FLOW DIAGRAM ──────────────────────────────────── */
+  .flow-section {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--magenta-border);
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .flow-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+
+  .flow-col-label {
+    font-size: 9px;
+    color: var(--magenta);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .flow-row {
+    display: grid;
+    grid-template-columns: 1fr 36px 1fr;
+    align-items: center;
+    gap: 0;
+  }
+
+  .flow-node {
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .flow-node span {
+    display: block;
+    font-size: 10px;
+    font-weight: 400;
+    margin-top: 1px;
+    opacity: 0.65;
+  }
+
+  .node-trait {
+    background: var(--bg-panel);
+    border: 1px solid rgba(255,255,255,0.07);
+    color: var(--text-secondary);
+  }
+
+  .node-space {
+    background: var(--magenta-dim);
+    border: 1px solid var(--magenta-border);
+    color: var(--text-primary);
+    text-align: right;
+  }
+
+  .flow-connector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    height: 100%;
+  }
+
+  .flow-line {
+    position: absolute;
+    left: 6px; right: 6px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--magenta-border), var(--magenta));
+  }
+
+  .flow-arrow {
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+  }
+
+  /* ─── KEYWORDS SECTION ──────────────────────────────── */
+  .section {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--magenta-border);
+  }
+
+  .section-title {
+    font-size: 9px;
+    color: var(--magenta);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--magenta-border), transparent);
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .tag {
+    background: var(--bg-tag);
+    border: 1px solid var(--magenta-border);
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+  }
+
+  .tag:hover { border-color: var(--magenta); color: var(--text-primary); }
+
+  .tag-icon { font-size: 12px; }
+
+  /* ─── SPACE PREFERENCE ──────────────────────────────── */
+  .pref-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .pref-item {
+    background: var(--bg-panel);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .pref-icon {
+    width: 24px; height: 24px;
+    background: var(--magenta-dim);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .pref-text {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.3;
+  }
+
+  /* ─── MECHANISM ROW ─────────────────────────────────── */
+  .mech-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+
+  .mech-item {
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .mech-item:first-child {
+    border-right: 1px solid var(--magenta-border);
+  }
+
+  .mech-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .mech-value {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--magenta-dim);
+    border: 1px solid var(--magenta-border);
+    border-radius: 5px;
+    padding: 2px 7px;
+    font-size: 11px;
+    color: var(--magenta-light);
+    font-weight: 500;
+  }
+
+  /* ─── BOTTOM INSIGHT BAR ────────────────────────────── */
+  .insight-bar {
+    padding: 12px 18px;
+    background: linear-gradient(90deg, var(--magenta-dim), transparent);
+    border-top: 1px solid var(--magenta-border);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .insight-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .insight-text {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  .insight-text strong {
+    color: var(--magenta-light);
+    font-weight: 600;
+  }
+
+  /* ─── DEMO LAYOUT ───────────────────────────────────── */
+  .demo-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .demo-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="demo-wrap">
+  <div class="demo-title">Persona Card · Template</div>
+
+  <!-- ════════════════ CARD ════════════════ -->
+  <div class="card">
+
+    <!-- HEADER -->
+    <div class="card-header">
+      <span class="type-badge">Type 01</span>
+      <span class="type-label">社群画像</span>
+      <div class="header-dot"></div>
+    </div>
+
+    <!-- TOP: illustration + key stats -->
+    <div class="card-top">
+
+      <!-- 简笔画嵌入区 -->
+      <div class="illus-box">
+        <div class="illus-placeholder">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E91E8C" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="M21 15l-5-5L5 21"/>
+          </svg>
+          <span>嵌入简笔画</span>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-col">
+        <div class="persona-name">隔代照料者<br><small style="font-size:12px;font-weight:400;color:var(--text-secondary)">带娃老人</small></div>
+
+        <div class="stat-row">
+          <span class="stat-label">年龄范围</span>
+          <span class="stat-value">65 – 75 岁</span>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-label">收入水平</span>
+          <span class="stat-value accent">月均 ¥5,470</span>
+        </div>
+
+        <div class="pop-row">
+          <!-- Donut chart: 40% -->
+          <div class="donut-wrap">
+            <svg width="40" height="40" viewBox="0 0 40 40">
+              <circle cx="20" cy="20" r="15" fill="none" stroke="#1E1E30" stroke-width="5"/>
+              <circle cx="20" cy="20" r="15" fill="none"
+                stroke="#E91E8C" stroke-width="5"
+                stroke-dasharray="37.7 56.5"
+                stroke-linecap="round"/>
+            </svg>
+            <div class="donut-center">40%</div>
+          </div>
+          <div class="pop-label">人群占比<br>最大用户群</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FLOW: traits → space behaviors -->
+    <div class="flow-section">
+      <div class="flow-header">
+        <span class="flow-col-label">社会特征</span>
+        <span class="flow-col-label" style="text-align:right">空间行为</span>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-node node-trait">隔代照料<br><span>双职工家庭</span></div>
+        <div class="flow-connector">
+          <div class="flow-line"></div>
+          <svg class="flow-arrow" width="10" height="10" viewBox="0 0 10 10">
+            <polyline points="2,2 8,5 2,8" fill="none" stroke="#E91E8C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="flow-node node-space">学校 · 公园入口<br><span>7:30–8:30 / 15:00–17:00</span></div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-node node-trait">固定路径<br><span>目的地明确</span></div>
+        <div class="flow-connector">
+          <div class="flow-line"></div>
+          <svg class="flow-arrow" width="10" height="10" viewBox="0 0 10 10">
+            <polyline points="2,2 8,5 2,8" fill="none" stroke="#E91E8C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="flow-node node-space">菜场 · 居住地<br><span>不走陌生路段</span></div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-node node-trait">代际触发<br><span>孙辈同行</span></div>
+        <div class="flow-connector">
+          <div class="flow-line"></div>
+          <svg class="flow-arrow" width="10" height="10" viewBox="0 0 10 10">
+            <polyline points="2,2 8,5 2,8" fill="none" stroke="#E91E8C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="flow-node node-space">社区相遇场景<br><span>低探索 · 高聚集</span></div>
+      </div>
+    </div>
+
+    <!-- MECHANISM + AI ROLE -->
+    <div class="mech-row" style="border-top:1px solid var(--magenta-border);border-bottom:1px solid var(--magenta-border);">
+      <div class="mech-item">
+        <div class="mech-label">空间适应机制</div>
+        <div class="mech-value">路径锚点引导</div>
+      </div>
+      <div class="mech-item">
+        <div class="mech-label">AI 角色</div>
+        <div class="ai-badge">路径伴随者</div>
+      </div>
+    </div>
+
+
+
+  </div><!-- /card -->
+
+  <div class="demo-title" style="margin-top:8px">↑ 替换简笔画 · 修改字段数值 · 复用卡片结构</div>
+</div>
+
+</body>
+</html>

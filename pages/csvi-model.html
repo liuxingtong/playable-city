@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSVI 模型</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&family=DM+Mono:wght@300;400;500&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg:   #08080E;
+    --card: #0D0D18;
+    --pan:  #131320;
+    --r:    #E91E8C;
+    --rl:   #FF4DAD;
+    --rd:   rgba(233,30,140,0.10);
+    --rb:   rgba(233,30,140,0.22);
+    --rb2:  rgba(233,30,140,0.40);
+    --grid: rgba(233,30,140,0.030);
+    --t1:   #F0F0F8;
+    --t2:   #6A6A92;
+    --t3:   #28283C;
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { overflow-x: hidden; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Noto Sans SC', sans-serif;
+    display: flex; align-items: flex-start; justify-content: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 40px 28px;
+    word-break: keep-all;
+    line-break: strict;
+  }
+
+  .wrap { width: 100%; max-width: 1080px; display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── title ── */
+  .title-row {
+    display: flex; align-items: center; gap: 12px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--rb);
+  }
+  .title-tag {
+    font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500;
+    letter-spacing: .22em; text-transform: uppercase; color: var(--rl);
+    background: var(--rd); border: 1px solid var(--rb); border-radius: 4px;
+    padding: 2px 8px;
+  }
+  .title-sub { font-size: 10px; color: var(--t3); font-family: 'DM Mono', monospace; letter-spacing: .1em; }
+  .title-dot {
+    margin-left: auto; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--r); box-shadow: 0 0 8px var(--r);
+    animation: pd 2s infinite;
+  }
+  @keyframes pd { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+  /* ── main equation strip ── */
+  .eq-strip {
+    display: grid;
+    grid-template-columns: 1fr 38px 1fr 38px 1fr 38px 1fr;
+    border: 1px solid var(--rb);
+    border-radius: 18px;
+    overflow: hidden;
+    background: var(--card);
+    position: relative;
+    min-height: 300px;
+  }
+  .eq-strip::before {
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background-image: linear-gradient(var(--grid) 1px,transparent 1px),
+                      linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size: 20px 20px; z-index: 0;
+  }
+  .eq-strip::after {
+    content:''; position:absolute; top:0; left:0; right:0; height:1.5px;
+    background: linear-gradient(90deg,transparent,var(--r) 25%,var(--rl) 50%,var(--r) 75%,transparent);
+    z-index: 2;
+  }
+  .eq-strip > * { position: relative; z-index: 1; }
+
+  /* operator cells */
+  .op {
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(233,30,140,0.04);
+    border-left: 1px solid var(--rb); border-right: 1px solid var(--rb);
+  }
+  .op-sym {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px; font-weight: 300; color: var(--rb2);
+  }
+
+  /* component cells */
+  .comp {
+    display: flex; flex-direction: column;
+    border-right: 1px solid var(--rb);
+  }
+  .comp:last-child { border-right: none; }
+
+  .comp-head {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--rb);
+    display: flex; flex-direction: column; gap: 2px;
+    background: rgba(233,30,140,0.03);
+  }
+  .comp-tag {
+    font-family: 'DM Mono', monospace; font-size: 8px; font-weight: 500;
+    letter-spacing: .18em; text-transform: uppercase; color: var(--t2);
+  }
+  .comp-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 28px; font-weight: 800; color: var(--rl);
+    line-height: 1; letter-spacing: -.02em;
+  }
+  .comp-desc { font-size: 9.5px; color: var(--t3); letter-spacing: .04em; }
+
+  .comp-body { flex: 1; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+
+  /* ── E: five weighted bars with persona icons ── */
+  .e-bars { display: flex; flex-direction: column; gap: 6px; }
+  .ebar { display: flex; align-items: center; gap: 7px; }
+  .ebar-w {
+    font-family: 'DM Mono', monospace; font-size: 9px; color: rgba(233,30,140,.50);
+    width: 16px; flex-shrink: 0; text-align: right;
+  }
+  .ebar-track { flex: 1; height: 5px; background: rgba(233,30,140,.06); border-radius: 3px; overflow: hidden; }
+  .ebar-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--r), var(--rl));
+    transform: scaleX(0); transform-origin: left;
+    animation: grow 1s cubic-bezier(.16,1,.3,1) forwards;
+  }
+  .ebar:nth-child(1) .ebar-fill { animation-delay:.10s; width:78% }
+  .ebar:nth-child(2) .ebar-fill { animation-delay:.20s; width:65% }
+  .ebar:nth-child(3) .ebar-fill { animation-delay:.30s; width:52% }
+  .ebar:nth-child(4) .ebar-fill { animation-delay:.40s; width:82% }
+  .ebar:nth-child(5) .ebar-fill { animation-delay:.50s; width:44% }
+  @keyframes grow { to { transform: scaleX(1) } }
+  .ebar-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--r); flex-shrink: 0; opacity: .55; }
+
+  .e-sum {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px;
+    background: rgba(233,30,140,.06); border: 1px solid var(--rb);
+    border-radius: 6px; margin-top: 2px;
+  }
+  .e-sum-eq { font-family:'DM Mono',monospace; font-size:8px; color:var(--t3); }
+  .e-sum-val { font-family:'DM Mono',monospace; font-size:9px; font-weight:500; color:var(--rl); }
+
+  /* ── S: two stacked diagram pills ── */
+  .s-pills { display: flex; flex-direction: column; gap: 8px; }
+  .spill {
+    flex: 1; border-radius: 10px; overflow: hidden;
+    background: rgba(233,30,140,.06); border: 1px solid var(--rb);
+    position: relative;
+  }
+  .spill::before { content:''; position:absolute; top:0; left:0; bottom:0; width:2px; background:var(--r); }
+  .spill-head {
+    padding: 7px 10px 4px 14px;
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .spill-name { font-family:'Space Grotesk',sans-serif; font-size:11px; font-weight:700; color:var(--rl); }
+  .spill-form { font-family:'DM Mono',monospace; font-size:8px; color:var(--t2); }
+  .spill-diag { padding: 0 10px 8px 14px; }
+  .spill-diag svg { width:100%; display:block; }
+
+  .s-plus { text-align:center; font-family:'Space Grotesk',sans-serif; font-size:14px; color:var(--rb2); }
+
+  /* ── AC: two paler pills ── */
+  .ac-pills { display: flex; flex-direction: column; gap: 8px; }
+  .acpill {
+    flex: 1; border-radius: 10px;
+    background: rgba(233,30,140,.04); border: 1px solid rgba(233,30,140,.14);
+    position: relative; overflow: hidden;
+  }
+  .acpill::before { content:''; position:absolute; top:0; left:0; bottom:0; width:2px; background:rgba(233,30,140,.30); }
+  .acpill-head { padding: 7px 10px 4px 14px; display:flex; flex-direction:column; gap:1px; }
+  .acpill-name { font-family:'Space Grotesk',sans-serif; font-size:11px; font-weight:700; color:rgba(233,30,140,.55); }
+  .acpill-form { font-family:'DM Mono',monospace; font-size:8px; color:var(--t3); }
+  .acpill-diag { padding: 0 10px 8px 14px; }
+  .acpill-diag svg { width:100%; display:block; }
+  .ac-x { text-align:center; font-family:'Space Grotesk',sans-serif; font-size:13px; color:var(--rb2); }
+
+  /* ── RESULT cell ── */
+  .result {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; padding: 20px 14px;
+    background: linear-gradient(140deg, rgba(233,30,140,.10), rgba(233,30,140,.03));
+    animation: blink 2.5s infinite;
+  }
+  @keyframes blink {
+    0%,100%{ box-shadow: inset 0 0 0 1px rgba(233,30,140,.22) }
+    50%     { box-shadow: inset 0 0 0 1px rgba(233,30,140,.55), 0 0 28px rgba(233,30,140,.10) }
+  }
+  .result-tag { font-family:'DM Mono',monospace; font-size:8px; letter-spacing:.18em; text-transform:uppercase; color:var(--t2); }
+
+  /* score ring */
+  .ring-wrap { position:relative; width:72px; height:72px; }
+  .ring-wrap svg { width:100%; height:100%; }
+  @keyframes ring-anim { from{stroke-dashoffset:157} to{stroke-dashoffset:35} }
+  .ring-arc { animation: ring-anim 1.4s .4s cubic-bezier(.16,1,.3,1) both; }
+
+  .result-formula {
+    font-family:'Space Grotesk',sans-serif;
+    font-size:17px; font-weight:800; color:var(--t1);
+    text-align:center; line-height:1.35; letter-spacing:-.01em;
+    white-space:nowrap;
+  }
+  .result-formula .r { color:var(--rl); }
+  .result-expand {
+    font-family:'DM Mono',monospace; font-size:7.5px; color:rgba(233,30,140,.40);
+    text-align:center; line-height:1.7;
+    padding: 6px 8px;
+    background: rgba(233,30,140,.05); border: 1px solid rgba(233,30,140,.12);
+    border-radius: 6px; width:100%;
+  }
+  .result-expand .re-line { display: block; white-space: nowrap; }
+
+  /* ── bottom interpretation ── */
+  .interp {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .ic {
+    background: var(--card); border: 1px solid var(--rb);
+    border-radius: 14px; overflow: hidden;
+    position: relative;
+    animation: fadein .5s .7s both;
+  }
+  @keyframes fadein { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+  .ic::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:1.5px;
+    background: linear-gradient(90deg,transparent,var(--r),transparent);
+  }
+  .ic-diag { padding: 14px 16px 8px; }
+  .ic-diag svg { width:100%; display:block; }
+  .ic-foot {
+    padding: 0 16px 14px;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .ic-var {
+    font-family:'Space Grotesk',sans-serif;
+    font-size:22px; font-weight:800; color:var(--rl);
+    line-height:1; letter-spacing:-.02em;
+  }
+  .ic-means { font-size:10px; color:var(--t2); line-height:1.65; }
+  .ic-means strong { color:rgba(255,255,255,.65); font-weight:600; display:block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- title -->
+  <div class="title-row">
+    <span class="title-tag">CSVI · 城市空间脆弱性指数</span>
+    <span class="title-sub">Cognitive-Social Vulnerability Index</span>
+    <div class="title-dot"></div>
+  </div>
+
+  <!-- equation strip: E × S ÷ AC = CSVI -->
+  <div class="eq-strip">
+
+    <!-- E: 暴露度 -->
+    <div class="comp">
+      <div class="comp-head">
+        <span class="comp-tag">暴露度 · Exposure</span>
+        <span class="comp-name">E</span>
+        <span class="comp-desc">五类画像加权求和</span>
+      </div>
+      <div class="comp-body">
+        <div class="e-bars">
+          <div class="ebar"><span class="ebar-w">w₁</span><div class="ebar-track"><div class="ebar-fill"></div></div><div class="ebar-dot"></div></div>
+          <div class="ebar"><span class="ebar-w">w₂</span><div class="ebar-track"><div class="ebar-fill"></div></div><div class="ebar-dot"></div></div>
+          <div class="ebar"><span class="ebar-w">w₃</span><div class="ebar-track"><div class="ebar-fill"></div></div><div class="ebar-dot"></div></div>
+          <div class="ebar"><span class="ebar-w">w₄</span><div class="ebar-track"><div class="ebar-fill"></div></div><div class="ebar-dot"></div></div>
+          <div class="ebar"><span class="ebar-w">w₅</span><div class="ebar-track"><div class="ebar-fill"></div></div><div class="ebar-dot"></div></div>
+        </div>
+
+        <!-- persona icon cluster SVG -->
+        <svg viewBox="0 0 180 52" xmlns="http://www.w3.org/2000/svg" style="width:100%;margin-top:4px;">
+          <!-- 5 person silhouettes, progressively sized/positioned -->
+          <g opacity=".75">
+            <circle cx="18" cy="16" r="6" fill="none" stroke="#E91E8C" stroke-width="1.2"/>
+            <path d="M10 36 Q18 28 26 36" fill="none" stroke="#E91E8C" stroke-width="1.2" stroke-linecap="round"/>
+          </g>
+          <g opacity=".65">
+            <circle cx="50" cy="16" r="6" fill="none" stroke="#E91E8C" stroke-width="1.2"/>
+            <path d="M42 36 Q50 28 58 36" fill="none" stroke="#E91E8C" stroke-width="1.2" stroke-linecap="round"/>
+          </g>
+          <g opacity=".55">
+            <circle cx="82" cy="16" r="6" fill="none" stroke="#E91E8C" stroke-width="1.2"/>
+            <path d="M74 36 Q82 28 90 36" fill="none" stroke="#E91E8C" stroke-width="1.2" stroke-linecap="round"/>
+          </g>
+          <g opacity=".80">
+            <circle cx="114" cy="16" r="6" fill="none" stroke="#E91E8C" stroke-width="1.2"/>
+            <path d="M106 36 Q114 28 122 36" fill="none" stroke="#E91E8C" stroke-width="1.2" stroke-linecap="round"/>
+          </g>
+          <g opacity=".45">
+            <circle cx="146" cy="16" r="6" fill="none" stroke="#E91E8C" stroke-width="1.2"/>
+            <path d="M138 36 Q146 28 154 36" fill="none" stroke="#E91E8C" stroke-width="1.2" stroke-linecap="round"/>
+          </g>
+          <!-- horizontal aggregation arrow -->
+          <line x1="10" y1="47" x2="160" y2="47" stroke="rgba(233,30,140,.22)" stroke-width=".8"/>
+          <polygon points="162,47 156,44 156,50" fill="rgba(233,30,140,.45)"/>
+          <text x="90" y="44" text-anchor="middle" fill="rgba(233,30,140,.30)" font-size="7" font-family="DM Mono,monospace">Σ(wₖ · nₖ)</text>
+        </svg>
+
+        <div class="e-sum">
+          <span class="e-sum-eq">菜场 · 医疗POI · 广场 · 居住地 · 出行范围</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- × -->
+    <div class="op"><span class="op-sym">×</span></div>
+
+    <!-- S: 敏感性 -->
+    <div class="comp">
+      <div class="comp-head">
+        <span class="comp-tag">敏感性 · Sensitivity</span>
+        <span class="comp-name">S</span>
+        <span class="comp-desc">两类伤害叠加</span>
+      </div>
+      <div class="comp-body">
+        <div class="s-pills">
+          <div class="spill">
+            <div class="spill-head">
+              <span class="spill-name">S_env · 环境伤害</span>
+              <span class="spill-form">Motor_Pressure × (1 − Complexity)</span>
+            </div>
+            <div class="spill-diag">
+              <svg viewBox="0 0 160 36" xmlns="http://www.w3.org/2000/svg">
+                <!-- noise/pressure wave -->
+                <path d="M4 18 Q14 6 24 18 Q34 30 44 18 Q54 6 64 18 Q74 30 84 18 Q94 6 104 18 Q114 30 124 18 Q134 6 144 18 Q154 30 160 18"
+                      fill="none" stroke="#E91E8C" stroke-width="1.5" stroke-linecap="round" opacity=".65"/>
+                <!-- pressure fill -->
+                <path d="M4 18 Q14 6 24 18 Q34 30 44 18 Q54 6 64 18 Q74 30 84 18 Q94 6 104 18 Q114 30 124 18 Q134 6 144 18 Q154 30 160 18 L160 36 L4 36 Z"
+                      fill="rgba(233,30,140,.08)"/>
+                <!-- elder figure caught in wave -->
+                <circle cx="80" cy="18" r="5" fill="rgba(233,30,140,.25)" stroke="#E91E8C" stroke-width="1"/>
+                <text x="80" y="21" text-anchor="middle" fill="var(--rl)" font-size="6">↯</text>
+              </svg>
+            </div>
+          </div>
+
+          <div class="s-plus">+</div>
+
+          <div class="spill">
+            <div class="spill-head">
+              <span class="spill-name">S_contact · 接触浪费</span>
+              <span class="spill-form">pop₁₅₋₅₉ × (1 − Q)</span>
+            </div>
+            <div class="spill-diag">
+              <svg viewBox="0 0 160 36" xmlns="http://www.w3.org/2000/svg">
+                <!-- two groups: workers (left cluster) and elder (right), no contact line -->
+                <g opacity=".70">
+                  <circle cx="20" cy="12" r="4" fill="none" stroke="#E91E8C" stroke-width="1"/>
+                  <circle cx="34" cy="12" r="4" fill="none" stroke="#E91E8C" stroke-width="1"/>
+                  <circle cx="27" cy="24" r="4" fill="none" stroke="#E91E8C" stroke-width="1"/>
+                  <text x="27" y="33" text-anchor="middle" fill="rgba(233,30,140,.40)" font-size="6.5">工作人口</text>
+                </g>
+                <!-- broken connection symbol in center -->
+                <line x1="56" y1="18" x2="76" y2="18" stroke="rgba(233,30,140,.25)" stroke-width="1" stroke-dasharray="3 3"/>
+                <text x="66" y="15" text-anchor="middle" fill="rgba(233,30,140,.35)" font-size="8">✕</text>
+                <!-- elder -->
+                <g opacity=".55">
+                  <circle cx="112" cy="18" r="5" fill="rgba(233,30,140,.15)" stroke="#E91E8C" stroke-width="1"/>
+                  <path d="M107 30 Q112 24 117 30" fill="none" stroke="#E91E8C" stroke-width="1" stroke-linecap="round"/>
+                  <text x="112" y="35" text-anchor="middle" fill="rgba(233,30,140,.30)" font-size="6.5">老年人</text>
+                </g>
+                <!-- waste label -->
+                <text x="140" y="20" fill="rgba(233,30,140,.35)" font-size="8">↗</text>
+                <text x="148" y="13" fill="rgba(233,30,140,.35)" font-size="7">浪费</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÷ -->
+    <div class="op"><span class="op-sym">÷</span></div>
+
+    <!-- AC: 适应能力 -->
+    <div class="comp">
+      <div class="comp-head">
+        <span class="comp-tag">适应能力 · Adaptive Capacity</span>
+        <span class="comp-name">AC</span>
+        <span class="comp-desc">两类缓冲相乘</span>
+      </div>
+      <div class="comp-body">
+        <div class="ac-pills">
+          <div class="acpill">
+            <div class="acpill-head">
+              <span class="acpill-name">AC_phys · 物理缓冲</span>
+              <span class="acpill-form">Ped_Infra × N09 × α</span>
+            </div>
+            <div class="acpill-diag">
+              <svg viewBox="0 0 160 38" xmlns="http://www.w3.org/2000/svg">
+                <!-- street / sidewalk diagram -->
+                <rect x="4"  y="20" width="152" height="6" rx="2" fill="rgba(233,30,140,.06)" stroke="rgba(233,30,140,.18)" stroke-width=".8"/>
+                <!-- pedestrian path overlay -->
+                <rect x="4"  y="20" width="96"  height="6" rx="2" fill="rgba(233,30,140,.25)"/>
+                <!-- fill bar -->
+                <text x="4" y="16" fill="rgba(233,30,140,.35)" font-size="7" font-family="DM Mono,monospace">步行设施覆盖</text>
+                <text x="104" y="31" fill="rgba(233,30,140,.25)" font-size="7" font-family="DM Mono,monospace">60%</text>
+                <!-- bench icon -->
+                <rect x="60" y="10" width="12" height="3" rx="1" fill="rgba(233,30,140,.30)"/>
+                <rect x="62" y="13" width="2" height="4" rx="1" fill="rgba(233,30,140,.25)"/>
+                <rect x="68" y="13" width="2" height="4" rx="1" fill="rgba(233,30,140,.25)"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="ac-x">×</div>
+
+          <div class="acpill">
+            <div class="acpill-head">
+              <span class="acpill-name">AC_social · 社会缓冲</span>
+              <span class="acpill-form">Ped_Friendly × poi_social</span>
+            </div>
+            <div class="acpill-diag">
+              <svg viewBox="0 0 160 38" xmlns="http://www.w3.org/2000/svg">
+                <!-- POI scatter dots -->
+                <circle cx="20"  cy="20" r="4" fill="rgba(233,30,140,.18)" stroke="rgba(233,30,140,.30)" stroke-width=".8"/>
+                <circle cx="48"  cy="14" r="4" fill="rgba(233,30,140,.18)" stroke="rgba(233,30,140,.30)" stroke-width=".8"/>
+                <circle cx="76"  cy="24" r="4" fill="rgba(233,30,140,.18)" stroke="rgba(233,30,140,.30)" stroke-width=".8"/>
+                <circle cx="104" cy="16" r="4" fill="rgba(233,30,140,.18)" stroke="rgba(233,30,140,.30)" stroke-width=".8"/>
+                <circle cx="132" cy="22" r="4" fill="rgba(233,30,140,.18)" stroke="rgba(233,30,140,.30)" stroke-width=".8"/>
+                <!-- connection web -->
+                <line x1="20"  y1="20" x2="48"  y2="14" stroke="rgba(233,30,140,.12)" stroke-width=".8"/>
+                <line x1="48"  y1="14" x2="76"  y2="24" stroke="rgba(233,30,140,.12)" stroke-width=".8"/>
+                <line x1="76"  y1="24" x2="104" y2="16" stroke="rgba(233,30,140,.12)" stroke-width=".8"/>
+                <line x1="104" y1="16" x2="132" y2="22" stroke="rgba(233,30,140,.12)" stroke-width=".8"/>
+                <text x="4" y="10" fill="rgba(233,30,140,.25)" font-size="7" font-family="DM Mono,monospace">第三场所 · 社交POI</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- = -->
+    <div class="op"><span class="op-sym">=</span></div>
+
+    <!-- RESULT -->
+    <div class="result comp">
+      <span class="result-tag">输出指数</span>
+
+      <!-- animated ring -->
+      <div class="ring-wrap">
+        <svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="36" cy="36" r="26" fill="none" stroke="rgba(233,30,140,.10)" stroke-width="8"/>
+          <circle cx="36" cy="36" r="26" fill="none"
+                  stroke="url(#rg)" stroke-width="8"
+                  stroke-dasharray="163" stroke-dashoffset="163"
+                  stroke-linecap="round"
+                  transform="rotate(-90 36 36)"
+                  class="ring-arc"/>
+          <defs>
+            <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#C2185B"/>
+              <stop offset="100%" stop-color="#FF4DAD"/>
+            </linearGradient>
+          </defs>
+          <text x="36" y="40" text-anchor="middle" fill="#FF4DAD"
+                font-size="12" font-family="Space Grotesk,sans-serif" font-weight="800">CSVI</text>
+        </svg>
+      </div>
+
+      <div class="result-formula">
+        <span class="r">E</span> × <span class="r">S</span> ÷ (<span class="r">AC</span>+1)
+      </div>
+
+      <div class="result-expand">
+        <span class="re-line">[Σwₖnₖ] × [S_env + S_contact]</span>
+        <span class="re-line">÷ [AC_phys × AC_social]</span>
+      </div>
+    </div>
+
+  </div><!-- /eq-strip -->
+
+  <!-- interpretation row -->
+  <div class="interp">
+
+    <!-- E high -->
+    <div class="ic">
+      <div class="ic-diag">
+        <svg viewBox="0 0 200 56" xmlns="http://www.w3.org/2000/svg">
+          <!-- crowd density: many dots clustering -->
+          <circle cx="40"  cy="28" r="14" fill="rgba(233,30,140,.06)" stroke="rgba(233,30,140,.18)" stroke-width=".8" stroke-dasharray="3 3"/>
+          <circle cx="40"  cy="28" r="6"  fill="rgba(233,30,140,.22)" stroke="#E91E8C" stroke-width="1"/>
+          <!-- surrounding persona dots -->
+          <circle cx="20"  cy="18" r="3.5" fill="rgba(233,30,140,.45)"/>
+          <circle cx="34"  cy="14" r="3.5" fill="rgba(233,30,140,.50)"/>
+          <circle cx="52"  cy="14" r="3.5" fill="rgba(233,30,140,.45)"/>
+          <circle cx="60"  cy="26" r="3.5" fill="rgba(233,30,140,.40)"/>
+          <circle cx="54"  cy="40" r="3.5" fill="rgba(233,30,140,.35)"/>
+          <circle cx="38"  cy="44" r="3.5" fill="rgba(233,30,140,.40)"/>
+          <circle cx="22"  cy="38" r="3.5" fill="rgba(233,30,140,.35)"/>
+          <circle cx="16"  cy="28" r="3.5" fill="rgba(233,30,140,.40)"/>
+          <!-- clock arc = time dwell -->
+          <path d="M120 28 m0 -18 a18 18 0 0 1 18 18" fill="none" stroke="rgba(233,30,140,.55)" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="120" cy="28" r="18" fill="none" stroke="rgba(233,30,140,.18)" stroke-width="1.2"/>
+          <line x1="120" y1="28" x2="120" y2="14" stroke="#E91E8C" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="120" y1="28" x2="132" y2="28" stroke="#E91E8C" stroke-width="1.2" stroke-linecap="round"/>
+          <circle cx="120" cy="28" r="2" fill="#E91E8C"/>
+          <text x="148" y="20" fill="rgba(233,30,140,.55)" font-size="8" font-family="DM Mono,monospace">驻留</text>
+          <text x="148" y="31" fill="rgba(233,30,140,.35)" font-size="8" font-family="DM Mono,monospace">时间长</text>
+          <text x="148" y="44" fill="rgba(233,30,140,.25)" font-size="7" font-family="DM Mono,monospace">高认知风险</text>
+        </svg>
+      </div>
+      <div class="ic-foot">
+        <div class="ic-var">E ↑</div>
+        <div class="ic-means"><strong>高认知风险人群大量聚集</strong>驻留时间长 · 锚点密集</div>
+      </div>
+    </div>
+
+    <!-- S high -->
+    <div class="ic">
+      <div class="ic-diag">
+        <svg viewBox="0 0 200 56" xmlns="http://www.w3.org/2000/svg">
+          <!-- noise wave hitting elder -->
+          <path d="M10 28 Q22 12 34 28 Q46 44 58 28 Q70 12 82 28"
+                fill="none" stroke="#E91E8C" stroke-width="1.8" stroke-linecap="round" opacity=".65"/>
+          <path d="M10 28 Q22 12 34 28 Q46 44 58 28 Q70 12 82 28 L82 48 L10 48 Z"
+                fill="rgba(233,30,140,.08)"/>
+          <!-- elder in path -->
+          <circle cx="100" cy="26" r="7" fill="rgba(233,30,140,.20)" stroke="#E91E8C" stroke-width="1.2"/>
+          <path d="M94 40 Q100 33 106 40" fill="none" stroke="#E91E8C" stroke-width="1.2" stroke-linecap="round"/>
+          <!-- worker figure passing through, no contact -->
+          <circle cx="150" cy="22" r="5" fill="rgba(233,30,140,.12)" stroke="rgba(233,30,140,.30)" stroke-width="1" stroke-dasharray="2 2"/>
+          <path d="M146 32 Q150 27 154 32" fill="none" stroke="rgba(233,30,140,.25)" stroke-width="1" stroke-linecap="round"/>
+          <!-- arrow passing by, not connecting -->
+          <line x1="116" y1="26" x2="142" y2="22" stroke="rgba(233,30,140,.20)" stroke-width="1" stroke-dasharray="3 3"/>
+          <text x="128" y="18" fill="rgba(233,30,140,.30)" font-size="7" text-anchor="middle">擦肩而过</text>
+          <text x="155" y="46" fill="rgba(233,30,140,.22)" font-size="7" font-family="DM Mono,monospace">接触被浪费</text>
+        </svg>
+      </div>
+      <div class="ic-foot">
+        <div class="ic-var">S ↑</div>
+        <div class="ic-means"><strong>环境伤害认知且接触被浪费</strong>工作人口在场却无代际交流</div>
+      </div>
+    </div>
+
+    <!-- AC low -->
+    <div class="ic">
+      <div class="ic-diag">
+        <svg viewBox="0 0 200 56" xmlns="http://www.w3.org/2000/svg">
+          <!-- broken sidewalk / missing infrastructure -->
+          <rect x="10"  y="30" width="38" height="6" rx="2" fill="rgba(233,30,140,.18)" stroke="rgba(233,30,140,.28)" stroke-width=".8"/>
+          <!-- gap -->
+          <line x1="52" y1="33" x2="68" y2="33" stroke="rgba(233,30,140,.12)" stroke-width=".8" stroke-dasharray="2 3"/>
+          <text x="60" y="28" text-anchor="middle" fill="rgba(233,30,140,.30)" font-size="8">✕</text>
+          <!-- missing second block -->
+          <rect x="72"  y="30" width="38" height="6" rx="2" fill="rgba(233,30,140,.10)" stroke="rgba(233,30,140,.18)" stroke-width=".8" stroke-dasharray="3 2"/>
+          <!-- gap again -->
+          <line x1="114" y1="33" x2="130" y2="33" stroke="rgba(233,30,140,.08)" stroke-width=".8" stroke-dasharray="2 3"/>
+          <text x="122" y="28" text-anchor="middle" fill="rgba(233,30,140,.20)" font-size="8">✕</text>
+          <!-- missing POI (X-ed circle) -->
+          <circle cx="152" cy="24" r="10" fill="rgba(233,30,140,.05)" stroke="rgba(233,30,140,.18)" stroke-width=".8" stroke-dasharray="3 2"/>
+          <line x1="145" y1="17" x2="159" y2="31" stroke="rgba(233,30,140,.28)" stroke-width="1.2"/>
+          <line x1="159" y1="17" x2="145" y2="31" stroke="rgba(233,30,140,.28)" stroke-width="1.2"/>
+          <!-- label -->
+          <text x="100" y="50" text-anchor="middle" fill="rgba(233,30,140,.28)" font-size="7.5" font-family="DM Mono,monospace">步行基础设施 / 第三场所 — 双双缺失</text>
+        </svg>
+      </div>
+      <div class="ic-foot">
+        <div class="ic-var">AC ↓</div>
+        <div class="ic-means"><strong>步行设施与第三场所双双缺失</strong>没有任何设计缓冲机制</div>
+      </div>
+    </div>
+
+  </div><!-- /interp -->
+
+</div>
+</body>
+</html>

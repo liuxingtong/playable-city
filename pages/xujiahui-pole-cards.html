@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>徐家汇极核分析</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --magenta: #E91E8C;
+    --magenta-light: #FF4DAD;
+    --magenta-dim: rgba(233,30,140,0.13);
+    --magenta-border: rgba(233,30,140,0.32);
+    --bg: #0C0C12;
+    --bg-card: #111119;
+    --bg-panel: #181826;
+    --bg-tag: #1C1C2A;
+    --text-primary: #F0F0F8;
+    --text-secondary: #8888AA;
+    --text-dim: #44445A;
+    --grid-line: rgba(233,30,140,0.06);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Noto Sans SC', sans-serif;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 8px 10px 12px;
+    gap: 10px;
+    overflow-x: hidden;
+  }
+
+  /* ─── GRID：六列并排；窄屏降为 3→2→1 列 ─── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+    max-width: 100%;
+  }
+  @media (max-width: 1600px) {
+    .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 720px) {
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 520px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  /* ─── CARD ─── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--magenta-border);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .card::before {
+    content:'';
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(var(--grid-line) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+    background-size: 20px 20px;
+    pointer-events:none; z-index:0;
+  }
+  .card > * { position:relative; z-index:1; }
+
+  /* ─── CARD HEADER ─── */
+  .card-header {
+    padding: 8px 10px 6px;
+    border-bottom: 1px solid var(--magenta-border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .pole-badge {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--magenta);
+    border: 1px solid var(--magenta-border);
+    border-radius: 4px;
+    padding: 2px 7px;
+    background: var(--magenta-dim);
+  }
+  .pole-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+  }
+
+  /* ─── MAP THUMBNAIL (SVG) ─── */
+  .map-box {
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--magenta-border);
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .map-box svg { width:100%; height:100%; }
+
+  /* ─── BIG NUMBER ─── */
+  .big-stat {
+    padding: 8px 10px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .big-num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(22px, 2.6vw, 32px);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--magenta-light);
+    letter-spacing: -0.02em;
+  }
+  .big-num sup {
+    font-size: 16px;
+    font-weight: 600;
+    vertical-align: super;
+    margin-left: 2px;
+  }
+  .big-num sub {
+    font-size: 13px;
+    font-weight: 500;
+    vertical-align: baseline;
+    margin-left: 2px;
+    color: var(--text-secondary);
+  }
+  .big-label {
+    font-size: 8px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    margin-top: 3px;
+    line-height: 1.35;
+  }
+
+  /* ─── DATA ROWS ─── */
+  .data-rows {
+    padding: 6px 10px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+  }
+  .data-item { display:flex; flex-direction:column; gap:4px; }
+  .data-item-label {
+    font-size: 8px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.25;
+  }
+  .data-item-value {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+  }
+
+  /* bar chart */
+  .bar-track {
+    height: 4px;
+    background: var(--bg-panel);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 3px;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--magenta), var(--magenta-light));
+  }
+
+  /* tag */
+  .data-tag {
+    display: inline-flex;
+    align-items: center;
+    background: var(--magenta-dim);
+    border: 1px solid var(--magenta-border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 8px;
+    color: var(--magenta-light);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    margin-top: 2px;
+    max-width: 100%;
+  }
+
+  /* ─── BOTTOM TENSION BAR ─── */
+  .tension-bar {
+    padding: 6px 10px;
+    background: linear-gradient(90deg, rgba(233,30,140,0.1), transparent);
+    border-top: 1px solid var(--magenta-border);
+    font-size: 8px;
+    color: var(--text-secondary);
+    line-height: 1.45;
+  }
+  .tension-bar strong { color: var(--magenta-light); font-weight:600; }
+
+  /* ─── HIGHLIGHT CARD (科技极核专属 · 全玫红增强) ─── */
+  .card--highlight {
+    border-color: var(--magenta);
+    border-width: 1.5px;
+    background: #14101A;
+    box-shadow:
+      0 0 0 1px rgba(233,30,140,0.55),
+      0 0 28px rgba(233,30,140,0.18),
+      0 0 60px rgba(233,30,140,0.07),
+      inset 0 0 40px rgba(233,30,140,0.05);
+  }
+  .card--highlight::before {
+    background-image:
+      linear-gradient(rgba(233,30,140,0.10) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(233,30,140,0.10) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+  /* 顶部横幅 */
+  .unique-crown {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    background: linear-gradient(90deg, rgba(233,30,140,0.22), rgba(233,30,140,0.06), transparent);
+    border-bottom: 1px solid rgba(233,30,140,0.55);
+    font-size: 7.5px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--magenta-light);
+    position: relative;
+    z-index: 1;
+  }
+  .unique-crown::before {
+    content: '◈';
+    font-size: 10px;
+    color: var(--magenta);
+  }
+  .card--highlight .card-header {
+    background: linear-gradient(90deg, rgba(233,30,140,0.10), transparent);
+    border-bottom-color: rgba(233,30,140,0.45);
+  }
+  .card--highlight .pole-badge {
+    background: rgba(233,30,140,0.22);
+    border-color: rgba(233,30,140,0.7);
+    color: #FF4DAD;
+    box-shadow: 0 0 6px rgba(233,30,140,0.25);
+  }
+  .card--highlight .pole-name {
+    color: #fff;
+    text-shadow: 0 0 12px rgba(233,30,140,0.5);
+  }
+  .card--highlight .map-box {
+    border-bottom-color: rgba(233,30,140,0.45);
+    background: #0F0C16;
+  }
+  .card--highlight .big-num {
+    color: #fff;
+    text-shadow: 0 0 20px rgba(233,30,140,0.6);
+  }
+  .card--highlight .big-num sub {
+    color: var(--magenta-light);
+  }
+  .card--highlight .data-tag {
+    background: rgba(233,30,140,0.20);
+    border-color: rgba(233,30,140,0.60);
+    color: #FF4DAD;
+  }
+  .card--highlight .tension-bar {
+    background: linear-gradient(90deg, rgba(233,30,140,0.18), rgba(233,30,140,0.04), transparent);
+    border-top-color: rgba(233,30,140,0.45);
+  }
+</style>
+</head>
+<body>
+
+<div class="grid">
+
+  <!-- ══════════ 01 医疗极核 ══════════ -->
+  <div class="card">
+    <div class="card-header">
+      <span class="pole-badge">P-01</span>
+      <span class="pole-name">医疗极核</span>
+    </div>
+
+    <!-- 抽象地图：医院散点 -->
+    <div class="map-box">
+      <svg viewBox="0 0 240 110" xmlns="http://www.w3.org/2000/svg">
+        <!-- 街道网格 -->
+        <line x1="0" y1="30" x2="240" y2="30" stroke="rgba(233,30,140,0.1)" stroke-width="1"/>
+        <line x1="0" y1="60" x2="240" y2="60" stroke="rgba(233,30,140,0.1)" stroke-width="1"/>
+        <line x1="0" y1="90" x2="240" y2="90" stroke="rgba(233,30,140,0.1)" stroke-width="1"/>
+        <line x1="50"  y1="0" x2="50"  y2="110" stroke="rgba(233,30,140,0.1)" stroke-width="1"/>
+        <line x1="100" y1="0" x2="100" y2="110" stroke="rgba(233,30,140,0.1)" stroke-width="1"/>
+        <line x1="150" y1="0" x2="150" y2="110" stroke="rgba(233,30,140,0.1)" stroke-width="1"/>
+        <line x1="200" y1="0" x2="200" y2="110" stroke="rgba(233,30,140,0.1)" stroke-width="1"/>
+        <!-- 2km范围圈 -->
+        <circle cx="120" cy="55" r="46" fill="none" stroke="rgba(233,30,140,0.2)" stroke-width="1" stroke-dasharray="4 3"/>
+        <circle cx="120" cy="55" r="26" fill="rgba(233,30,140,0.06)" stroke="rgba(233,30,140,0.15)" stroke-width="1"/>
+        <!-- 医院节点 -->
+        <circle cx="120" cy="55" r="5" fill="#E91E8C" opacity="0.9"/>
+        <circle cx="85"  cy="38" r="4" fill="#E91E8C" opacity="0.75"/>
+        <circle cx="148" cy="44" r="4" fill="#E91E8C" opacity="0.75"/>
+        <circle cx="100" cy="72" r="3.5" fill="#E91E8C" opacity="0.6"/>
+        <circle cx="140" cy="76" r="3"   fill="#E91E8C" opacity="0.5"/>
+        <circle cx="70"  cy="65" r="3"   fill="#E91E8C" opacity="0.45"/>
+        <!-- 脉冲 -->
+        <circle cx="120" cy="55" r="10" fill="none" stroke="#E91E8C" stroke-width="1" opacity="0.3">
+          <animate attributeName="r" from="8" to="20" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" from="0.4" to="0" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <!-- 标注 -->
+        <text x="128" y="51" fill="#E91E8C" font-size="7" font-family="Space Grotesk" font-weight="700">六院</text>
+        <text x="10" y="100" fill="rgba(233,30,140,0.4)" font-size="7" font-family="Space Grotesk">2km 医疗圈</text>
+      </svg>
+    </div>
+
+    <div class="big-stat">
+      <div class="big-num">8<sub style="font-size:15px">三级医院</sub></div>
+      <div class="big-label">徐汇区三级医院总量 · 上海医疗高地之最</div>
+    </div>
+
+    <div class="data-rows">
+      <div class="data-item">
+        <div class="data-item-label">枫林 2.69km² 内三甲密度</div>
+        <div class="data-item-value">4 家三甲医院</div>
+        <div class="bar-track"><div class="bar-fill" style="width:90%"></div></div>
+      </div>
+      <div class="data-item">
+        <div class="data-item-label">六院年门急诊量</div>
+        <div class="data-item-value">500 万人次+</div>
+      </div>
+      <div class="data-item">
+        <div class="data-item-label">60岁以上人口占比</div>
+        <div class="data-item-value">34.46%</div>
+        <div class="bar-track"><div class="bar-fill" style="width:34.46%"></div></div>
+      </div>
+      <div class="data-tag">候诊溢出 · 空间焦虑高发</div>
+    </div>
+
+    <div class="tension-bar">
+      全市三甲密度之最，<strong>老年人高频出行锚点</strong>，候诊等待形成长时停留聚集
+    </div>
+  </div>
+
+  <!-- ══════════ 02 商业极核 ══════════ -->
+  <div class="card">
+    <div class="card-header">
+      <span class="pole-badge">P-02</span>
+      <span class="pole-name">商业极核</span>
+    </div>
+
+    <!-- 抽象地图：客流热力 -->
+    <div class="map-box">
+      <svg viewBox="0 0 240 110" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="heatA" cx="50%" cy="50%">
+            <stop offset="0%"   stop-color="#E91E8C" stop-opacity="0.4"/>
+            <stop offset="60%"  stop-color="#E91E8C" stop-opacity="0.12"/>
+            <stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="heatB" cx="50%" cy="50%">
+            <stop offset="0%"   stop-color="#E91E8C" stop-opacity="0.3"/>
+            <stop offset="60%"  stop-color="#E91E8C" stop-opacity="0.08"/>
+            <stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <line x1="0" y1="35" x2="240" y2="35" stroke="rgba(233,30,140,0.08)" stroke-width="1"/>
+        <line x1="0" y1="70" x2="240" y2="70" stroke="rgba(233,30,140,0.08)" stroke-width="1"/>
+        <line x1="60"  y1="0" x2="60"  y2="110" stroke="rgba(233,30,140,0.08)" stroke-width="1"/>
+        <line x1="120" y1="0" x2="120" y2="110" stroke="rgba(233,30,140,0.08)" stroke-width="1"/>
+        <line x1="180" y1="0" x2="180" y2="110" stroke="rgba(233,30,140,0.08)" stroke-width="1"/>
+        <!-- 热力晕 -->
+        <ellipse cx="95"  cy="55" rx="55" ry="44" fill="url(#heatA)"/>
+        <ellipse cx="155" cy="52" rx="48" ry="38" fill="url(#heatB)"/>
+        <!-- 商场矩形 -->
+        <rect x="66" y="32" width="50" height="30" rx="3" fill="rgba(233,30,140,0.15)" stroke="#E91E8C" stroke-width="1.2"/>
+        <rect x="124" y="30" width="48" height="28" rx="3" fill="rgba(233,30,140,0.12)" stroke="#E91E8C" stroke-width="1" stroke-dasharray="3 2"/>
+        <text x="75" y="52" fill="#FF4DAD" font-size="7.5" font-family="Space Grotesk" font-weight="700">港汇广场</text>
+        <text x="129" y="49" fill="rgba(233,30,140,0.7)" font-size="7" font-family="Space Grotesk">美罗城</text>
+        <text x="8" y="100" fill="rgba(233,30,140,0.4)" font-size="7" font-family="Space Grotesk">客流热力图</text>
+      </svg>
+    </div>
+
+    <div class="big-stat">
+      <div class="big-num">60<sub>万</sub></div>
+      <div class="big-label">港汇 + 美罗城 日均客流量</div>
+    </div>
+
+    <div class="data-rows">
+      <div class="data-item">
+        <div class="data-item-label">老年友好业态占比</div>
+        <div class="data-item-value">极低</div>
+        <div class="bar-track"><div class="bar-fill" style="width:8%;background:linear-gradient(90deg,#554,#887)"></div></div>
+      </div>
+      <div class="data-item">
+        <div class="data-item-label">高峰时段噪声压力</div>
+        <div class="data-item-value">强刺激 · 高密度</div>
+      </div>
+      <div class="data-item">
+        <div class="data-item-label">商业辐射半径</div>
+        <div class="data-item-value">≥ 3 km</div>
+      </div>
+      <div class="data-tag">业态结构对老年群体排斥</div>
+    </div>
+
+    <div class="tension-bar">
+      商业极核制造<strong>高密度接触机会</strong>，但空间压力压制了认知潜力
+    </div>
+  </div>
+
+  <!-- ══════════ 03 交通极核 ══════════ -->
+  <div class="card">
+    <div class="card-header">
+      <span class="pole-badge">P-03</span>
+      <span class="pole-name">交通极核</span>
+    </div>
+
+    <!-- 抽象地图：三线换乘 -->
+    <div class="map-box">
+      <svg viewBox="0 0 240 110" xmlns="http://www.w3.org/2000/svg">
+        <!-- 背景格 -->
+        <line x1="0" y1="55" x2="240" y2="55" stroke="rgba(233,30,140,0.08)" stroke-width="1"/>
+        <line x1="120" y1="0" x2="120" y2="110" stroke="rgba(233,30,140,0.08)" stroke-width="1"/>
+        <!-- 1号线 -->
+        <line x1="20" y1="55" x2="220" y2="55" stroke="#E91E8C" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+        <!-- 9号线 斜 -->
+        <line x1="40"  y1="10" x2="200" y2="100" stroke="#FF4DAD" stroke-width="2.5" stroke-linecap="round" opacity="0.65" stroke-dasharray="6 3"/>
+        <!-- 11号线 竖 -->
+        <line x1="120" y1="5" x2="120" y2="105" stroke="#E91E8C" stroke-width="2.5" stroke-linecap="round" opacity="0.5" stroke-dasharray="4 4"/>
+        <!-- 换乘核心圆 -->
+        <circle cx="120" cy="55" r="12" fill="rgba(233,30,140,0.18)" stroke="#E91E8C" stroke-width="1.5"/>
+        <circle cx="120" cy="55" r="5"  fill="#E91E8C"/>
+        <!-- 脉冲 -->
+        <circle cx="120" cy="55" r="18" fill="none" stroke="#E91E8C" stroke-width="1" opacity="0.3">
+          <animate attributeName="r" from="12" to="30" dur="2.5s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" from="0.35" to="0" dur="2.5s" repeatCount="indefinite"/>
+        </circle>
+        <!-- 线路标签 -->
+        <text x="22"  y="51" fill="#E91E8C" font-size="8" font-family="Space Grotesk" font-weight="700">1</text>
+        <text x="52"  y="21" fill="#FF4DAD" font-size="8" font-family="Space Grotesk" font-weight="700">9</text>
+        <text x="124" y="18" fill="rgba(233,30,140,0.8)" font-size="8" font-family="Space Grotesk" font-weight="700">11</text>
+        <text x="8" y="100" fill="rgba(233,30,140,0.4)" font-size="7" font-family="Space Grotesk">三线换乘示意</text>
+      </svg>
+    </div>
+
+    <div class="big-stat">
+      <div class="big-num">100<sub>万</sub></div>
+      <div class="big-label">日过境客流量（三线合计）</div>
+    </div>
+
+    <div class="data-rows">
+      <div class="data-item">
+        <div class="data-item-label">换乘线路</div>
+        <div class="data-item-value">1 · 9 · 11 号线</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:90%"></div>
+        </div>
+      </div>
+      <div class="data-item">
+        <div class="data-item-label">站内换乘通道长度</div>
+        <div class="data-item-value">约 200 米 · 步行 4 分钟</div>
+      </div>
+      <div class="data-item">
+        <div class="data-item-label">高峰管控</div>
+        <div class="data-item-value">早晚高峰实施限流</div>
+      </div>
+      <div class="data-tag">换乘迷失 · 老年导航盲区</div>
+    </div>
+
+    <div class="tension-bar">
+      百万过境制造<strong>代际偶遇窗口</strong>，换乘空间是干预切入的黄金节点
+    </div>
+  </div>
+
+  <!-- ══════════ 04 体育极核 ══════════ -->
+  <div class="card">
+    <div class="card-header">
+      <span class="pole-badge">P-04</span>
+      <span class="pole-name">体育极核</span>
+    </div>
+
+    <!-- 抽象地图：公园轮廓 + 三大场馆 -->
+    <div class="map-box">
+      <svg viewBox="0 0 240 110" xmlns="http://www.w3.org/2000/svg">
+        <!-- 公园六边形轮廓 -->
+        <polygon points="60,8 185,8 210,55 185,102 60,102 35,55"
+          fill="rgba(233,30,140,0.05)" stroke="rgba(233,30,140,0.28)" stroke-width="1.2" stroke-dasharray="4 3"/>
+        <!-- 跑道虚线圈 -->
+        <ellipse cx="120" cy="55" rx="52" ry="38"
+          fill="none" stroke="rgba(233,30,140,0.20)" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <!-- 体育场"八万人" 椭圆 -->
+        <ellipse cx="120" cy="36" rx="27" ry="17"
+          fill="rgba(233,30,140,0.13)" stroke="#E91E8C" stroke-width="1.3"/>
+        <text x="109" y="40" fill="#FF4DAD" font-size="7" font-family="Space Grotesk" font-weight="700">八万人</text>
+        <!-- 体育馆"万体馆" 圆 -->
+        <circle cx="82" cy="76" r="13"
+          fill="rgba(233,30,140,0.10)" stroke="#E91E8C" stroke-width="1.1"/>
+        <text x="70" y="80" fill="rgba(233,30,140,0.85)" font-size="6.5" font-family="Space Grotesk" font-weight="600">万体馆</text>
+        <!-- 游泳馆 -->
+        <rect x="139" y="65" width="34" height="22" rx="4"
+          fill="rgba(233,30,140,0.08)" stroke="rgba(233,30,140,0.55)" stroke-width="1" stroke-dasharray="3 2"/>
+        <text x="143" y="79" fill="rgba(233,30,140,0.75)" font-size="6.5" font-family="Space Grotesk">游泳馆</text>
+        <!-- 万体汇综合馆 -->
+        <rect x="95" y="56" width="50" height="13" rx="2"
+          fill="rgba(233,30,140,0.16)" stroke="rgba(233,30,140,0.40)" stroke-width="0.8"/>
+        <text x="99" y="65" fill="rgba(233,30,140,0.9)" font-size="5.8" font-family="Space Grotesk" font-weight="600">万体汇综合馆</text>
+        <text x="8" y="104" fill="rgba(233,30,140,0.4)" font-size="7" font-family="Space Grotesk">徐家汇体育公园示意</text>
+      </svg>
+    </div>
+
+    <div class="big-stat">
+      <div class="big-num">36<sub>万㎡</sub></div>
+      <div class="big-label">市中心最大体育公园 · 总建筑面积 30 万㎡</div>
+    </div>
+
+    <div class="data-rows">
+      <div class="data-item">
+        <div class="data-item-label">核心场馆"三件套"容量</div>
+        <div class="data-item-value">体育场 8万座 · 体育馆 1.5万座 · 游泳馆</div>
+        <div class="bar-track"><div class="bar-fill" style="width:92%"></div></div>
+      </div>
+      <div class="data-item">
+        <div class="data-item-label">万体汇综合馆 · 室内运动场地</div>
+        <div class="data-item-value">35 片羽毛球 · 30 片乒乓 · 3 片网球</div>
+      </div>
+      <div class="data-item">
+        <div class="data-item-label">双圈环形健身跑道</div>
+        <div class="data-item-value">绕场约 2.5 公里 · 24h 全天开放</div>
+        <div class="bar-track"><div class="bar-fill" style="width:75%"></div></div>
+      </div>
+      <div class="data-tag">长者晨练专区 · 全龄共享运动场景</div>
+    </div>
+
+    <div class="tension-bar">
+      市中心最大运动公园开辟<strong>老年健康行为干预</strong>入口，跑道与专区提供低门槛参与路径
+    </div>
+  </div>
+
+  <!-- ══════════ 05 文化极核 ══════════ -->
+  <div class="card">
+    <div class="card-header">
+      <span class="pole-badge">P-05</span>
+      <span class="pole-name">文化极核</span>
+    </div>
+
+    <!-- 抽象地图：书院 + 文脉轴线 + 地标轮廓 -->
+    <div class="map-box">
+      <svg viewBox="0 0 240 110" xmlns="http://www.w3.org/2000/svg">
+        <line x1="0" y1="35" x2="240" y2="35" stroke="rgba(233,30,140,0.08)" stroke-width="1"/>
+        <line x1="0" y1="70" x2="240" y2="70" stroke="rgba(233,30,140,0.08)" stroke-width="1"/>
+        <line x1="80" y1="0" x2="80" y2="110" stroke="rgba(233,30,140,0.08)" stroke-width="1"/>
+        <line x1="160" y1="0" x2="160" y2="110" stroke="rgba(233,30,140,0.08)" stroke-width="1"/>
+        <!-- 书香轴线 -->
+        <path d="M 20 88 Q 120 52 220 88" fill="none" stroke="rgba(233,30,140,0.22)" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <!-- 书院立面简形 -->
+        <rect x="88" y="28" width="64" height="48" rx="2" fill="rgba(233,30,140,0.08)" stroke="#E91E8C" stroke-width="1.2"/>
+        <rect x="94" y="36" width="14" height="18" fill="rgba(233,30,140,0.15)" stroke="rgba(233,30,140,0.4)" stroke-width="0.6"/>
+        <rect x="112" y="36" width="14" height="18" fill="rgba(233,30,140,0.15)" stroke="rgba(233,30,140,0.4)" stroke-width="0.6"/>
+        <rect x="130" y="36" width="14" height="18" fill="rgba(233,30,140,0.15)" stroke="rgba(233,30,140,0.4)" stroke-width="0.6"/>
+        <line x1="88" y1="52" x2="152" y2="52" stroke="rgba(233,30,140,0.35)" stroke-width="1"/>
+        <!-- 穹顶示意（城市记忆地标） -->
+        <path d="M 38 72 Q 52 48 66 72" fill="rgba(233,30,140,0.10)" stroke="#E91E8C" stroke-width="1"/>
+        <rect x="44" y="72" width="16" height="10" fill="rgba(233,30,140,0.06)" stroke="rgba(233,30,140,0.35)" stroke-width="0.8"/>
+        <!-- 书页符号 -->
+        <path d="M 178 42 L 206 42 L 206 68 L 178 62 Z" fill="rgba(233,30,140,0.12)" stroke="#E91E8C" stroke-width="1"/>
+        <path d="M 178 42 L 206 48 L 206 68" fill="none" stroke="rgba(233,30,140,0.45)" stroke-width="0.8"/>
+        <text x="96" y="26" fill="#FF4DAD" font-size="7" font-family="Space Grotesk" font-weight="700">书院</text>
+        <text x="8" y="104" fill="rgba(233,30,140,0.4)" font-size="7" font-family="Space Grotesk">文脉 · 阅读 · 记忆</text>
+      </svg>
+    </div>
+
+    <div class="big-stat">
+      <div class="big-num">300<sub>万+</sub></div>
+      <div class="big-label">区域公共文化触点年均接待量级（书院、展陈与活动复合）</div>
+    </div>
+
+    <div class="data-rows">
+      <div class="data-item">
+        <div class="data-item-label">徐家汇书院 · 光启轴线</div>
+        <div class="data-item-value">公共阅读 + 城市考古展陈 + 社群活动</div>
+        <div class="bar-track"><div class="bar-fill" style="width:82%"></div></div>
+      </div>
+      <div class="data-item">
+        <div class="data-item-label">衡复—徐家汇历史风貌</div>
+        <div class="data-item-value">建筑遗产与街道叙事叠合 · 慢行友好段落</div>
+      </div>
+      <div class="data-item">
+        <div class="data-item-label">仪式与认同空间</div>
+        <div class="data-item-value">主教座堂等地标 · 节庆与日常并置</div>
+        <div class="bar-track"><div class="bar-fill" style="width:68%"></div></div>
+      </div>
+      <div class="data-tag">代际共读 · 非商业性认知素材库</div>
+    </div>
+
+    <div class="tension-bar">
+      文化极核提供<strong>慢节奏叙事与符号认同</strong>，与商业高压形成对照，利于恢复性注意
+    </div>
+  </div>
+
+  <!-- ══════════ 06 科技极核 ══════════ -->
+  <div class="card card--highlight">
+    <div class="unique-crown">唯一 AI 赋能产业极核 · 干预基础设施所在</div>
+    <div class="card-header">
+      <span class="pole-badge">P-06</span>
+      <span class="pole-name">科技极核</span>
+    </div>
+
+    <!-- 抽象地图：企业聚点 -->
+    <div class="map-box">
+      <svg viewBox="0 0 240 110" xmlns="http://www.w3.org/2000/svg">
+        <line x1="0"   y1="55"  x2="240" y2="55"  stroke="rgba(233,30,140,0.10)" stroke-width="1"/>
+        <line x1="120" y1="0"   x2="120" y2="110" stroke="rgba(233,30,140,0.10)" stroke-width="1"/>
+        <!-- 连线网络 -->
+        <line x1="80"  y1="30"  x2="120" y2="55"  stroke="rgba(233,30,140,0.35)" stroke-width="1.2"/>
+        <line x1="120" y1="55"  x2="160" y2="35"  stroke="rgba(233,30,140,0.35)" stroke-width="1.2"/>
+        <line x1="120" y1="55"  x2="155" y2="80"  stroke="rgba(233,30,140,0.35)" stroke-width="1.2"/>
+        <line x1="120" y1="55"  x2="85"  y2="78"  stroke="rgba(233,30,140,0.35)" stroke-width="1.2"/>
+        <line x1="80"  y1="30"  x2="160" y2="35"  stroke="rgba(233,30,140,0.18)" stroke-width="1"/>
+        <line x1="85"  y1="78"  x2="155" y2="80"  stroke="rgba(233,30,140,0.18)" stroke-width="1"/>
+        <line x1="55"  y1="50"  x2="80"  y2="30"  stroke="rgba(233,30,140,0.20)" stroke-width="1"/>
+        <line x1="185" y1="55"  x2="160" y2="35"  stroke="rgba(233,30,140,0.20)" stroke-width="1"/>
+        <!-- 核心节点 -->
+        <circle cx="120" cy="55" r="8"  fill="#E91E8C" opacity="1"/>
+        <circle cx="80"  cy="30" r="5"  fill="#E91E8C" opacity="0.8"/>
+        <circle cx="160" cy="35" r="4.5" fill="#E91E8C" opacity="0.75"/>
+        <circle cx="155" cy="80" r="4"  fill="#E91E8C" opacity="0.65"/>
+        <circle cx="85"  cy="78" r="4"  fill="#E91E8C" opacity="0.65"/>
+        <circle cx="55"  cy="50" r="3.5" fill="#E91E8C" opacity="0.5"/>
+        <circle cx="185" cy="55" r="3.5" fill="#E91E8C" opacity="0.5"/>
+        <circle cx="130" cy="20" r="3"  fill="#E91E8C" opacity="0.45"/>
+        <circle cx="100" cy="92" r="3"  fill="#E91E8C" opacity="0.40"/>
+        <!-- 中心光晕 双环 -->
+        <circle cx="120" cy="55" r="16" fill="none" stroke="#E91E8C" stroke-width="1.2" opacity="0.3">
+          <animate attributeName="r" from="12" to="28" dur="2.8s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" from="0.45" to="0" dur="2.8s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="120" cy="55" r="22" fill="none" stroke="#FF4DAD" stroke-width="0.8" opacity="0.15">
+          <animate attributeName="r" from="18" to="38" dur="2.8s" begin="1.4s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" from="0.3" to="0" dur="2.8s" begin="1.4s" repeatCount="indefinite"/>
+        </circle>
+        <text x="8" y="100" fill="rgba(233,30,140,0.5)" font-size="7" font-family="Space Grotesk">AI企业分布网络</text>
+      </svg>
+    </div>
+
+    <div class="big-stat">
+      <div class="big-num">885<sub style="font-size:13px">亿元</sub></div>
+      <div class="big-label">2024 年徐汇 AI 产值 · 连续五年两位数增长</div>
+    </div>
+
+    <div class="data-rows">
+      <div class="data-item">
+        <div class="data-item-label">全区 AI 企业总量</div>
+        <div class="data-item-value">近 1,000 家</div>
+        <div class="bar-track"><div class="bar-fill" style="width:88%"></div></div>
+      </div>
+      <div class="data-item">
+        <div class="data-item-label">累计落地大模型企业</div>
+        <div class="data-item-value">368 家 · 备案大模型 39 个</div>
+      </div>
+      <div class="data-item">
+        <div class="data-item-label">近 5 年产出年均增速</div>
+        <div class="data-item-value">> 30%</div>
+      </div>
+      <div class="data-tag">徐家汇-枫林 · AI 源头创新核</div>
+    </div>
+
+    <div class="tension-bar">
+      科技产业集聚为<strong>空间智能化干预</strong>提供产业支撑与落地基础
+    </div>
+  </div>
+
+</div>
+
+<div style="width:100%;padding-top:6px;border-top:1px solid rgba(233,30,140,0.12);text-align:center;">
+  <span style="font-size:8px;color:var(--text-dim);letter-spacing:0.08em;font-family:'Space Grotesk',sans-serif;">
+    六极核造就多维认知训练场 · 医疗 · 商业 · 交通 · 体育 · 文化 · 科技 → 人机共生介入矩阵
+  </span>
+</div>
+
+</body>
+</html>

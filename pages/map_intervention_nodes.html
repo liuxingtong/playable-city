@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>潜力与资源节点 · 街段地图</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="../lib/ac-dom-aggregate.js"></script>
+<script src="../lib/xujiahui-osm-boundary.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,300&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --magenta: #e91e8c;
+    --magenta-bright: #ff4dad;
+    --magenta-soft: rgba(233, 30, 140, 0.75);
+    --magenta-dim: rgba(233, 30, 140, 0.45);
+    --magenta-bg: rgba(233, 30, 140, 0.12);
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;font-family:'DM Sans','Noto Sans SC',sans-serif;word-break:keep-all;line-break:strict;}
+  #map{width:100%;height:100%;z-index:1}
+  .leaflet-control-attribution{display:none!important}
+  .leaflet-control-zoom a{
+    background:rgba(12,12,14,0.94)!important;
+    color:var(--magenta-bright)!important;
+    border-color:rgba(233,30,140,0.35)!important;
+  }
+  .leaflet-control-zoom a:hover{background:rgba(233,30,140,0.15)!important;}
+
+  /* --- Header --- */
+  .panel-header{
+    position:fixed;top:0;left:0;right:0;
+    padding:20px 28px 18px;
+    background:linear-gradient(180deg,rgba(8,8,10,0.94) 0%,rgba(8,8,10,0.7) 65%,transparent 100%);
+    z-index:1000;pointer-events:none;
+  }
+  .panel-header .tag{
+    font-size:10px;letter-spacing:3px;text-transform:uppercase;
+    color:var(--magenta-dim);font-weight:500;margin-bottom:4px;
+  }
+  .panel-header h1{font-size:22px;font-weight:700;color:#f0f0f0;letter-spacing:-0.3px}
+  .panel-header h1 .hl-a,
+  .panel-header h1 .hl-b,
+  .panel-header h1 .hl-c{color:var(--magenta-bright)}
+  .panel-header .sub{
+    font-size:12px;color:rgba(255,255,255,0.4);font-weight:300;
+    font-style:italic;margin-top:3px;
+  }
+
+  /* --- Legend panel --- */
+  .legend-panel{
+    position:fixed;top:100px;left:28px;
+    background:rgba(12,12,14,0.94);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px;
+    padding:18px 20px;
+    z-index:1000;
+    backdrop-filter:blur(14px);
+    width:280px;
+    max-height:calc(100vh - 140px);
+    overflow-y:auto;
+  }
+  .legend-panel::-webkit-scrollbar{width:3px}
+  .legend-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
+
+  .lg-section{margin-bottom:16px}
+  .lg-section:last-child{margin-bottom:0}
+  .lg-title{
+    font-size:10px;letter-spacing:2px;text-transform:uppercase;
+    margin-bottom:10px;font-weight:500;
+  }
+  .lg-title.activated{color:var(--magenta-soft)}
+  .lg-title.resource{color:#5ce1e6}
+
+  .lg-item{
+    display:flex;align-items:flex-start;gap:10px;
+    margin-bottom:10px;font-size:11px;line-height:1.45;
+  }
+  .lg-symbol{
+    flex-shrink:0;width:24px;height:24px;
+    display:flex;align-items:center;justify-content:center;
+    margin-top:1px;
+  }
+  .lg-label{color:rgba(255,255,255,0.75)}
+  .lg-label .lg-sub{
+    display:block;font-size:10px;color:rgba(255,255,255,0.35);
+    margin-top:2px;font-style:italic;
+  }
+  .lg-label .lg-count{
+    display:inline-block;margin-left:6px;
+    font-size:10px;font-weight:600;
+    padding:1px 6px;border-radius:8px;
+  }
+
+  .lg-divider{
+    border:none;border-top:1px solid rgba(255,255,255,0.06);
+    margin:14px 0;
+  }
+
+  /* --- Layer toggles --- */
+  .layer-ctrl{
+    position:fixed;top:100px;right:28px;
+    background:rgba(12,12,14,0.94);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px;
+    padding:14px 16px;
+    z-index:1000;
+    backdrop-filter:blur(14px);
+    width:220px;
+  }
+  .lc-title{
+    font-size:9px;letter-spacing:2px;text-transform:uppercase;
+    color:rgba(255,255,255,0.3);margin-bottom:10px;
+  }
+  .lc-row{
+    display:flex;align-items:center;gap:8px;
+    margin-bottom:8px;cursor:pointer;
+    font-size:12px;color:rgba(255,255,255,0.6);
+    transition:color 0.2s;
+  }
+  .lc-row:hover{color:#f0f0f0}
+  .lc-check{
+    width:16px;height:16px;border-radius:4px;
+    border:1.5px solid rgba(255,255,255,0.2);
+    display:flex;align-items:center;justify-content:center;
+    transition:all 0.2s;flex-shrink:0;
+  }
+  .lc-check.on{border-color:currentColor}
+  .lc-check.on::after{
+    content:'✓';font-size:10px;color:currentColor;
+  }
+  .lc-row.act .lc-check.on{border-color:var(--magenta)}
+  .lc-row.act .lc-check.on::after{color:var(--magenta-bright)}
+  .lc-row.res .lc-check.on{border-color:#5ce1e6}
+  .lc-row.res .lc-check.on::after{color:#5ce1e6}
+
+  .lc-row .lc-label{flex:1}
+  .lc-row .lc-count{
+    font-size:10px;font-weight:600;
+    opacity:0.6;
+  }
+
+  /* --- Stats --- */
+  .stats-panel{
+    position:fixed;bottom:28px;left:28px;
+    background:rgba(12,12,14,0.94);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px;
+    padding:16px 20px;
+    z-index:1000;
+    backdrop-filter:blur(14px);
+    width:280px;
+  }
+  .st-title{
+    font-size:9px;letter-spacing:2px;text-transform:uppercase;
+    color:rgba(255,255,255,0.3);margin-bottom:10px;
+  }
+  .st-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .st-cell .st-label{
+    font-size:9px;letter-spacing:1px;text-transform:uppercase;
+    color:rgba(255,255,255,0.25);
+  }
+  .st-cell .st-val{
+    font-size:18px;font-weight:700;letter-spacing:-0.5px;
+  }
+  .st-cell .st-val.c-a{color:var(--magenta-bright)}
+  .st-cell .st-val.c-res{color:#5ce1e6}
+
+  /* --- Formula --- */
+  .formula-panel{
+    position:fixed;bottom:28px;right:28px;
+    background:rgba(12,12,14,0.94);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px;
+    padding:16px 20px;
+    z-index:1000;
+    backdrop-filter:blur(14px);
+    width:260px;
+  }
+  .fp-title{
+    font-size:9px;letter-spacing:2px;text-transform:uppercase;
+    color:rgba(255,255,255,0.3);margin-bottom:10px;
+  }
+  .fp-row{font-size:11px;color:rgba(255,255,255,0.5);line-height:1.6;margin-bottom:4px}
+  .fp-row em{font-style:normal;font-weight:600}
+  .fp-row .c-a{color:var(--magenta-bright)}
+  .fp-row .c-res{color:#5ce1e6}
+
+  /* --- Tooltips --- */
+  .node-tooltip{
+    background:rgba(12,12,14,0.96)!important;
+    border:1px solid rgba(255,255,255,0.15)!important;
+    border-radius:10px!important;
+    padding:12px 16px!important;
+    font-family:'DM Sans','Noto Sans SC',sans-serif!important;
+    font-size:11px!important;
+    color:#f0f0f0!important;
+    box-shadow:0 8px 32px rgba(0,0,0,0.6)!important;
+    max-width:300px!important;
+  }
+  .node-tooltip .tt-type{
+    font-size:10px;letter-spacing:1.5px;text-transform:uppercase;
+    font-weight:600;margin-bottom:4px;
+  }
+  .node-tooltip .tt-type.t-act{color:var(--magenta-bright)}
+  .node-tooltip .tt-type.t-res{color:#5ce1e6}
+  .node-tooltip .tt-name{
+    font-size:14px;font-weight:700;margin-bottom:8px;color:#f0f0f0;
+  }
+  .node-tooltip .tt-r{
+    display:flex;justify-content:space-between;gap:14px;
+    margin-bottom:3px;color:rgba(255,255,255,0.45);
+  }
+  .node-tooltip .tt-r b{color:#f0f0f0;font-weight:500}
+  .node-tooltip .tt-sep{
+    border:none;border-top:1px solid rgba(255,255,255,0.08);
+    margin:8px 0;
+  }
+  .node-tooltip .tt-note{
+    font-size:10px;color:rgba(255,255,255,0.35);font-style:italic;line-height:1.4;
+  }
+
+  /* Edge base styling */
+  .base-edge{opacity:0.25}
+
+  .leaflet-tooltip.boundary-tt{
+    background:rgba(12,12,14,0.94)!important;
+    border:1px solid rgba(233,30,140,0.4)!important;
+    color:rgba(255,255,255,0.88)!important;
+    font-size:11px!important;
+    padding:6px 10px!important;
+    border-radius:8px!important;
+    box-shadow:0 4px 20px rgba(0,0,0,0.45)!important;
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="panel-header">
+  <div class="tag">Potential & Resource Nodes · 潜力与资源</div>
+  <h1>
+    <span class="hl-a">潜力节点</span>（<span class="hl-b">激活</span>三亚型 A₁/A₂/A₃；<em style="font-style:normal;opacity:0.85">界内按 priority 前 50% 标点</em>）
+    · <span class="hl-a" style="color:#5ce1e6">资源节点</span>（<em style="font-style:normal;opacity:0.85">主导类 AC 各取前 10%</em>）
+  </h1>
+  <div class="sub">大徐家汇边界内街段；潜力标点取前 <strong>50%</strong>；资源按医疗/科技/商业/体育/文化<strong>五类各前 10%</strong>。无廊道层。</div>
+</div>
+
+<div class="legend-panel">
+  <div class="lg-section">
+    <div class="lg-title" style="color:rgba(255,255,255,0.45);margin-bottom:8px">潜力节点 POTENTIAL</div>
+    <div class="lg-title activated">激活 ACTIVATED</div>
+    <div class="lg-item">
+      <div class="lg-symbol"><svg width="20" height="20"><polygon points="10,2 18,17 2,17" fill="none" stroke="#e91e8c" stroke-width="2"/></svg></div>
+      <div class="lg-label">A₁ · 老年人主导型</div>
+    </div>
+    <div class="lg-item">
+      <div class="lg-symbol"><svg width="20" height="20"><polygon points="10,18 18,3 2,3" fill="none" stroke="#e91e8c" stroke-width="2"/></svg></div>
+      <div class="lg-label">A₂ · 工作人口主导型</div>
+    </div>
+    <div class="lg-item">
+      <div class="lg-symbol"><svg width="20" height="20"><polygon points="10,1 12.5,7 19,7 13.5,11.5 15.5,18 10,14 4.5,18 6.5,11.5 1,7 7.5,7" fill="#e91e8c" fill-opacity="0.7" stroke="#e91e8c" stroke-width="1.5"/></svg></div>
+      <div class="lg-label">A₃ · 双向停留型</div>
+    </div>
+  </div>
+  <hr class="lg-divider">
+  <div class="lg-section">
+    <div class="lg-title resource">资源节点 RESOURCE</div>
+    <div class="lg-item">
+      <div class="lg-symbol"><svg width="20" height="20"><polygon points="10,1 18,6 18,14 10,19 2,14 2,6" fill="none" stroke="#5ce1e6" stroke-width="1.8"/></svg></div>
+      <div class="lg-label">五主导列取类型 · 界内按类各前 10% 标点 · 非潜力</div>
+    </div>
+  </div>
+  <hr class="lg-divider">
+  <div class="lg-section">
+    <div class="lg-title" style="color:var(--magenta-dim)">底图 BASE NETWORK</div>
+    <div class="lg-item">
+      <div class="lg-symbol"><svg width="20" height="4"><line x1="0" y1="2" x2="20" y2="2" stroke="rgba(233,30,140,0.45)" stroke-width="2"/></svg></div>
+      <div class="lg-label" style="color:rgba(255,255,255,0.35)">边界内街段 · CSVI 着色 · 全量</div>
+    </div>
+  </div>
+</div>
+
+<!-- Layer control -->
+<div class="layer-ctrl">
+  <div class="lc-title">图层控制 Layers</div>
+  <div class="lc-row act" onclick="toggleLayer('activated')">
+    <div class="lc-check on" id="chk-activated"></div>
+    <span class="lc-label">潜力 · 激活（前 50%）</span>
+    <span class="lc-count" id="cnt-activated">—</span>
+  </div>
+  <div class="lc-row res" onclick="toggleLayer('resource')">
+    <div class="lc-check on" id="chk-resource"></div>
+    <span class="lc-label">资源节点（五类各 10%）</span>
+    <span class="lc-count" id="cnt-resource">—</span>
+  </div>
+  <div class="lc-row" onclick="toggleLayer('network')" style="margin-top:8px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">
+    <div class="lc-check on" id="chk-network"></div>
+    <span class="lc-label" style="color:rgba(255,255,255,0.35)">底图路网</span>
+  </div>
+  <div class="lc-row" onclick="toggleLayer('boundary')" style="margin-top:6px">
+    <div class="lc-check on" id="chk-boundary"></div>
+    <span class="lc-label" style="color:rgba(255,255,255,0.35)">大徐家汇边界 · OSM</span>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-panel">
+  <div class="st-title">节点统计 Node Census</div>
+  <div class="st-grid">
+    <div class="st-cell">
+      <div class="st-label">Activated</div>
+      <div class="st-val c-a" id="st-act">—</div>
+    </div>
+    <div class="st-cell">
+      <div class="st-label">Resource AC↑</div>
+      <div class="st-val c-res" id="st-res">—</div>
+    </div>
+    <div class="st-cell" style="grid-column:1/-1">
+      <div class="st-label">边界内路网 / 全表</div>
+      <div class="st-val" style="color:rgba(255,255,255,0.4)" id="st-total">—</div>
+    </div>
+  </div>
+  <div id="st-filter-note" style="margin-top:10px;font-size:9px;line-height:1.45;color:rgba(255,255,255,0.28)"></div>
+</div>
+
+<!-- 要点（精简） -->
+<div class="formula-panel">
+  <div class="fp-title">要点</div>
+  <div class="fp-row" style="color:rgba(255,255,255,0.55)">潜力：CSVI 高 + W 轴至少一轴高 → A₁/A₂/A₃；界内按 priority 取前 50% 标点</div>
+  <div class="fp-row" style="color:rgba(255,255,255,0.55)">资源：五主导列可判类型且非潜力；界内按主导类各取前 10% 标点</div>
+</div>
+
+<script>
+// ============================================================
+//  MAP INIT
+// ============================================================
+const map = L.map('map', {
+  center: [31.195, 121.438],
+  zoom: 15,
+  zoomControl: false,
+  attributionControl: false,
+  /* 大量路网折线时用 Canvas，避免 3 万+ SVG path 拖垮主线程 */
+  preferCanvas: true
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  maxZoom: 19,
+  subdomains: 'abcd',
+  updateWhenZooming: false,
+  updateWhenIdle: true
+}).addTo(map);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+// ============================================================
+//  JENKS NATURAL BREAKS (Fisher-Jenks, k classes)
+// ============================================================
+function jenks(data, nClasses) {
+  const sorted = [...data].sort((a,b) => a - b);
+  const n = sorted.length;
+  if (n <= nClasses) return sorted;
+
+  // Matrices
+  const lc = Array.from({length: n+1}, () => new Float64Array(nClasses+1).fill(Infinity));
+  const variance = Array.from({length: n+1}, () => new Float64Array(nClasses+1).fill(Infinity));
+
+  for (let i = 1; i <= nClasses; i++) { lc[1][i] = 1; variance[1][i] = 0; }
+
+  for (let l = 2; l <= n; l++) {
+    let sum = 0, sumSq = 0;
+    for (let m = 1; m <= l; m++) {
+      const val = sorted[l - m];
+      sum += val;
+      sumSq += val * val;
+      const w = m;
+      const v = sumSq - (sum * sum) / w;
+      const i4 = l - m;
+      if (i4 !== 0) {
+        for (let j = 2; j <= nClasses; j++) {
+          if (variance[l][j] >= v + variance[i4][j - 1]) {
+            lc[l][j] = i4 + 1;
+            variance[l][j] = v + variance[i4][j - 1];
+          }
+        }
+      }
+    }
+    lc[l][1] = 1;
+    variance[l][1] = sumSq - (sum * sum) / l;
+  }
+
+  // Read back
+  const breaks = [];
+  let k = n;
+  for (let j = nClasses; j >= 2; j--) {
+    const idx = lc[k][j] - 2;
+    breaks.unshift(sorted[idx]);
+    k = lc[k][j] - 1;
+  }
+  return breaks;
+}
+
+// Classify: returns 0,1,2 for 3 classes (low, medium, high)
+function classifyJenks(value, breaks) {
+  if (value < breaks[0]) return 0;
+  if (value < breaks[1]) return 1;
+  return 2;
+}
+
+/** 大数据集下 Fisher–Jenks 为 O(n²) 量级，3 万条会长时间卡死；改用三分位断点，O(n log n) */
+const JENKS_MAX_N = 4096;
+function getClassificationBreaks(values, nClasses) {
+  const n = values.length;
+  if (n === 0) return [0, 1];
+  if (n <= JENKS_MAX_N) return jenks(values, nClasses);
+  const sorted = [...values].sort((a, b) => a - b);
+  const i1 = Math.floor(n / 3);
+  const i2 = Math.floor((2 * n) / 3);
+  let b0 = sorted[Math.min(i1, n - 1)];
+  let b1 = sorted[Math.min(Math.max(i2, i1 + 1), n - 1)];
+  if (b1 <= b0 && n > 2) b1 = sorted[n - 1] + 1e-12;
+  return [b0, b1];
+}
+
+/**
+ * 研究区内经验分位 P∈[0,1]（平均秩处理并列）。
+ * 对 W_elder、W_work 各自独立排名，使后续 Jenks「高档」= 本轴上相对靠前，两轴可比。
+ */
+function addEmpiricalPercentileRanks(edges) {
+  const n = edges.length;
+  if (!n) return;
+  function ranksFor(getter, setter) {
+    if (n === 1) {
+      edges[0][setter] = 0.5;
+      return;
+    }
+    const idx = edges.map((_, i) => i);
+    idx.sort((ia, ib) => {
+      const va = getter(edges[ia]);
+      const vb = getter(edges[ib]);
+      const a = Number.isFinite(va) ? va : 0;
+      const b = Number.isFinite(vb) ? vb : 0;
+      return a - b;
+    });
+    const pr = new Array(n);
+    let j = 0;
+    while (j < n) {
+      let k = j;
+      const vj = getter(edges[idx[j]]);
+      const base = Number.isFinite(vj) ? vj : 0;
+      while (k + 1 < n) {
+        const vk = getter(edges[idx[k + 1]]);
+        const vb = Number.isFinite(vk) ? vk : 0;
+        if (vb !== base) break;
+        k++;
+      }
+      const mid = (j + k) / 2;
+      const p = mid / (n - 1);
+      for (let t = j; t <= k; t++) pr[idx[t]] = p;
+      j = k + 1;
+    }
+    for (let i = 0; i < n; i++) edges[i][setter] = pr[i];
+  }
+  ranksFor(e => e.W_elder, 'p_elder');
+  ranksFor(e => e.W_work, 'p_work');
+}
+
+// ============================================================
+//  DATA: 优先加载 ../data/cld/cld_priority.csv（需通过本地 HTTP 打开页面）
+// ============================================================
+function gaussRand(mean, std) {
+  let u=0,v=0;
+  while(u===0) u=Math.random();
+  while(v===0) v=Math.random();
+  return mean + std * Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+}
+
+const CSV_FILENAME = '../data/cld/cld_priority.csv';
+
+/** 表中 lon/lat 为边段中点；用 Gauss–Seidel 近似恢复端点坐标以绘制线段 */
+function estimateNodePositions(rawEdges) {
+  const nodes = new Set();
+  rawEdges.forEach(r => { nodes.add(r.u); nodes.add(r.v); });
+  const sum = {}, cnt = {};
+  nodes.forEach(n => { sum[n] = [0, 0]; cnt[n] = 0; });
+  rawEdges.forEach(r => {
+    const mx = r.lon, my = r.lat;
+    [r.u, r.v].forEach(id => {
+      sum[id][0] += mx; sum[id][1] += my; cnt[id]++;
+    });
+  });
+  const pos = {};
+  nodes.forEach(n => {
+    pos[n] = { lon: sum[n][0] / cnt[n], lat: sum[n][1] / cnt[n] };
+  });
+  const iters = rawEdges.length > 12000 ? 14 : 32;
+  for (let iter = 0; iter < iters; iter++) {
+    rawEdges.forEach(r => {
+      const mx = r.lon, my = r.lat;
+      pos[r.u].lon = 2 * mx - pos[r.v].lon;
+      pos[r.u].lat = 2 * my - pos[r.v].lat;
+    });
+  }
+  return pos;
+}
+
+function buildEdgesFromCsvRows(rows) {
+  const raw = rows.map((r) => ({
+    u: String(r.u),
+    v: String(r.v),
+    lon: +r.lon,
+    lat: +r.lat,
+    csvi_E: +r.csvi_E,
+    csvi_S_env: +r.csvi_S_env,
+    csvi_S_contact: +r.csvi_S_contact,
+    csvi_AC_phys: +r.csvi_AC_phys,
+    csvi_AC_social: +r.csvi_AC_social,
+    AC_med_dom: r.AC_med_dom,
+    AC_tech_dom: r.AC_tech_dom,
+    AC_mkt_dom: r.AC_mkt_dom,
+    AC_sport_dom: r.AC_sport_dom,
+    AC_soc_cul_dom: r.AC_soc_cul_dom,
+    N_YP: +r.N_YP,
+    N08: +r.N08,
+    priority: +r.priority
+  }));
+  const pos = estimateNodePositions(raw);
+  const agg = window.ACDomAggregate;
+  return raw.map((r) => {
+    const from = pos[r.u],
+      to = pos[r.v];
+    const midLon = (from.lon + to.lon) / 2;
+    const midLat = (from.lat + to.lat) / 2;
+    const sTotal = r.csvi_S_env + r.csvi_S_contact;
+    const acPhysEff = agg.effectiveAcPhys(r);
+    const resourceDom = agg.resourceDomType(r);
+    return {
+      u: r.u,
+      v: r.v,
+      from,
+      to,
+      midLon,
+      midLat,
+      csvi_E: r.csvi_E,
+      csvi_S_env: r.csvi_S_env,
+      csvi_S_contact: r.csvi_S_contact,
+      csvi_AC_phys: r.csvi_AC_phys,
+      AC_med_dom: r.AC_med_dom,
+      AC_tech_dom: r.AC_tech_dom,
+      AC_mkt_dom: r.AC_mkt_dom,
+      AC_sport_dom: r.AC_sport_dom,
+      AC_soc_cul_dom: r.AC_soc_cul_dom,
+      acPhysEff,
+      resourceDom,
+      csvi_AC_social: r.csvi_AC_social,
+      N_YP: r.N_YP,
+      N08: r.N08,
+      priority: r.priority,
+      W_elder: r.csvi_E * (acPhysEff + 1),
+      W_work: Math.max(0, (+r.N_YP || 0) * (+r.N08 || 0)),
+      S_contact_ratio: sTotal > 0 ? r.csvi_S_contact / sTotal : 0
+    };
+  });
+}
+
+function simulateEdges() {
+  const centerLon = 121.438, centerLat = 31.195, spread = 0.018;
+  const gridSize = 28;
+  const nodes = {};
+  let nid = 0;
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      nodes[nid] = {
+        lon: centerLon - spread + (i/gridSize)*spread*2 + gaussRand(0,0.0003),
+        lat: centerLat - spread + (j/gridSize)*spread*2 + gaussRand(0,0.00025),
+        id: nid
+      };
+      nid++;
+    }
+  }
+
+  const edges = [];
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      const id = i*gridSize + j;
+      if (j < gridSize-1 && Math.random()>0.06) {
+        edges.push({u: id, v: i*gridSize+j+1});
+      }
+      if (i < gridSize-1 && Math.random()>0.06) {
+        edges.push({u: id, v: (i+1)*gridSize+j});
+      }
+    }
+  }
+
+  edges.forEach(e => {
+    const n1 = nodes[e.u], n2 = nodes[e.v];
+    e.midLon = (n1.lon + n2.lon)/2;
+    e.midLat = (n1.lat + n2.lat)/2;
+    e.from = n1; e.to = n2;
+
+    const dx = e.midLon - centerLon, dy = e.midLat - centerLat;
+    const distC = Math.sqrt(dx*dx + dy*dy) / spread;
+
+    const dSW = Math.sqrt(Math.pow(e.midLon-(centerLon-0.008),2) + Math.pow(e.midLat-(centerLat-0.006),2));
+    const proxSW = Math.max(0, 1 - dSW/0.008);
+
+    const dSE = Math.sqrt(Math.pow(e.midLon-(centerLon+0.007),2) + Math.pow(e.midLat-(centerLat-0.004),2));
+    const proxSE = Math.max(0, 1 - dSE/0.007);
+
+    const proxCenter = Math.max(0, 1 - distC*1.5);
+
+    e.csvi_E = Math.max(0.05, Math.min(0.95, gaussRand(0.35 + proxSW*0.3 + proxCenter*0.2, 0.10)));
+    e.csvi_S_env = Math.max(0, Math.min(0.4, gaussRand(0.08, 0.03)));
+    e.csvi_S_contact = Math.max(0, Math.min(0.8, gaussRand(0.35 + proxSE*0.2, 0.08)));
+    e.N_YP = Math.max(0.1, Math.min(0.9, gaussRand(0.45 + proxSE*0.25 + proxCenter*0.1, 0.08)));
+    e.N08 = Math.max(0, Math.min(1, gaussRand(0.48, 0.14)));
+
+    const dPark1 = Math.sqrt(Math.pow(e.midLon-(centerLon-0.005),2) + Math.pow(e.midLat-(centerLat+0.006),2));
+    const parkProx = Math.max(0, 1 - dPark1/0.006);
+    const corridorDist = Math.abs(e.midLat - (centerLat - 0.005));
+    const inCorridor = corridorDist < 0.003 && e.midLon > centerLon-0.01 && e.midLon < centerLon+0.01;
+    e.csvi_AC_phys = Math.max(0.001, Math.min(0.3,
+      gaussRand(0.04 + parkProx*0.15 - (inCorridor?0.03:0), 0.025)));
+    const b = e.csvi_AC_phys;
+    e.AC_med_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    e.AC_tech_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    e.AC_mkt_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    e.AC_sport_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    e.AC_soc_cul_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    e.csvi_AC_social = Math.max(0, Math.min(0.4, gaussRand(0.06 + proxCenter*0.15, 0.04)));
+
+    e.priority = Math.max(0, Math.min(1,
+      e.csvi_E * (e.csvi_S_env + e.csvi_S_contact) / Math.max(0.001, e.csvi_AC_phys * e.csvi_AC_social + 0.01)
+    ));
+    e.priority = Math.min(1, e.priority / 30);
+
+    e.acPhysEff = window.ACDomAggregate.effectiveAcPhys(e);
+    e.resourceDom = window.ACDomAggregate.resourceDomType(e);
+    e.W_elder = e.csvi_E * (e.acPhysEff + 1);
+    e.W_work = Math.max(0, e.N_YP * e.N08);
+
+    const sTotal = e.csvi_S_env + e.csvi_S_contact;
+    e.S_contact_ratio = sTotal > 0 ? e.csvi_S_contact / sTotal : 0;
+  });
+  return edges;
+}
+
+async function loadEdges() {
+  try {
+    const rows = await d3.csv(CSV_FILENAME, d3.autoType);
+    if (!rows || !rows.length) throw new Error('CSV 为空');
+    if (rows[0].priority === undefined || rows[0].csvi_E === undefined || rows[0].N08 === undefined)
+      throw new Error('CSV 列不匹配（需要 priority、csvi_*、N08、N_YP 等列；W_work=N_YP×N08 与矩阵对齐）');
+    return buildEdgesFromCsvRows(rows);
+  } catch (err) {
+    const why = (err && err.message) ? err.message : String(err);
+    console.warn('未加载 ' + CSV_FILENAME + '，使用内置模拟数据。原因: ' + why);
+    return simulateEdges();
+  }
+}
+
+let layerGroups = {};
+let layerVisible = { activated: true, resource: true, network: true, boundary: true };
+
+function toggleLayer(name) {
+  layerVisible[name] = !layerVisible[name];
+  const chk = document.getElementById(`chk-${name}`);
+  if (layerVisible[name]) {
+    chk.classList.add('on');
+    map.addLayer(layerGroups[name]);
+  } else {
+    chk.classList.remove('on');
+    map.removeLayer(layerGroups[name]);
+  }
+}
+
+async function runPipeline(edges) {
+// ============================================================
+//  JENKS CLASSIFICATION
+// ============================================================
+addEmpiricalPercentileRanks(edges);
+
+const priorityValues = edges.map(e => e.priority);
+const pElderValues = edges.map(e => e.p_elder);
+const pWorkValues = edges.map(e => e.p_work);
+
+const csviBreaks = getClassificationBreaks(priorityValues, 3);
+const wElderBreaks = getClassificationBreaks(pElderValues, 3);
+const wWorkBreaks = getClassificationBreaks(pWorkValues, 3);
+
+edges.forEach((e) => {
+  e.csviClass = classifyJenks(e.priority, csviBreaks); // 0=low,1=mid,2=high
+  e.wElderClass = classifyJenks(e.p_elder, wElderBreaks);
+  e.wWorkClass = classifyJenks(e.p_work, wWorkBreaks);
+});
+
+// ============================================================
+//  NODE CLASSIFICATION
+// ============================================================
+const activatedEdges = [];
+
+edges.forEach((e) => {
+  // --- ACTIVATED: CSVI high AND at least one W high ---
+  if (e.csviClass === 2 && (e.wElderClass === 2 || e.wWorkClass === 2)) {
+    if (e.wElderClass === 2 && e.wWorkClass <= 1) {
+      e.nodeType = 'act_elder'; // 老年人主导型
+    } else if (e.wWorkClass === 2 && e.wElderClass <= 1) {
+      e.nodeType = 'act_work'; // 工作人口主导型
+    } else {
+      e.nodeType = 'act_both'; // 双向停留型
+    }
+    activatedEdges.push(e);
+    return;
+  }
+
+  e.nodeType = null;
+});
+
+// --- 仅保留边段中点落在大徐家汇四街道并集内的节点（与玫红边界一致）---
+const studyGeom = typeof getDaxujiahuiBoundaryGeometry === 'function'
+  ? await getDaxujiahuiBoundaryGeometry()
+  : null;
+const edgeMidInStudy = (e) =>
+  typeof pointInDaxujiahuiGeometry === 'function'
+    ? pointInDaxujiahuiGeometry(e.midLon, e.midLat, studyGeom)
+    : true;
+const activatedInStudy = activatedEdges.filter(edgeMidInStudy);
+/** 资源标点候选：未判潜力、主导列齐全可判类型、中点在研究区内 */
+const resourceCandidatesInStudy = edges.filter(
+  (e) => e.nodeType == null && e.resourceDom && edgeMidInStudy(e)
+);
+
+// ============================================================
+//  RENDER
+// ============================================================
+// CSVI color for base network（玫红单色系：低值偏暗 → 高值偏亮）
+function csviColorFromT(t) {
+  t = Math.max(0, Math.min(1, t));
+  const r = Math.round(88 + t * 147);
+  const g = Math.round(18 + t * 48);
+  const b = Math.round(52 + t * 108);
+  return `rgba(${r},${g},${b},${0.15 + t * 0.28})`;
+}
+
+/** 边界内边段按 priority 分桶合并为少量 polyline，减轻 Canvas 绘制批次 */
+const NETWORK_BUCKETS = 22;
+/** 潜力节点：界内激活边段按 priority 取前若干比例 */
+const NODE_MARKER_POTENTIAL_TOP_FRAC = 0.5;
+/** 资源节点：五主导类各自界内按该主导列取前若干比例 */
+const NODE_MARKER_RESOURCE_TOP_FRAC = 0.1;
+
+function takeTopFractionByMetric(arr, metricFn, frac) {
+  const n = arr.length;
+  if (!n) return [];
+  const k = Math.max(1, Math.ceil(n * frac));
+  return [...arr].sort((a, b) => metricFn(b) - metricFn(a)).slice(0, k);
+}
+
+/** 医疗/科技/商业/体育/文化 各取 top frac（按各自主导列 resourceDom.max 排序） */
+function takeTopFractionPerResourceDom(arr, frac) {
+  const keys = (window.ACDomAggregate && window.ACDomAggregate.DOM_KEYS) || [
+    'AC_med_dom', 'AC_tech_dom', 'AC_mkt_dom', 'AC_sport_dom', 'AC_soc_cul_dom'
+  ];
+  const out = [];
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const sub = arr.filter((e) => e.resourceDom && e.resourceDom.key === key);
+    const top = takeTopFractionByMetric(sub, (e) => e.resourceDom.max, frac);
+    for (let j = 0; j < top.length; j++) out.push(top[j]);
+  }
+  return out;
+}
+
+function priorityTo01(edgeList) {
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < edgeList.length; i++) {
+    const p = edgeList[i].priority;
+    if (p < lo) lo = p;
+    if (p > hi) hi = p;
+  }
+  const span = hi - lo || 1;
+  return (p) => (p - lo) / span;
+}
+
+// Layer groups（路网与其它矢量共用 Canvas renderer，减轻 SVG 节点数）
+const vectorRenderer = L.canvas({ padding: 0.5 });
+layerGroups = {
+  network: L.layerGroup().addTo(map),
+  activated: L.layerGroup().addTo(map),
+  resource: L.layerGroup().addTo(map),
+  boundary: L.layerGroup().addTo(map),
+};
+addXujiahuiBoundaryToGroup(layerGroups.boundary);
+
+const networkEdgesInStudy = [];
+for (let i = 0; i < edges.length; i++) {
+  if (edgeMidInStudy(edges[i])) networkEdgesInStudy.push(edges[i]);
+}
+const colorBasis = networkEdgesInStudy.length ? networkEdgesInStudy : edges;
+const p01 = priorityTo01(colorBasis);
+const bucketSegs = Array.from({ length: NETWORK_BUCKETS }, () => []);
+for (let i = 0; i < networkEdgesInStudy.length; i++) {
+  const e = networkEdgesInStudy[i];
+  const t = Math.max(0, Math.min(1, p01(e.priority)));
+  const bi = Math.min(NETWORK_BUCKETS - 1, Math.floor(t * NETWORK_BUCKETS));
+  bucketSegs[bi].push([[e.from.lat, e.from.lon], [e.to.lat, e.to.lon]]);
+}
+for (let bi = 0; bi < NETWORK_BUCKETS; bi++) {
+  const segs = bucketSegs[bi];
+  if (!segs.length) continue;
+  const t = (bi + 0.5) / NETWORK_BUCKETS;
+  L.polyline(segs, {
+    renderer: vectorRenderer,
+    interactive: false,
+    smoothFactor: 0,
+    color: csviColorFromT(t),
+    weight: 1.5,
+    opacity: 0.5,
+    lineCap: 'round'
+  }).addTo(layerGroups.network);
+}
+
+// --- SVG 图标（无 SVG 滤镜，单例复用，避免每个标记单独解析 blur）---
+function starIcon(color, size=24) {
+  const c = size/2;
+  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="${c},1 ${c*1.22},${c*0.65} ${size-1},${c*0.65} ${c*1.35},${c*1.05} ${c*1.5},${size-1} ${c},${c*1.3} ${c*0.5},${size-1} ${c*0.65},${c*1.05} 1,${c*0.65} ${c*0.78},${c*0.65}"
+      fill="${color}" fill-opacity="0.65" stroke="${color}" stroke-width="1.5" />
+  </svg>`;
+  return L.divIcon({
+    html: svg, className: '', iconSize: [size, size], iconAnchor: [c, c]
+  });
+}
+
+/** 正三角 ▲（顶点朝上） */
+function triangleUpIcon(color, size=22) {
+  const c = size/2;
+  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="${c},2 ${size-2},${size-2} 2,${size-2}"
+      fill="${color}" fill-opacity="0.25" stroke="${color}" stroke-width="2" />
+  </svg>`;
+  return L.divIcon({
+    html: svg, className: '', iconSize: [size, size], iconAnchor: [c, c]
+  });
+}
+/** 倒三角 ▼（顶点朝下） */
+function triangleDownIcon(color, size=22) {
+  const c = size/2;
+  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="${c},${size-2} ${size-2},2 2,2"
+      fill="${color}" fill-opacity="0.25" stroke="${color}" stroke-width="2" />
+  </svg>`;
+  return L.divIcon({
+    html: svg, className: '', iconSize: [size, size], iconAnchor: [c, c]
+  });
+}
+/** 正六边形 · 资源节点（认知资产 / 高 AC） */
+function hexNodeIcon(color, size = 20) {
+  const c = size / 2;
+  const r = c - 2;
+  const pts = [];
+  for (let k = 0; k < 6; k++) {
+    const a = (Math.PI / 6 + (k * Math.PI) / 3) - Math.PI / 2;
+    pts.push(`${c + r * Math.cos(a)},${c + r * Math.sin(a)}`);
+  }
+  const d = pts.join(' ');
+  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="${d}" fill="${color}" fill-opacity="0.22" stroke="${color}" stroke-width="2" />
+  </svg>`;
+  return L.divIcon({
+    html: svg, className: '', iconSize: [size, size], iconAnchor: [c, c]
+  });
+}
+
+const MAG_NODE = '#e91e8c';
+const RES_NODE = '#5ce1e6';
+const NODE_ICONS = {
+  act_elder: triangleUpIcon(MAG_NODE, 20),
+  act_work: triangleDownIcon(MAG_NODE, 20),
+  act_both: starIcon(MAG_NODE, 26),
+  resource: hexNodeIcon(RES_NODE, 22),
+};
+
+const nodeStyles = {
+  act_elder: { typeCN: '潜力 · 激活·老年人主导型', typeEN: 'Potential A₁', typeClass: 't-act',
+    note: 'W_elder高 W_work低 → 认知恢复线主导' },
+  act_work: { typeCN: '潜力 · 激活·工作人口主导型', typeEN: 'Potential A₂', typeClass: 't-act',
+    note: 'W_work高 W_elder低 → 人机共生线主导' },
+  act_both: { typeCN: '潜力 · 激活·双向停留型', typeEN: 'Potential A₃', typeClass: 't-act',
+    note: '两者都高 → 稀缺，双线共同作用' },
+  resource: { typeCN: '资源节点', typeEN: 'Resource', typeClass: 't-res',
+    note: '主导类列界内前 10%；子类型见 tooltip' },
+};
+
+function makeTooltip(e) {
+  const s = nodeStyles[e.nodeType];
+  if (!s) return '';
+  const dom = e.resourceDom;
+  if (e.nodeType === 'resource') {
+    const domVal = dom && Number.isFinite(dom.max) ? dom.max : 0;
+    const domLab = dom ? dom.label : '—';
+    return `
+    <div class="tt-type ${s.typeClass}">${s.typeEN}</div>
+    <div class="tt-name">${s.typeCN}${dom ? ' · ' + dom.label : ''}</div>
+    <div class="tt-r"><span>AC（${domLab}）</span><b>${domVal.toFixed(4)}</b></div>
+    <div class="tt-r"><span>CSVI</span><b>${e.priority.toFixed(4)}</b></div>`;
+  }
+  return `
+    <div class="tt-type ${s.typeClass}">${s.typeEN}</div>
+    <div class="tt-name">${s.typeCN}</div>
+    <div class="tt-r"><span>CSVI</span><b>${e.priority.toFixed(4)}</b></div>
+    <div class="tt-r"><span>W_elder</span><b>${e.W_elder.toFixed(4)}</b></div>
+    <div class="tt-r"><span>W_work</span><b>${e.W_work.toFixed(4)}</b></div>`;
+}
+
+// Place classified nodes（潜力：priority 前 NODE_MARKER_POTENTIAL_TOP_FRAC；资源：五主导类各前 NODE_MARKER_RESOURCE_TOP_FRAC）
+function placeNodeMarker(e, layerName) {
+  const s = nodeStyles[e.nodeType];
+  if (!s || !NODE_ICONS[e.nodeType]) return;
+  const marker = L.marker([e.midLat, e.midLon], { icon: NODE_ICONS[e.nodeType] })
+    .bindTooltip(makeTooltip(e), {
+      className: 'node-tooltip',
+      direction: 'top',
+      offset: [0, -14],
+      sticky: false
+    });
+  marker.addTo(layerGroups[layerName]);
+}
+
+const activatedDrawList = takeTopFractionByMetric(activatedInStudy, (e) => e.priority, NODE_MARKER_POTENTIAL_TOP_FRAC);
+const resourceDrawList = takeTopFractionPerResourceDom(resourceCandidatesInStudy, NODE_MARKER_RESOURCE_TOP_FRAC);
+resourceDrawList.forEach((e) => { e.nodeType = 'resource'; });
+
+activatedDrawList.forEach((e) => placeNodeMarker(e, 'activated'));
+resourceDrawList.forEach((e) => placeNodeMarker(e, 'resource'));
+
+// ============================================================
+//  STATS UPDATE
+// ============================================================
+const actElderN = activatedDrawList.filter(e => e.nodeType === 'act_elder').length;
+const actWorkN = activatedDrawList.filter(e => e.nodeType === 'act_work').length;
+const actBothN = activatedDrawList.filter(e => e.nodeType === 'act_both').length;
+const nNetInStudy = networkEdgesInStudy.length;
+const nActAll = activatedInStudy.length;
+const nResAll = resourceCandidatesInStudy.length;
+const nAct = activatedDrawList.length;
+const nRes = resourceDrawList.length;
+
+document.getElementById('st-act').textContent =
+  nActAll ? `${nAct} / ${nActAll}` : '0';
+document.getElementById('st-res').textContent =
+  nResAll ? `${nRes} / ${nResAll}` : '0';
+document.getElementById('st-total').textContent = `${nNetInStudy} / ${edges.length}`;
+
+document.getElementById('cnt-activated').textContent = nActAll
+  ? `${nAct}/${nActAll} ·50% ·A₁${actElderN} A₂${actWorkN} A₃${actBothN}`
+  : '0';
+document.getElementById('cnt-resource').textContent = nResAll
+  ? `${nRes}/${nResAll} ·五类各10%`
+  : '0';
+
+const noteEl = document.getElementById('st-filter-note');
+if (noteEl) {
+  noteEl.textContent = `界内路网 ${nNetInStudy} 段 · 全表 ${edges.length} · 标点 ${nAct}+${nRes}`;
+}
+
+  const extentMarker = [...activatedDrawList, ...resourceDrawList];
+  const extentSrc = extentMarker.length ? extentMarker : (nNetInStudy ? networkEdgesInStudy : edges);
+  const latExtent = d3.extent(extentSrc, e => e.midLat);
+  const lonExtent = d3.extent(extentSrc, e => e.midLon);
+  const pad = 0.003;
+  if (latExtent[0] != null && lonExtent[0] != null) {
+    const b = [[latExtent[0] - pad, lonExtent[0] - pad], [latExtent[1] + pad, lonExtent[1] + pad]];
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { map.fitBounds(b, { animate: false }); });
+    });
+  }
+}
+
+loadEdges().then((edges) => {
+  runPipeline(edges);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>因果回路建模与系统动力学仿真 · CLD 二维</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@300;400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#08070d;--surface:rgba(10,8,18,0.94);--ss:#0e0c14;
+  --mag:#e91e8c;--mag-d:#a0145f;--mag-g:rgba(233,30,140,0.30);--mag-s:rgba(233,30,140,0.10);
+  --cyan:#00e5ff;--green:#39ff85;--amber:#ffb300;--red:#ff4455;--orange:#ff8844;
+  --text:#ddd8e4;--dim:#7a7488;--faint:#3a3348;--border:rgba(233,30,140,0.14);
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans SC',sans-serif}
+/* 主 CLD 画布止于底栏之上，由 JS 写入高度 */
+canvas#cv{position:fixed;top:0;left:0;width:100%;z-index:0}
+/* 节点旁标注卡片：高于四角 .card(50)，低于顶栏与 tooltip；不拦截拖拽/平移 */
+canvas#cv-labels{position:fixed;top:0;left:0;width:100%;z-index:55;pointer-events:none}
+#node-label-layer{position:fixed;top:0;left:0;width:100%;z-index:120;pointer-events:none}
+.node-label-chip{position:fixed;transform:translate(-9999px,-9999px);padding:5px 7px;border-radius:6px;border:1.4px solid rgba(233,30,140,0.8);background:rgba(20,14,32,0.96);box-shadow:0 2px 12px rgba(233,30,140,0.35);line-height:1.15;white-space:nowrap;max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.node-label-chip .id{display:block;font:600 9px 'JetBrains Mono',monospace;margin-bottom:2px}
+.node-label-chip .nm{display:block;font:400 8px 'Noto Sans SC',sans-serif;color:rgba(240,236,248,0.96);overflow:hidden;text-overflow:ellipsis}
+
+/* ── Top bar ── */
+.bar{position:fixed;top:0;left:0;right:0;z-index:100;padding:10px 18px;background:linear-gradient(180deg,rgba(8,7,13,0.97),rgba(8,7,13,0));pointer-events:none;display:flex;justify-content:space-between;align-items:flex-start}
+.bar>*{pointer-events:auto}
+.bar h1{font-size:14px;font-weight:500;letter-spacing:2px;color:var(--mag);text-shadow:0 0 18px var(--mag-g)}
+.bar .sub{font-size:10px;color:var(--dim);letter-spacing:1px;margin-top:2px}
+.bar .view-btns{display:flex;gap:6px;margin-top:2px}
+.bar .view-btns button{font-family:'JetBrains Mono',monospace;font-size:9px;padding:3px 8px;background:var(--mag-s);border:1px solid var(--mag-d);color:var(--mag);border-radius:3px;cursor:pointer;letter-spacing:0.5px;transition:all 0.2s}
+.bar .view-btns button:hover,.bar .view-btns button.on{background:var(--mag);color:#fff}
+
+/* ── Cards ── */
+.card{position:fixed;z-index:50;background:var(--surface);backdrop-filter:blur(18px);border:1px solid rgba(233,30,140,0.22);border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.55;box-shadow:0 4px 28px rgba(0,0,0,0.62),inset 0 1px 0 rgba(255,255,255,0.04);overflow-y:auto;transition:max-height 0.3s}
+.card.collapsed .card-body{display:none}
+.card .ch{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:1.2px;color:#fff;text-transform:uppercase;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;user-select:none;text-shadow:0 0 1px rgba(0,0,0,0.4)}
+.card .ch .tg{font-size:15px;opacity:0.55;color:#fff}
+.card td{padding:2px 0;vertical-align:top;font-size:11px}
+.card td:first-child{font-family:'JetBrains Mono',monospace;color:#fff;white-space:nowrap;padding-right:8px;font-weight:700;font-size:11px}
+.card td:last-child{color:var(--dim)}
+.card code{font-family:'JetBrains Mono',monospace;background:rgba(233,30,140,0.14);color:#fff;font-weight:600;padding:2px 5px;border-radius:2px;font-size:10px;border:1px solid rgba(233,30,140,0.25)}
+
+#card-legend{top:56px;left:14px;max-width:220px;max-height:calc(100vh - 200px)}
+#card-loops{top:56px;right:14px;max-width:230px;max-height:calc(100vh - 200px)}
+:root{--sd-dock-h:min(168px,32vh)}
+/* 底部 SD 双窗：不占 CLD 主画布角区 */
+#sd-dock{
+  position:fixed;left:0;right:0;bottom:0;z-index:58;
+  height:var(--sd-dock-h);min-height:140px;max-height:200px;
+  background:linear-gradient(0deg,rgba(6,5,10,0.97),rgba(10,8,16,0.93));
+  border-top:1px solid rgba(233,30,140,0.28);
+  box-shadow:0 -6px 28px rgba(0,0,0,0.55);
+  display:flex;flex-direction:column;padding:6px 10px 8px;gap:5px;
+  pointer-events:auto;
+}
+#sd-dock .sd-dock-hd{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;flex-shrink:0}
+#sd-dock .sd-dock-title{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.8px;color:var(--mag);text-transform:uppercase}
+#sd-dock .sd-dock-note{font-size:9px;color:var(--dim);line-height:1.35;max-width:520px}
+#sd-dock .sd-dock-ctrl{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+#sd-dock button.sd-btn{font-family:'JetBrains Mono',monospace;font-size:9px;padding:3px 8px;background:var(--mag-s);border:1px solid var(--mag-d);color:var(--mag);border-radius:3px;cursor:pointer;letter-spacing:0.3px;transition:all 0.2s}
+#sd-dock button.sd-btn:hover,#sd-dock button.sd-btn.on{background:var(--mag);color:#fff}
+#sd-dock .sd-speed-wrap{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--dim)}
+#sd-dock .sd-speed-wrap input[type=range]{width:72px;accent-color:var(--mag);margin:0}
+#sd-dock .sd-dock-panes{display:flex;gap:8px;flex:1;min-height:0}
+#sd-dock .sd-pane{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;border:1px solid rgba(233,30,140,0.14);border-radius:6px;padding:4px 6px;background:rgba(0,0,0,0.22)}
+#sd-dock .sd-pane-cap{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--text);letter-spacing:0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sd-dock .sd-pane-cap em{font-style:normal;color:var(--amber)}
+#sd-dock canvas.sd-canvas{display:block;width:100%;flex:1;min-height:56px;border-radius:4px;background:rgba(0,0,0,0.38);border:1px solid rgba(233,30,140,0.12)}
+#sd-dock .sd-legend{font-size:7px;color:var(--dim);line-height:1.35;font-family:'JetBrains Mono',monospace;flex-shrink:0}
+#sd-dock .sd-legend .row{display:flex;flex-wrap:wrap;gap:0 8px}
+#sd-dock .sd-legend span{white-space:nowrap}
+/* ── Tooltip ── */
+#tip{position:fixed;z-index:200;background:var(--ss);border:1px solid var(--mag);border-radius:6px;padding:10px 12px;font-size:11px;pointer-events:none;opacity:0;transition:opacity 0.15s;max-width:280px;box-shadow:0 0 20px var(--mag-g);line-height:1.6}
+#tip .tn{color:var(--mag);font-weight:700;margin-bottom:3px;font-size:12px}
+#tip .td{color:var(--dim)}
+#tip .te{color:var(--text);font-family:'JetBrains Mono',monospace;font-size:9px;margin-top:4px;padding:4px 6px;background:rgba(233,30,140,0.06);border-radius:3px;line-height:1.5}
+
+/* ── Bottom legend bar（抬升避免与 SD 底栏重叠）── */
+.leg{position:fixed;bottom:calc(var(--sd-dock-h) + 8px);left:50%;transform:translateX(-50%);z-index:50;display:flex;gap:14px;font-family:'JetBrains Mono',monospace;font-size:9px;background:var(--surface);padding:6px 14px;border-radius:16px;border:1px solid rgba(233,30,140,0.22);box-shadow:0 4px 20px rgba(0,0,0,0.5)}
+.leg i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px;vertical-align:middle}
+
+@media(max-width:768px){
+  .card{max-width:180px!important;font-size:10px;padding:8px 10px}.card .ch{font-size:10px}.leg{font-size:8px;gap:8px;padding:5px 10px}
+  :root{--sd-dock-h:min(200px,38vh)}
+  #sd-dock .sd-dock-panes{flex-direction:column}
+  #sd-dock .sd-pane{min-height:72px}
+}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<canvas id="cv-labels" aria-hidden="true"></canvas>
+<div id="node-label-layer" aria-hidden="true"></div>
+
+<div class="bar">
+  <div>
+    <h1>因果回路建模与系统动力学仿真</h1>
+    <div class="sub">CLD 二维交互 · SD 双情景同步积分 · MVR v4 · 2026.03</div>
+  </div>
+  <div class="view-btns">
+    <button class="on" onclick="setView('all')">全部</button>
+    <button onclick="setView('A')">Sub-A</button>
+    <button onclick="setView('B')">Sub-B</button>
+    <button onclick="setView('C')">Sub-C</button>
+  </div>
+</div>
+
+<!-- Legend card -->
+<div class="card" id="card-legend">
+  <div class="ch" onclick="tog(this)">节点图例 <span class="tg">−</span></div>
+  <div class="card-body">
+    <table>
+      <tr><td style="color:#e91e8c">●</td><td>内生节点（方程更新）</td></tr>
+      <tr><td style="color:#00e5ff">●</td><td>外生节点（固定输入）</td></tr>
+      <tr><td style="color:#ffb300">●</td><td>控制节点（N18 干预）</td></tr>
+      <tr><td colspan="2" style="color:var(--dim);font-size:9px;line-height:1.45">边线颜色 = 所属回路（与「回路结构」同色）；<strong style="color:var(--text)">实线 +</strong> · <strong style="color:var(--text)">虚线 −</strong></td></tr>
+    </table>
+    <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px">
+      <table>
+        <tr><td>N02</td><td>老年人聚集强度（枢纽）</td></tr>
+        <tr><td>N09</td><td>街道舒适度（内生）</td></tr>
+        <tr><td>N10</td><td>车流量代理（内生）</td></tr>
+        <tr><td>N15</td><td>认知储备激活潜力</td></tr>
+        <tr><td>N16</td><td>主动探索意愿</td></tr>
+        <tr><td>N18</td><td>人机干预指数</td></tr>
+        <tr><td>N_IG</td><td>代际互动强度</td></tr>
+        <tr><td>N19</td><td>行为数据密度</td></tr>
+        <tr><td>N20</td><td>干预节点优化</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Loops card -->
+<div class="card" id="card-loops">
+  <div class="ch" onclick="tog(this)">回路结构 <span class="tg">−</span></div>
+  <div class="card-body">
+    <table>
+      <tr><td style="color:#39ff85">R1</td><td>社交活力 · 强化</td></tr>
+      <tr><td style="color:#39ff85">R2</td><td>步行可达 · 注入链</td></tr>
+      <tr><td style="color:#39ff85">R3</td><td>环境舒适 · 注入链</td></tr>
+      <tr><td style="color:#39ff85">R4</td><td>认知恢复 · 强化</td></tr>
+      <tr><td style="color:#ff4455">R_bad</td><td>交通诱导 · 恶性回路</td></tr>
+      <tr><td style="color:#39ff85">R5</td><td>人机共生 · 强化</td></tr>
+      <tr><td style="color:#ffb300">R6</td><td>代际激活 · 注入</td></tr>
+      <tr><td style="color:#00e5ff">B2</td><td>拥挤调节 · 平衡</td></tr>
+      <tr><td style="color:#00e5ff">B3</td><td>认知超载 · 平衡</td></tr>
+      <tr><td style="color:#00e5ff">B5</td><td>文化摩擦 · 抑制</td></tr>
+      <tr><td style="color:#00e5ff">B6</td><td>隔代锁定 · 抑制</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- SD 双窗：与节点方程一致的归一化存量；同一时钟与外生节律，N18 固定 0 / 0.6 并列对比 -->
+<div id="sd-dock" aria-label="系统动力学仿真双窗">
+  <div class="sd-dock-hd">
+    <span class="sd-dock-title">SD · 双情景</span>
+    <span class="sd-dock-note">与悬停方程一致的欧拉积分；外生弱多频节律；<strong style="color:var(--text)">启动</strong>后两窗同步推进。上图 <strong style="color:var(--text)">N02·N09</strong> 两窗纵轴对齐便于对比；下图认知/代际/数据为独立刻度。</span>
+    <div class="sd-dock-ctrl">
+      <button type="button" class="sd-btn" id="sd-run">启动</button>
+      <button type="button" class="sd-btn on" id="sd-pause">暂停</button>
+      <button type="button" class="sd-btn" id="sd-reset">复位</button>
+      <div class="sd-speed-wrap">
+        <span>速度</span><span id="sd-speed-lbl" style="color:var(--text)">1×</span>
+        <input type="range" id="sd-speed" min="0.25" max="3" step="0.25" value="1" aria-label="仿真速度">
+      </div>
+    </div>
+  </div>
+  <div class="sd-dock-panes">
+    <div class="sd-pane">
+      <div class="sd-pane-cap">情景 A · <em>N18=0</em> 无干预</div>
+      <canvas class="sd-canvas" id="sd-canvas-a" width="320" height="96" aria-label="无干预 SD 轨迹"></canvas>
+      <div class="sd-legend" aria-hidden="true">
+        <div class="row">
+          <span style="color:#e91e8c">N02</span><span>老年人聚集</span>
+          <span style="color:#00e5ff">N09</span><span>街道舒适</span>
+          <span style="color:#39ff85">N15</span><span>认知激活</span>
+        </div>
+        <div class="row">
+          <span style="color:#ffb300">N_IG</span><span>代际互动</span>
+          <span style="color:rgba(220,216,228,0.92)">N19</span><span>行为数据密度</span>
+        </div>
+      </div>
+    </div>
+    <div class="sd-pane">
+      <div class="sd-pane-cap">情景 B · <em>N18=0.6</em> 人机干预</div>
+      <canvas class="sd-canvas" id="sd-canvas-b" width="320" height="96" aria-label="有干预 SD 轨迹"></canvas>
+      <div class="sd-legend" aria-hidden="true">
+        <div class="row">
+          <span style="color:#e91e8c">N02</span><span>老年人聚集</span>
+          <span style="color:#00e5ff">N09</span><span>街道舒适</span>
+          <span style="color:#39ff85">N15</span><span>认知激活</span>
+        </div>
+        <div class="row">
+          <span style="color:#ffb300">N_IG</span><span>代际互动</span>
+          <span style="color:rgba(220,216,228,0.92)">N19</span><span>行为数据密度</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tip"><div class="tn"></div><div class="td"></div><div class="te"></div></div>
+
+<script>
+// ══════════════════════════════════════════
+// NODE DATA — strictly per 徐家汇数据分析完整手册 §2.4, §4.1
+// ══════════════════════════════════════════
+const nodes = {
+  // ── 内生 (endo) ──
+  N02:  {label:'N02',name:'老年人聚集强度',     desc:'pop_65plus 归一化 · 多回路枢纽',eq:'N02_eq = k·N01·N03 + k·N05 + k·N09 + k·N18·N20\ndN02 = 0.15·(eq−N02) − k·N02²',type:'endo',sub:'A',loops:'R1,R5,B2'},
+  N09:  {label:'N09',name:'街道舒适度',          desc:'0.4×GVI + 0.3×Shade + 0.3×Ped_Friendly',eq:'N09_eq = base + k·N07 − k·N02 − k·N_YP − 0.1·N10 + k·N20\ndN09 = 0.20·(eq−N09)',type:'endo',sub:'A',loops:'R3,B2,R5'},
+  N10:  {label:'N10',name:'车流量代理',          desc:'edge_traffic_pressure · R_bad 核心',eq:'N10_eq = (N10b + k·N_YP)·(1−γ·N18)\ndN10 = 0.30·(eq−N10)',type:'endo',sub:'A',loops:'R_bad'},
+  N15:  {label:'N15',name:'认知储备激活潜力',    desc:'ART_Score · R4 强化回路驱动',eq:'dN15 = k14·N14 − k17·N17_eff·N15\n     + β·N_IG − k15_decay·N15',type:'endo',sub:'B',loops:'R4,B3'},
+  N16:  {label:'N16',name:'主动探索意愿',        desc:'N15 驱动，受 N_GC 抑制(B6)',eq:'dN16 = k·N15 − k·N_GC − k·N16',type:'endo',sub:'B',loops:'R4,B6'},
+  N_IG: {label:'N_IG',name:'代际互动强度',       desc:'N_YP×(1+α·N18) · 6-9月相变点',eq:'N_IG_target = N_YP·(1+α·N18)\ndN_IG = τ·(target−N_IG)',type:'endo',sub:'C',loops:'R6'},
+  N19:  {label:'N19',name:'行为数据密度',        desc:'R5 人机共生回路，仅 N18>0',eq:'dN19 = k·N02·N18 − k·N18·N19 − k·N19',type:'endo',sub:'A',loops:'R5'},
+  N20:  {label:'N20',name:'干预节点优化',        desc:'N19 驱动，系统自适应',eq:'dN20 = k·N19 − k·N20',type:'endo',sub:'A',loops:'R5'},
+  // ── 外生 (exo) ──
+  N01:  {label:'N01',name:'社交场所密度',        desc:'poi_social + poi_culture + 0.8×poi_medical',eq:'外生固定输入',type:'exo',sub:'A',loops:'R1'},
+  N03:  {label:'N03',name:'街道界面活跃度',      desc:'Shannon_H + Complexity + poi_total',eq:'外生 / R1闭环端',type:'exo',sub:'A',loops:'R1'},
+  N05:  {label:'N05',name:'步行可达性半径',      desc:'等时圈 500m 内 65+ 人口',eq:'外生固定输入',type:'exo',sub:'A',loops:'R2'},
+  N07:  {label:'N07',name:'绿化遮阴覆盖率',     desc:'0.6×GVI + 0.4×Shade_Comfort',eq:'外生固定输入',type:'exo',sub:'A',loops:'R3'},
+  N14:  {label:'N14',name:'空间认知复杂度',      desc:'0.4×Complexity + 0.35×landuse_shannon + 0.25×poi',eq:'外生固定输入',type:'exo',sub:'B',loops:'R4,B3'},
+  N17:  {label:'N17',name:'环境生理压力',        desc:'0.5×Motor_Pressure + 0.5×edge_traffic',eq:'N17_eff = N17b·(1−δ·N18) + 0.15·N10',type:'exo',sub:'B',loops:'B3'},
+  N_YP: {label:'N_YP',name:'年轻人白天密度',    desc:'pop_15_59 · 外生驱动',eq:'外生固定输入',type:'exo',sub:'C',loops:'R_bad,B5,R6'},
+  N_GC: {label:'N_GC',name:'隔代照料强度',      desc:'pop_65plus × pop_0_14',eq:'外生固定输入',type:'exo',sub:'C',loops:'B6'},
+  // ── 控制 (ctrl) ──
+  N18:  {label:'N18',name:'人机干预指数',        desc:'设计变量 0/0.6 · 不改拓扑只改参数',eq:'控制参数：0=无 0.6=干预\nα=2.0 β=0.15 γ=0.6 δ=0.5',type:'ctrl',sub:'C',loops:'R5,R6'},
+};
+
+// ══════════════════════════════════════════
+// EDGES — strictly per §4.5 边传递函数汇总表
+// ══════════════════════════════════════════
+const edges = [
+  // R1 社交活力
+  {f:'N01',t:'N02',p:'+',loop:'R1',fn:'k02_social·N01·N03'},
+  {f:'N03',t:'N02',p:'+',loop:'R1',fn:'k02_social·N01·N03'},
+  {f:'N02',t:'N03',p:'+',loop:'R1',fn:'闭环反馈'},
+  // R2 步行可达
+  {f:'N05',t:'N02',p:'+',loop:'R2',fn:'k02_access·N05'},
+  // R3 环境舒适
+  {f:'N07',t:'N09',p:'+',loop:'R3',fn:'k09_N07·N07'},
+  {f:'N09',t:'N02',p:'+',loop:'R3',fn:'k02_comfort·N09'},
+  // B2 拥挤调节
+  {f:'N02',t:'N09',p:'-',loop:'B2',fn:'-k09_N02·N02'},
+  // B5 文化摩擦
+  {f:'N_YP',t:'N09',p:'-',loop:'B5',fn:'-k09_NYP·N_YP'},
+  // R_bad 交通诱导
+  {f:'N_YP',t:'N10',p:'+',loop:'R_bad',fn:'k10_NYP·N_YP'},
+  {f:'N10',t:'N09',p:'-',loop:'R_bad',fn:'-0.10·N10'},
+  // R4 认知恢复
+  {f:'N14',t:'N15',p:'+',loop:'R4',fn:'k14·N14 (线性/倒U)'},
+  {f:'N15',t:'N16',p:'+',loop:'R4',fn:'k16_N15·N15'},
+  // B3 认知超载
+  {f:'N17',t:'N15',p:'-',loop:'B3',fn:'-k17·N17_eff·N15'},
+  // B6 隔代锁定
+  {f:'N_GC',t:'N16',p:'-',loop:'B6',fn:'-k16_GC·N_GC'},
+  // R6 代际激活
+  {f:'N_YP',t:'N_IG',p:'+',loop:'R6',fn:'N_YP·(1+α·N18)'},
+  {f:'N_IG',t:'N15',p:'+',loop:'R6',fn:'β·N_IG'},
+  // N18 干预边（控制节点出边：方程显式项 + 可分解的链式传导）
+  {f:'N18',t:'N_IG',p:'+',loop:'R5',fn:'α 放大 N_YP→N_IG'},
+  {f:'N18',t:'N10',p:'-',loop:'R5',fn:'γ 削弱车流'},
+  {f:'N18',t:'N17',p:'-',loop:'B3',fn:'δ·N17b → N17_eff 下调'},
+  {f:'N18',t:'N19',p:'+',loop:'R5',fn:'k19·N02·N18 − k·N18·N19'},
+  {f:'N18',t:'N15',p:'+',loop:'R6',fn:'经 N_IG：β·N_IG(N18)'},
+  {f:'N18',t:'N09',p:'+',loop:'R_bad',fn:'经 N10↓ 缓释 −0.1·N10'},
+  {f:'N18',t:'N20',p:'+',loop:'R5',fn:'经 N19：dN20 = k·N19'},
+  {f:'N18',t:'N16',p:'+',loop:'R4',fn:'经 N_IG→N15→N16'},
+  // R5 人机共生
+  {f:'N02',t:'N19',p:'+',loop:'R5',fn:'k19·N02·N18'},
+  {f:'N19',t:'N20',p:'+',loop:'R5',fn:'k20·N19'},
+  {f:'N20',t:'N09',p:'+',loop:'R5',fn:'k20_comfort·N20'},
+  {f:'N20',t:'N02',p:'+',loop:'R5',fn:'k20_gather·N18·N20'},
+];
+
+// ══════════════════════════════════════════
+// 2D LAYOUT — per subsystem clusters §3.1
+// Coordinates as fractions of canvas [0,1]
+// ══════════════════════════════════════════
+const layout = {
+  // Sub-A 行为社会 (left-center)
+  N01:  {x:0.12, y:0.18},
+  N03:  {x:0.12, y:0.42},
+  N02:  {x:0.28, y:0.30}, // hub
+  N05:  {x:0.10, y:0.58},
+  N07:  {x:0.22, y:0.72},
+  N09:  {x:0.38, y:0.58},
+  N10:  {x:0.42, y:0.38},
+  N19:  {x:0.28, y:0.14},
+  N20:  {x:0.38, y:0.10},
+  // Sub-B 认知恢复 (right-upper)
+  N14:  {x:0.68, y:0.15},
+  N15:  {x:0.72, y:0.35},
+  N16:  {x:0.82, y:0.52},
+  N17:  {x:0.85, y:0.18},
+  // Sub-C 代际激活 (center-bottom)
+  N_YP: {x:0.50, y:0.78},
+  N_GC: {x:0.72, y:0.78},
+  N_IG: {x:0.55, y:0.52},
+  N18:  {x:0.55, y:0.68},
+};
+
+// ══════════════════════════════════════════
+// CANVAS SETUP
+// ══════════════════════════════════════════
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const cvLab = document.getElementById('cv-labels');
+const ctxLab = cvLab.getContext('2d');
+let W, H, dpr;
+function clViewInsetBottom(){
+  const dock = document.getElementById('sd-dock');
+  const h = dock ? dock.offsetHeight : 0;
+  return h > 0 ? h : Math.min(168, Math.round(window.innerHeight * 0.32));
+}
+function resize(){
+  dpr = Math.min(devicePixelRatio, 2);
+  const insetB = clViewInsetBottom();
+  W = window.innerWidth; H = Math.max(200, window.innerHeight - insetB);
+  cv.width = W*dpr; cv.height = H*dpr;
+  cv.style.width = W+'px'; cv.style.height = H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  cvLab.width = W*dpr; cvLab.height = H*dpr;
+  cvLab.style.width = W+'px'; cvLab.style.height = H+'px';
+  ctxLab.setTransform(dpr,0,0,dpr,0,0);
+  const nl = document.getElementById('node-label-layer');
+  if (nl) nl.style.height = H + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ══════════════════════════════════════════
+// VIEW FILTER
+// ══════════════════════════════════════════
+let viewFilter = 'all';
+function setView(v){
+  viewFilter = v;
+  document.querySelectorAll('.view-btns button').forEach(b => {
+    b.classList.toggle('on', b.textContent.includes(v==='all'?'全部':v));
+  });
+}
+function nodeVisible(id){ return viewFilter==='all' || nodes[id].sub === viewFilter; }
+function edgeVisible(e){ return nodeVisible(e.f) && nodeVisible(e.t); }
+
+// ══════════════════════════════════════════
+// INTERACTION
+// ══════════════════════════════════════════
+let dragId = null, dragOff = {x:0,y:0};
+let mx = -1, my = -1, hovered = null;
+let panX = 0, panY = 0, isPanning = false, panStart = {x:0,y:0};
+
+function toScreen(id){ const n=layout[id]; return {x:n.x*W+panX, y:n.y*H+panY}; }
+function nodeRadius(id){ return (id==='N02'||id==='N18') ? 24 : 18; }
+
+cv.addEventListener('mousedown', e => {
+  const {clientX:ex, clientY:ey} = e;
+  // Check node hit
+  for(const id of Object.keys(nodes)){
+    if(!nodeVisible(id)) continue;
+    const s = toScreen(id), r = nodeRadius(id)+4;
+    if((ex-s.x)**2+(ey-s.y)**2 < r*r){ dragId=id; dragOff={x:ex-s.x, y:ey-s.y}; return; }
+  }
+  isPanning=true; panStart={x:ex-panX, y:ey-panY};
+});
+cv.addEventListener('mousemove', e => {
+  mx=e.clientX; my=e.clientY;
+  if(dragId){
+    layout[dragId].x = (mx-dragOff.x-panX)/W;
+    layout[dragId].y = (my-dragOff.y-panY)/H;
+  } else if(isPanning){
+    panX = mx-panStart.x; panY = my-panStart.y;
+  }
+});
+cv.addEventListener('mouseup', () => { dragId=null; isPanning=false; });
+cv.addEventListener('mouseleave', () => { dragId=null; isPanning=false; mx=-1; my=-1; });
+// Touch
+cv.addEventListener('touchstart', e => {
+  const t=e.touches[0]; mx=t.clientX; my=t.clientY;
+  for(const id of Object.keys(nodes)){
+    if(!nodeVisible(id)) continue;
+    const s=toScreen(id), r=nodeRadius(id)+8;
+    if((mx-s.x)**2+(my-s.y)**2<r*r){dragId=id;dragOff={x:mx-s.x,y:my-s.y};return;}
+  }
+  isPanning=true;panStart={x:mx-panX,y:my-panY};
+},{passive:true});
+cv.addEventListener('touchmove', e => {
+  const t=e.touches[0]; mx=t.clientX; my=t.clientY;
+  if(dragId){layout[dragId].x=(mx-dragOff.x-panX)/W;layout[dragId].y=(my-dragOff.y-panY)/H;}
+  else if(isPanning){panX=mx-panStart.x;panY=my-panStart.y;}
+  e.preventDefault();
+},{passive:false});
+cv.addEventListener('touchend',()=>{dragId=null;isPanning=false;});
+
+// ══════════════════════════════════════════
+// COLORS
+// ══════════════════════════════════════════
+const typeCol = {endo:'#e91e8c', exo:'#00e5ff', ctrl:'#ffb300'};
+const typeGlow = {endo:'rgba(233,30,140,', exo:'rgba(0,229,255,', ctrl:'rgba(255,179,0,'};
+const subBg = {A:'rgba(233,30,140,0.14)', B:'rgba(0,229,255,0.12)', C:'rgba(255,179,0,0.12)'};
+const subBorder = {A:'rgba(233,30,140,0.42)', B:'rgba(0,229,255,0.38)', C:'rgba(255,179,0,0.38)'};
+const subLabel = {A:'Sub-A 行为社会', B:'Sub-B 认知恢复', C:'Sub-C 代际激活'};
+const subLabelCol = {A:'rgba(233,30,140,0.55)', B:'rgba(0,229,255,0.52)', C:'rgba(255,179,0,0.52)'};
+/** 与「回路结构」卡片表格色一致：R* 强化绿 / R_bad 红 / R6 琥珀 / B* 青 */
+const loopHex = {
+  R1:'#39ff85',R2:'#39ff85',R3:'#39ff85',R4:'#39ff85',R5:'#39ff85',
+  R_bad:'#ff4455',
+  R6:'#ffb300',
+  B2:'#00e5ff',B3:'#00e5ff',B5:'#00e5ff',B6:'#00e5ff',
+};
+function loopRGB(loopId){
+  const hex = loopHex[loopId];
+  if(!hex) return {r:160,g:160,b:180};
+  const h = hex.slice(1);
+  return {r:parseInt(h.slice(0,2),16),g:parseInt(h.slice(2,4),16),b:parseInt(h.slice(4,6),16)};
+}
+function loopRGBA(loopId,a){
+  const {r,g,b}=loopRGB(loopId);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// ══════════════════════════════════════════
+// NODE LABEL DOM LAYER (fixed chips near nodes)
+// ══════════════════════════════════════════
+const labelLayer = document.getElementById('node-label-layer');
+const labelEls = {};
+function initNodeLabelLayer(){
+  for (const [id, nd] of Object.entries(nodes)) {
+    const el = document.createElement('div');
+    el.className = 'node-label-chip';
+    el.innerHTML = `<span class="id">${id}</span><span class="nm">${nd.name || ''}</span>`;
+    labelLayer.appendChild(el);
+    labelEls[id] = el;
+  }
+}
+function placeChipNearNode(s, r, w, h){
+  const gap = 8;
+  let x = s.x + r + gap;
+  let y = s.y - h / 2;
+  if (x + w > W - 8) x = s.x - r - gap - w;
+  x = Math.min(Math.max(x, 8), W - w - 8);
+  y = Math.min(Math.max(y, 8), H - h - 8);
+  return {x, y};
+}
+function updateNodeLabelLayer(order){
+  for (const id of order) {
+    const el = labelEls[id];
+    if (!el) continue;
+    if (!nodeVisible(id)) {
+      el.style.display = 'none';
+      continue;
+    }
+    el.style.display = 'block';
+    el.querySelector('.id').style.color = typeCol[nodes[id].type];
+    el.style.borderColor = typeCol[nodes[id].type];
+    const s = toScreen(id);
+    const r = nodeRadius(id);
+    const w = el.offsetWidth || 86;
+    const h = el.offsetHeight || 26;
+    const pos = placeChipNearNode(s, r, w, h);
+    el.style.transform = `translate(${Math.round(pos.x)}px, ${Math.round(pos.y)}px)`;
+  }
+}
+initNodeLabelLayer();
+
+// ══════════════════════════════════════════
+// FLOW PARTICLES on edges
+// ══════════════════════════════════════════
+const flows = edges.map(()=>({t:Math.random(), spd:0.004+Math.random()*0.003}));
+
+// ══════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════
+let time = 0;
+
+function drawSubBounds(){
+  // Compute bounding boxes per sub
+  const subs = {A:[],B:[],C:[]};
+  for(const[id,nd] of Object.entries(nodes)){
+    if(!nodeVisible(id)) continue;
+    const s = toScreen(id);
+    subs[nd.sub].push(s);
+  }
+  for(const[sub,pts] of Object.entries(subs)){
+    if(pts.length<2) continue;
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    pts.forEach(p=>{minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);});
+    const pad=50;
+    const rx=minX-pad, ry=minY-pad, rw=maxX-minX+pad*2, rh=maxY-minY+pad*2, cr=18;
+    ctx.fillStyle=subBg[sub];
+    ctx.strokeStyle=subBorder[sub];
+    ctx.lineWidth=1.25;
+    ctx.beginPath();
+    ctx.moveTo(rx+cr,ry);ctx.lineTo(rx+rw-cr,ry);ctx.quadraticCurveTo(rx+rw,ry,rx+rw,ry+cr);
+    ctx.lineTo(rx+rw,ry+rh-cr);ctx.quadraticCurveTo(rx+rw,ry+rh,rx+rw-cr,ry+rh);
+    ctx.lineTo(rx+cr,ry+rh);ctx.quadraticCurveTo(rx,ry+rh,rx,ry+rh-cr);
+    ctx.lineTo(rx,ry+cr);ctx.quadraticCurveTo(rx,ry,rx+cr,ry);
+    ctx.closePath();ctx.fill();ctx.stroke();
+    // Label
+    ctx.font='500 10px JetBrains Mono';ctx.fillStyle=subLabelCol[sub];ctx.textAlign='left';
+    ctx.fillText(subLabel[sub], rx+8, ry+14);
+  }
+}
+
+function drawEdge(e, ei){
+  const fs=toScreen(e.f), ts=toScreen(e.t);
+  const col = loopRGBA(e.loop, e.p==='+' ? 0.52 : 0.42);
+  const colBright = loopRGBA(e.loop, 0.92);
+  const colDim = loopRGBA(e.loop, 0.22);
+
+  // Curved edge: offset midpoint perpendicular
+  const dx=ts.x-fs.x, dy=ts.y-fs.y, len=Math.sqrt(dx*dx+dy*dy);
+  const nx=-dy/len, ny=dx/len; // normal
+  const curve = len * 0.18;
+  const mx2=fs.x+dx*0.5+nx*curve, my2=fs.y+dy*0.5+ny*curve;
+
+  // Soft under-glow along curve (readability on dark bg)
+  ctx.strokeStyle=colDim; ctx.lineWidth=4; ctx.lineCap='round';
+  ctx.setLineDash(e.p==='-' ? [5,4] : []);
+  ctx.beginPath(); ctx.moveTo(fs.x,fs.y); ctx.quadraticCurveTo(mx2,my2,ts.x,ts.y); ctx.stroke();
+
+  ctx.strokeStyle=col; ctx.lineWidth=1.65;
+  ctx.beginPath(); ctx.moveTo(fs.x,fs.y); ctx.quadraticCurveTo(mx2,my2,ts.x,ts.y); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Arrow at ~85% along curve
+  const at=0.85, bt=0.75;
+  const ax=((1-at)**2)*fs.x+2*(1-at)*at*mx2+at*at*ts.x;
+  const ay=((1-at)**2)*fs.y+2*(1-at)*at*my2+at*at*ts.y;
+  const bx=((1-bt)**2)*fs.x+2*(1-bt)*bt*mx2+bt*bt*ts.x;
+  const by=((1-bt)**2)*fs.y+2*(1-bt)*bt*my2+bt*bt*ts.y;
+  const adx=ax-bx, ady=ay-by, al=Math.sqrt(adx*adx+ady*ady)||1;
+  const ux=adx/al, uy=ady/al, sz=7;
+  ctx.fillStyle=loopRGBA(e.loop,0.88);
+  ctx.beginPath();
+  ctx.moveTo(ax,ay);
+  ctx.lineTo(ax-ux*sz-uy*sz*0.45, ay-uy*sz+ux*sz*0.45);
+  ctx.lineTo(ax-ux*sz+uy*sz*0.45, ay-uy*sz-ux*sz*0.45);
+  ctx.closePath();ctx.fill();
+
+  // Flow particle
+  const fl=flows[ei]; fl.t+=fl.spd; if(fl.t>1) fl.t-=1;
+  const ft=fl.t;
+  const fx=((1-ft)**2)*fs.x+2*(1-ft)*ft*mx2+ft*ft*ts.x;
+  const fy=((1-ft)**2)*fs.y+2*(1-ft)*ft*my2+ft*ft*ts.y;
+  const gg=ctx.createRadialGradient(fx,fy,0,fx,fy,10);
+  gg.addColorStop(0,loopRGBA(e.loop,0.55));gg.addColorStop(1,loopRGBA(e.loop,0));
+  ctx.fillStyle=gg;ctx.beginPath();ctx.arc(fx,fy,10,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=colBright;ctx.beginPath();ctx.arc(fx,fy,2.5,0,Math.PI*2);ctx.fill();
+
+  // Loop label at midpoint
+  const lt=0.5;
+  const lx=((1-lt)**2)*fs.x+2*(1-lt)*lt*mx2+lt*lt*ts.x;
+  const ly=((1-lt)**2)*fs.y+2*(1-lt)*lt*my2+lt*lt*ts.y;
+  ctx.font='500 8px JetBrains Mono';ctx.fillStyle=loopRGBA(e.loop,0.72);ctx.textAlign='center';
+  ctx.fillText(e.loop, lx+nx*10, ly+ny*10);
+}
+
+function pathRoundRect(c, x, y, w, h, rad) {
+  const r = Math.min(rad, w / 2, h / 2);
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y);
+  c.quadraticCurveTo(x + w, y, x + w, y + r);
+  c.lineTo(x + w, y + h - r);
+  c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  c.lineTo(x + r, y + h);
+  c.quadraticCurveTo(x, y + h, x, y + h - r);
+  c.lineTo(x, y + r);
+  c.quadraticCurveTo(x, y, x + r, y);
+  c.closePath();
+}
+
+/**
+ * 紧贴回路节点外侧：默认节点右侧，空间不够则改左侧，仅做视口夹紧（卡片在独立顶层 canvas，不再被四角面板遮挡）。
+ */
+function placeNodeLabelCardAdjacent(s, r, cardW, cardH, gap) {
+  let cx = s.x + r + gap;
+  let cy = s.y - cardH / 2;
+  if (cx + cardW > W - 8) cx = s.x - r - gap - cardW;
+  cx = Math.min(Math.max(cx, 8), W - cardW - 8);
+  cy = Math.min(Math.max(cy, 8), H - cardH - 8);
+  return { cx, cy };
+}
+
+/** 节点旁小卡片：编号（label）+ 含义（name），绘制于 #cv-labels */
+function drawNodeLabelCard(id) {
+  if (!nodeVisible(id)) return;
+  const nd = nodes[id];
+  const s = toScreen(id);
+  const r = nodeRadius(id);
+  const padX = 7;
+  const padY = 5;
+  const gap = 8;
+  const lineGap = 2;
+  const maxNameW = 138;
+
+  const c = ctxLab;
+  c.save();
+  c.font = '600 9px JetBrains Mono';
+  const tw1 = c.measureText(nd.label).width;
+  c.font = '400 8px Noto Sans SC';
+  const fullName = nd.name || '';
+  let nameLine = fullName;
+  while (nameLine.length > 1 && c.measureText(nameLine).width > maxNameW) {
+    nameLine = nameLine.slice(0, -1);
+  }
+  if (nameLine.length < fullName.length) nameLine += '…';
+  const tw2 = c.measureText(nameLine).width;
+  const cardW = Math.ceil(Math.max(tw1, tw2, 52) + padX * 2);
+  const cardH = padY * 2 + 9 + lineGap + 11;
+
+  const { cx, cy } = placeNodeLabelCardAdjacent(s, r, cardW, cardH, gap);
+
+  pathRoundRect(c, cx, cy, cardW, cardH, 6);
+  c.fillStyle = 'rgba(20,14,32,0.96)';
+  c.fill();
+  c.shadowColor = 'rgba(233,30,140,0.35)';
+  c.shadowBlur = 12;
+  c.shadowOffsetX = 0;
+  c.shadowOffsetY = 2;
+  c.strokeStyle = typeCol[nd.type];
+  c.globalAlpha = 0.95;
+  c.lineWidth = 1.5;
+  c.stroke();
+  c.shadowBlur = 0;
+  c.globalAlpha = 1;
+
+  c.textAlign = 'left';
+  c.textBaseline = 'top';
+  c.font = '600 9px JetBrains Mono';
+  c.fillStyle = typeCol[nd.type];
+  c.fillText(nd.label, cx + padX, cy + padY);
+  c.font = '400 8px Noto Sans SC';
+  c.fillStyle = 'rgba(240,236,248,0.95)';
+  c.fillText(nameLine, cx + padX, cy + padY + 9 + lineGap);
+  c.restore();
+}
+
+function drawNode(id){
+  const nd=nodes[id], s=toScreen(id), r=nodeRadius(id);
+  const col=typeCol[nd.type], gb=typeGlow[nd.type];
+  const sv = 0.5;
+  const pulse = 0.65 + sv*0.45 + Math.sin(time*2.8+s.x*0.01)*0.1;
+  const glowR = r * 4.8;
+
+  // 大圆光点底衬（整颗节点下的醒目柔光圆盘）
+  const bigR = r * 6.2 + 6 * Math.sin(time*1.6 + s.x*0.02);
+  const bigG = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, bigR);
+  bigG.addColorStop(0,'rgba(255,255,255,0.14)');
+  bigG.addColorStop(0.18,gb+'0.12)');
+  bigG.addColorStop(0.45,gb+'0.05)');
+  bigG.addColorStop(0.75,gb+'0.015)');
+  bigG.addColorStop(1,gb+'0)');
+  ctx.fillStyle=bigG;ctx.beginPath();ctx.arc(s.x,s.y,bigR,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle=gb+(0.22+0.08*Math.sin(time*2.2))+')';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(s.x,s.y,bigR*0.92,0,Math.PI*2);ctx.stroke();
+
+  // Wide ambient glow (光晕底层)
+  const gWide=ctx.createRadialGradient(s.x,s.y,r*0.15,s.x,s.y,glowR);
+  gWide.addColorStop(0,gb+(0.32*pulse)+')');gWide.addColorStop(0.45,gb+(0.12*pulse)+')');gWide.addColorStop(1,gb+'0)');
+  ctx.fillStyle=gWide;ctx.beginPath();ctx.arc(s.x,s.y,glowR,0,Math.PI*2);ctx.fill();
+
+  // Tight bloom around node
+  const gTight=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,r*2.2);
+  gTight.addColorStop(0,gb+'0.55)');gTight.addColorStop(0.5,gb+'0.18)');gTight.addColorStop(1,gb+'0)');
+  ctx.fillStyle=gTight;ctx.beginPath();ctx.arc(s.x,s.y,r*2.2,0,Math.PI*2);ctx.fill();
+
+  // Outer ring (呼吸感)
+  ctx.strokeStyle=gb+(0.35+0.15*Math.sin(time*2+s.y*0.02))+')';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.arc(s.x,s.y,r+7,0,Math.PI*2);ctx.stroke();
+
+  // Filled circle with gradient
+  const sg=ctx.createRadialGradient(s.x-r*0.25,s.y-r*0.25,r*0.1,s.x,s.y,r);
+  sg.addColorStop(0,'rgba(255,255,255,0.95)');sg.addColorStop(0.35,col);sg.addColorStop(1,gb+'0.55)');
+  ctx.fillStyle=sg;ctx.beginPath();ctx.arc(s.x,s.y,r,0,Math.PI*2);ctx.fill();
+
+  // Border
+  ctx.strokeStyle=col;ctx.lineWidth=1.75;ctx.beginPath();ctx.arc(s.x,s.y,r,0,Math.PI*2);ctx.stroke();
+
+  // Core light point (高光光点)
+  const coreR = 3.2 + 0.4*Math.sin(time*3.2);
+  const cg=ctx.createRadialGradient(s.x-1,s.y-1,0,s.x,s.y,coreR+2);
+  cg.addColorStop(0,'rgba(255,255,255,1)');cg.addColorStop(0.4,'rgba(255,255,255,0.85)');cg.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=cg;ctx.beginPath();ctx.arc(s.x-r*0.22,s.y-r*0.22,coreR+2,0,Math.PI*2);ctx.fill();
+
+  // Label (ID) — 含义见旁侧小卡片 drawNodeLabelCard
+  ctx.font='bold 11px JetBrains Mono';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(id, s.x, s.y);
+
+  // Hit test
+  if(mx>=0){
+    const dx2=mx-s.x,dy2=my-s.y;
+    if(dx2*dx2+dy2*dy2<(r+8)*(r+8)) hovered={id,nd,s};
+  }
+}
+
+function render(){
+  requestAnimationFrame(render);
+  time+=0.016;
+  ctx.clearRect(0,0,W,H);
+
+  // BG
+  const bg=ctx.createRadialGradient(W*0.4,H*0.35,0,W*0.5,H*0.5,Math.max(W,H)*0.7);
+  bg.addColorStop(0,'#0e0a16');bg.addColorStop(1,'#06050b');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  // Subtle grid
+  ctx.strokeStyle='rgba(233,30,140,0.025)';ctx.lineWidth=0.5;
+  const gs=60;
+  for(let x=panX%gs;x<W;x+=gs){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=panY%gs;y<H;y+=gs){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  // Subsystem bounds
+  drawSubBounds();
+
+  // Edges (draw first, behind nodes)
+  hovered = null;
+  for(let i=0;i<edges.length;i++){
+    if(edgeVisible(edges[i])) drawEdge(edges[i], i);
+  }
+
+  // Nodes (depth: ctrl first, exo, then endo on top)
+  const order = Object.keys(nodes).sort((a,b)=>{
+    const rank={ctrl:0,exo:1,endo:2};
+    return rank[nodes[a].type]-rank[nodes[b].type];
+  });
+  for(const id of order){
+    if(nodeVisible(id)) drawNode(id);
+  }
+
+  ctxLab.clearRect(0, 0, W, H);
+  updateNodeLabelLayer(order);
+
+  // Tooltip
+  const tip=document.getElementById('tip');
+  if(hovered && !dragId){
+    const h=hovered;
+    tip.style.opacity='1';
+    tip.style.left=Math.min(mx+16, W-290)+'px';
+    tip.style.top=Math.min(my-10, H-180)+'px';
+    tip.querySelector('.tn').textContent=h.nd.label+' '+h.nd.name;
+    tip.querySelector('.td').textContent=h.nd.desc+' | 子系统 '+h.nd.sub+' | 回路 '+h.nd.loops;
+    tip.querySelector('.te').textContent=h.nd.eq;
+  } else {
+    tip.style.opacity='0';
+  }
+
+  if (typeof sdRunning !== 'undefined' && sdRunning) {
+    const spdEl = document.getElementById('sd-speed');
+    const spd = spdEl ? parseFloat(spdEl.value, 10) || 1 : 1;
+    const substeps = 6;
+    const dt = (0.03 * spd) / substeps;
+    for (let si = 0; si < substeps; si++) sdAdvanceBoth(dt);
+    sdPushAllHistory();
+    sdDrawAllCharts();
+  }
+}
+
+// ══════════════════════════════════════════
+// CARD TOGGLE
+// ══════════════════════════════════════════
+function tog(el){
+  const card=el.parentElement;
+  card.classList.toggle('collapsed');
+  el.querySelector('.tg').textContent=card.classList.contains('collapsed')?'+':'−';
+}
+
+// ══════════════════════════════════════════
+// SD 仿真（与节点 N18 注释：α β γ δ 及各方程结构对齐的归一化存量）
+// ══════════════════════════════════════════
+const SD = {
+  alpha: 2.0, beta: 0.15, gamma: 0.6, delta: 0.5, tau: 0.48,
+  exo: { N01: 0.5, N03: 0.52, N05: 0.48, N07: 0.5, N14: 0.52, N17b: 0.48, N_YP: 0.52, N_GC: 0.38 },
+  k02_social: 0.85, k02_access: 0.52, k02_comfort: 0.55, k02_sat: 0.028,
+  base09: 0.26, k09_N07: 0.46, k09_N02: 0.38, k09_NYP: 0.24,
+  N10b: 0.14, k10_NYP: 0.58,
+  k14: 0.38, k17: 0.48, k15_decay: 0.11,
+  k16_N15: 0.26, k16_GC: 0.2, k16_decay: 0.14,
+  k19_in: 0.42, k19_mix: 0.3, k19_decay: 0.11,
+  k20_in: 0.22, k20_decay: 0.13,
+  /** N20→空间：闭环「数据—优化—设施/导引」对舒适与可达的正向反馈（原模型 N20 无出边，干预叙事弱） */
+  k20_comfort: 0.14,
+  k20_gather: 0.12,
+};
+let sdTime = 0;
+let sdRunning = false;
+
+function makeSdHist(){
+  return { N02: [], N09: [], N15: [], N_IG: [], N19: [], max: 220 };
+}
+const sdHist0 = makeSdHist();
+const sdHist1 = makeSdHist();
+
+const sdCanA = document.getElementById('sd-canvas-a');
+const sdCanB = document.getElementById('sd-canvas-b');
+const sdCtxA = sdCanA && sdCanA.getContext('2d');
+const sdCtxB = sdCanB && sdCanB.getContext('2d');
+
+function sdInitialState(){
+  const y0 = 0.36;
+  return { N02: y0, N09: y0, N10: 0.32, N15: y0, N16: y0, N_IG: y0 * 0.9, N19: 0.08, N20: y0 * 0.85 };
+}
+let sdY0 = sdInitialState();
+let sdY1 = sdInitialState();
+
+function clip01(x, hi = 1.45){
+  return Math.max(0, Math.min(hi, x));
+}
+
+/** 基线外生量 × 多频弱扰动，使均衡目标随时间漂移，曲线保持准周期波动（非渐近水平线） */
+function sdExoAtTime(t){
+  const b = SD.exo;
+  const w1 = 0.88, w2 = 1.62, w3 = 0.36;
+  const m07 = 1 + 0.1 * Math.sin(w1 * t) + 0.05 * Math.sin(w2 * t + 0.7);
+  const mYP = 1 + 0.09 * Math.sin(w2 * t + 1.1) + 0.06 * Math.sin(w3 * t);
+  const m14 = 1 + 0.11 * Math.sin(w3 * t + 2) + 0.05 * Math.cos(w1 * t * 1.28);
+  const mSoc = 1 + 0.065 * Math.sin(w1 * t * 1.15 + 0.5);
+  const clipE = (v) => Math.max(0.08, Math.min(0.92, v));
+  return {
+    N01: clipE(b.N01 * mSoc),
+    N03: clipE(b.N03 * mSoc),
+    N05: b.N05,
+    N07: clipE(b.N07 * m07),
+    N14: clipE(b.N14 * m14),
+    N17b: b.N17b,
+    N_YP: clipE(b.N_YP * mYP),
+    N_GC: b.N_GC,
+  };
+}
+
+function sdIntegrateStep(y, N18, dt, e){
+  const N17_eff = e.N17b * (1 - SD.delta * N18) + 0.15 * y.N10;
+  const N10_eq = (SD.N10b + SD.k10_NYP * e.N_YP) * (1 - SD.gamma * N18);
+  const dN10 = 0.3 * (N10_eq - y.N10);
+  const N09_eq = SD.base09 + SD.k09_N07 * e.N07 - SD.k09_N02 * y.N02 - SD.k09_NYP * e.N_YP - 0.1 * y.N10 + SD.k20_comfort * y.N20;
+  const dN09 = 0.2 * (N09_eq - y.N09);
+  const N02_eq = SD.k02_social * e.N01 * e.N03 + SD.k02_access * e.N05 + SD.k02_comfort * y.N09 + SD.k20_gather * N18 * y.N20;
+  const dN02 = 0.15 * (N02_eq - y.N02) - SD.k02_sat * y.N02 * y.N02;
+  const igT = e.N_YP * (1 + SD.alpha * N18);
+  const dN_IG = SD.tau * (igT - y.N_IG);
+  const dN15 = SD.k14 * e.N14 - SD.k17 * N17_eff * y.N15 + SD.beta * y.N_IG - SD.k15_decay * y.N15;
+  const dN16 = SD.k16_N15 * y.N15 - SD.k16_GC * e.N_GC - SD.k16_decay * y.N16;
+  const dN19 = SD.k19_in * y.N02 * N18 - SD.k19_mix * N18 * y.N19 - SD.k19_decay * y.N19;
+  const dN20 = SD.k20_in * y.N19 - SD.k20_decay * y.N20;
+
+  y.N10 += dN10 * dt;
+  y.N09 += dN09 * dt;
+  y.N02 += dN02 * dt;
+  y.N_IG += dN_IG * dt;
+  y.N15 += dN15 * dt;
+  y.N16 += dN16 * dt;
+  y.N19 += dN19 * dt;
+  y.N20 += dN20 * dt;
+
+  y.N10 = clip01(y.N10, 1.6);
+  y.N09 = clip01(y.N09);
+  y.N02 = clip01(y.N02);
+  y.N_IG = clip01(y.N_IG);
+  y.N15 = clip01(y.N15);
+  y.N16 = clip01(y.N16);
+  y.N19 = clip01(y.N19, 1.2);
+  y.N20 = clip01(y.N20);
+}
+
+/** 同一仿真时刻 t 的外生输入，两情景同步推进，便于对比 */
+function sdAdvanceBoth(dt){
+  sdTime += dt;
+  const e = sdExoAtTime(sdTime);
+  sdIntegrateStep(sdY0, 0, dt, e);
+  sdIntegrateStep(sdY1, 0.6, dt, e);
+}
+
+function sdPushHistory(hist, y){
+  const { N02, N09, N15, N_IG, N19 } = y;
+  const push = (arr, v) => { arr.push(v); if (arr.length > hist.max) arr.shift(); };
+  push(hist.N02, N02);
+  push(hist.N09, N09);
+  push(hist.N15, N15);
+  push(hist.N_IG, N_IG);
+  push(hist.N19, N19);
+}
+
+function sdPushAllHistory(){
+  sdPushHistory(sdHist0, sdY0);
+  sdPushHistory(sdHist1, sdY1);
+}
+
+function sdClearAllHistory(){
+  for (const h of [sdHist0, sdHist1]) {
+    h.N02.length = 0;
+    h.N09.length = 0;
+    h.N15.length = 0;
+    h.N_IG.length = 0;
+    h.N19.length = 0;
+  }
+}
+
+function resizeSdCanvas(){
+  [sdCanA, sdCanB].forEach(can => {
+    if (!can) return;
+    const pane = can.closest('.sd-pane');
+    const pw = Math.max(100, (pane ? pane.clientWidth : 200) - 14);
+    const cap = pane && pane.querySelector('.sd-pane-cap');
+    const leg = pane && pane.querySelector('.sd-legend');
+    const overhead = (cap ? cap.offsetHeight : 18) + (leg ? leg.offsetHeight : 26) + 12;
+    const ph = pane ? pane.clientHeight : 100;
+    const h = Math.max(48, Math.min(102, ph - overhead));
+    const w = pw;
+    const d = Math.min(devicePixelRatio || 1, 2);
+    can.width = Math.round(w * d);
+    can.height = Math.round(h * d);
+    can.style.width = w + 'px';
+    can.style.height = h + 'px';
+    can._sdLogicalW = w;
+    can._sdLogicalH = h;
+    const ctx = can.getContext('2d');
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+  });
+  sdDrawAllCharts();
+}
+
+/** 两窗共用的 N02·N09 纵轴范围，避免「有干预」窗因 N_IG/N15 量级更大而把粉/青线压扁造成误读 */
+function sdGlobalMainRange(){
+  const keys = ['N02', 'N09'];
+  let vmin = Infinity, vmax = -Infinity;
+  for (const hist of [sdHist0, sdHist1]) {
+    for (const k of keys) {
+      for (const v of hist[k]) {
+        vmin = Math.min(vmin, v);
+        vmax = Math.max(vmax, v);
+      }
+    }
+  }
+  if (!Number.isFinite(vmin)) return null;
+  const span = vmax - vmin;
+  const edge = span > 1e-6 ? span * 0.06 : 0.03;
+  return { vmin: vmin - edge, vmax: vmax + edge };
+}
+
+function sdDrawChart(ctx, hist, n18Val, mainRangeShared){
+  if (!ctx) return;
+  const can = ctx.canvas;
+  const w = can._sdLogicalW || 200;
+  const h = can._sdLogicalH || 72;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(0, 0, w, h);
+  const seriesMain = [
+    { key: 'N02', col: '#e91e8c' },
+    { key: 'N09', col: '#00e5ff' },
+  ];
+  const seriesSub = [
+    { key: 'N15', col: '#39ff85' },
+    { key: 'N_IG', col: '#ffb300' },
+    { key: 'N19', col: 'rgba(220,216,228,0.92)' },
+  ];
+  const n = hist.N02.length;
+  if (n < 2) {
+    ctx.font = '500 9px JetBrains Mono, "Noto Sans SC", sans-serif';
+    ctx.fillStyle = 'rgba(122,116,136,0.9)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('启动后显示轨迹', w / 2, h / 2);
+    return;
+  }
+  const pad = 5;
+  const topPad = 9;
+  const bandGap = 5;
+  const labelH = 7;
+  const ghMain = Math.max(22, (h - pad - topPad - bandGap - labelH) * 0.52);
+  const ghSub = Math.max(18, h - pad - topPad - bandGap - labelH - ghMain);
+  const y0Main = topPad + labelH;
+  const y0Sub = y0Main + ghMain + bandGap;
+  const gw = w - pad * 2;
+
+  let mmin = Infinity, mmax = -Infinity;
+  if (mainRangeShared) {
+    mmin = mainRangeShared.vmin;
+    mmax = mainRangeShared.vmax;
+  } else {
+    for (const s of seriesMain) {
+      for (const v of hist[s.key]) {
+        mmin = Math.min(mmin, v);
+        mmax = Math.max(mmax, v);
+      }
+    }
+    if (mmax - mmin < 1e-6) { mmin -= 0.04; mmax += 0.04; }
+    else {
+      const e = (mmax - mmin) * 0.06;
+      mmin -= e; mmax += e;
+    }
+  }
+  const mapYMain = (v) => y0Main + ghMain - ((v - mmin) / (mmax - mmin || 1)) * ghMain;
+
+  let smin = Infinity, smax = -Infinity;
+  for (const s of seriesSub) {
+    for (const v of hist[s.key]) {
+      smin = Math.min(smin, v);
+      smax = Math.max(smax, v);
+    }
+  }
+  if (smax - smin < 1e-6) { smin -= 0.05; smax += 0.05; }
+  else {
+    const e = (smax - smin) * 0.05;
+    smin -= e; smax += e;
+  }
+  const mapYSub = (v) => y0Sub + ghSub - ((v - smin) / (smax - smin || 1)) * ghSub;
+  const mapX = (i) => pad + (i / (n - 1)) * gw;
+
+  ctx.font = '500 6px JetBrains Mono, "Noto Sans SC", sans-serif';
+  ctx.fillStyle = 'rgba(122,116,136,0.75)';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('N02·N09（两窗同刻度）', pad, topPad);
+  ctx.fillText('N15·N_IG·N19', pad, y0Sub - labelH + 1);
+
+  ctx.strokeStyle = 'rgba(233,30,140,0.1)';
+  ctx.lineWidth = 1;
+  for (let g = 0; g <= 3; g++) {
+    const yy = y0Main + (g / 3) * ghMain;
+    ctx.beginPath();
+    ctx.moveTo(pad, yy);
+    ctx.lineTo(pad + gw, yy);
+    ctx.stroke();
+  }
+  for (let g = 0; g <= 3; g++) {
+    const yy = y0Sub + (g / 3) * ghSub;
+    ctx.beginPath();
+    ctx.moveTo(pad, yy);
+    ctx.lineTo(pad + gw, yy);
+    ctx.stroke();
+  }
+
+  for (const s of seriesMain) {
+    const arr = hist[s.key];
+    ctx.beginPath();
+    ctx.strokeStyle = s.col;
+    ctx.lineWidth = 1.35;
+    for (let i = 0; i < n; i++) {
+      const x = mapX(i), yv = mapYMain(arr[i]);
+      if (i === 0) ctx.moveTo(x, yv);
+      else ctx.lineTo(x, yv);
+    }
+    ctx.stroke();
+  }
+  for (const s of seriesSub) {
+    const arr = hist[s.key];
+    ctx.beginPath();
+    ctx.strokeStyle = s.col;
+    ctx.lineWidth = 1.15;
+    for (let i = 0; i < n; i++) {
+      const x = mapX(i), yv = mapYSub(arr[i]);
+      if (i === 0) ctx.moveTo(x, yv);
+      else ctx.lineTo(x, yv);
+    }
+    ctx.stroke();
+  }
+
+  ctx.font = '500 7px JetBrains Mono, monospace';
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(122,116,136,0.8)';
+  ctx.fillText('N18=' + n18Val.toFixed(1), w - pad, 1);
+}
+
+function sdDrawAllCharts(){
+  const mainR = sdGlobalMainRange();
+  if (sdCtxA) sdDrawChart(sdCtxA, sdHist0, 0, mainR);
+  if (sdCtxB) sdDrawChart(sdCtxB, sdHist1, 0.6, mainR);
+}
+
+function sdUpdateRunButtons(){
+  const runBtn = document.getElementById('sd-run');
+  const pauseBtn = document.getElementById('sd-pause');
+  if (runBtn) runBtn.classList.toggle('on', sdRunning);
+  if (pauseBtn) pauseBtn.classList.toggle('on', !sdRunning);
+}
+
+(function initSdUi(){
+  const dock = document.getElementById('sd-dock');
+  resizeSdCanvas();
+  if (dock && typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => { resizeSdCanvas(); if (typeof resize === 'function') resize(); });
+    ro.observe(dock);
+  }
+  requestAnimationFrame(() => { if (typeof resize === 'function') resize(); resizeSdCanvas(); });
+  const runBtn = document.getElementById('sd-run');
+  const pauseBtn = document.getElementById('sd-pause');
+  const resetBtn = document.getElementById('sd-reset');
+  const speedEl = document.getElementById('sd-speed');
+  const speedLbl = document.getElementById('sd-speed-lbl');
+  if (runBtn) runBtn.addEventListener('click', () => { sdRunning = true; sdUpdateRunButtons(); });
+  if (pauseBtn) pauseBtn.addEventListener('click', () => { sdRunning = false; sdUpdateRunButtons(); });
+  if (resetBtn) resetBtn.addEventListener('click', () => {
+    sdRunning = false;
+    sdTime = 0;
+    sdY0 = sdInitialState();
+    sdY1 = sdInitialState();
+    sdClearAllHistory();
+    sdUpdateRunButtons();
+    sdDrawAllCharts();
+  });
+  if (speedEl && speedLbl) {
+    speedEl.addEventListener('input', () => { speedLbl.textContent = speedEl.value + '×'; });
+  }
+  sdUpdateRunButtons();
+  sdDrawAllCharts();
+  window.addEventListener('resize', resizeSdCanvas);
+})();
+
+render();
+</script>
+</body>
+</html>

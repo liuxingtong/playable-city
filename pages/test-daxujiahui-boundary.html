@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>测试 · 大徐家汇四街道边界（OSM GeoJSON）</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; font-family: system-ui, "Segoe UI", "Noto Sans SC", sans-serif; }
+  #map { width: 100%; height: 100%; }
+  .panel {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 1000;
+    max-width: min(420px, 92vw);
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.94);
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .panel h1 { font-size: 15px; margin-bottom: 6px; }
+  .panel code { font-size: 12px; background: #f0f0f0; padding: 1px 5px; border-radius: 4px; }
+  .panel .err { color: #b00020; margin-top: 8px; display: none; }
+  .panel .err.on { display: block; }
+</style>
+</head>
+<body>
+<div class="panel">
+  <h1>大徐家汇四街道并集</h1>
+  <div>数据源（相对本页）：<code>../data/daxujiahui-four-streets-union.geojson</code></div>
+  <div>底图：OpenStreetMap 标准瓦片（保留右下角署名）</div>
+  <div class="err" id="err"></div>
+</div>
+<div id="map"></div>
+<script>
+(function () {
+  const GEOJSON_URL = '../data/daxujiahui-four-streets-union.geojson';
+
+  const map = L.map('map', {
+    center: [31.20, 121.44],
+    zoom: 13
+  });
+
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+
+  const errEl = document.getElementById('err');
+
+  fetch(GEOJSON_URL, { cache: 'no-store' })
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' — 请用本地静态服务打开本页（勿用 file://）');
+      return r.json();
+    })
+    .then(function (data) {
+      const layer = L.geoJSON(data, {
+        style: {
+          color: '#c2186d',
+          weight: 3,
+          opacity: 0.95,
+          fillColor: '#e91e8c',
+          fillOpacity: 0.18
+        },
+        onEachFeature: function (feature, lyr) {
+          const p = feature.properties || {};
+          const lines = [
+            p.name || '（无 name）',
+            p.relations ? String(p.relations).slice(0, 200) + (String(p.relations).length > 200 ? '…' : '') : '',
+            p.generated ? '生成: ' + p.generated : ''
+          ].filter(Boolean);
+          lyr.bindPopup(lines.join('<br>'));
+        }
+      }).addTo(map);
+      map.fitBounds(layer.getBounds(), { padding: [24, 24], maxZoom: 15 });
+    })
+    .catch(function (e) {
+      errEl.classList.add('on');
+      errEl.innerHTML =
+        '<strong>加载失败</strong><br>' +
+        String(e.message || e) +
+        '<br><br>在项目根目录执行：<code>npm run dev</code> 或 <code>npx vite</code>，然后打开本页 URL；也可 <code>python -m http.server 8080</code> 后访问。';
+    });
+})();
+</script>
+</body>
+</html>

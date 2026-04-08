@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AC · 缓冲维度 — 空间分布</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="../lib/ac-dom-aggregate.js"></script>
+<script src="../lib/xujiahui-osm-boundary.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,300&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'DM Sans','Noto Sans SC',sans-serif; }
+  #map { width: 100%; height: 100%; z-index: 1; }
+  .leaflet-control-attribution { display: none !important; }
+
+  .legend, .stats-box, .interp-box { pointer-events: none; }
+  .layer-toggle { pointer-events: none; }
+  .layer-toggle .lt-btn { pointer-events: auto; }
+
+  .panel-header {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 6px 12px 8px;
+    background: linear-gradient(180deg, rgba(10,10,10,0.94) 0%, rgba(10,10,10,0.45) 85%, transparent 100%);
+    z-index: 1000; pointer-events: none;
+  }
+  .panel-header .tag {
+    font-size: 7px; letter-spacing: 2px; text-transform: uppercase;
+    color: rgba(218,75,163,0.65); font-weight: 500; margin-bottom: 1px;
+  }
+  .panel-header h1 { font-size: 14px; font-weight: 700; color: #f0f0f0; line-height: 1.2; }
+  .panel-header h1 span { color: #DA4BA3; }
+  .panel-header .sub {
+    display: none;
+    font-size: 10px; color: rgba(255,255,255,0.4); font-weight: 300;
+    font-style: italic; margin-top: 2px;
+  }
+
+  .legend {
+    position: fixed; bottom: 8px; left: 8px;
+    background: rgba(14,14,14,0.92);
+    border: 1px solid rgba(218,75,163,0.2);
+    border-radius: 8px;
+    padding: 8px 10px 10px;
+    z-index: 1000;
+    backdrop-filter: blur(12px);
+    min-width: 0;
+    max-width: min(230px, 44vw);
+  }
+  .legend .legend-title {
+    font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: rgba(218,75,163,0.6); margin-bottom: 6px;
+  }
+  .legend .gradient-bar { width: 100%; height: 10px; border-radius: 5px; margin-bottom: 6px; }
+  .legend .gradient-labels {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: rgba(255,255,255,0.4);
+  }
+  .legend .formula {
+    margin-top: 6px; padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    font-size: 8.5px; color: rgba(255,255,255,0.45); line-height: 1.45;
+  }
+  .legend .formula em { color: #DA4BA3; font-style: normal; font-weight: 600; }
+
+  .layer-toggle {
+    position: fixed; top: 40px; right: 8px;
+    background: rgba(14,14,14,0.92);
+    border: 1px solid rgba(218,75,163,0.15);
+    border-radius: 8px;
+    padding: 6px 8px 8px;
+    z-index: 1000;
+    backdrop-filter: blur(12px);
+    max-width: min(200px, 42vw);
+  }
+  .layer-toggle .lt-title {
+    font-size: 7px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: rgba(255,255,255,0.3); margin-bottom: 6px;
+  }
+  .layer-toggle .lt-btn {
+    display: block; width: 100%;
+    padding: 5px 8px; margin-bottom: 4px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 5px;
+    background: transparent;
+    color: rgba(255,255,255,0.5);
+    font-family: inherit; font-size: 10px;
+    cursor: pointer; transition: all 0.2s;
+    text-align: left;
+  }
+  .layer-toggle .lt-btn:hover { border-color: rgba(218,75,163,0.4); color: #f0f0f0; }
+  .layer-toggle .lt-btn.active {
+    border-color: #DA4BA3; color: #DA4BA3;
+    background: rgba(218,75,163,0.08);
+  }
+  .layer-toggle .lt-btn .btn-sub {
+    font-size: 8px; color: rgba(255,255,255,0.3); display: block; margin-top: 1px;
+  }
+  .layer-toggle .lt-btn.active .btn-sub { color: rgba(218,75,163,0.5); }
+  .layer-toggle .lt-btn.lt-boundary:not(.active) { color: rgba(255,255,255,0.35); }
+
+  .stats-box {
+    position: fixed; bottom: 8px; right: 8px;
+    background: rgba(14,14,14,0.92);
+    border: 1px solid rgba(218,75,163,0.15);
+    border-radius: 8px;
+    padding: 6px 10px 8px;
+    z-index: 1000;
+    backdrop-filter: blur(12px);
+    min-width: 0;
+    max-width: min(200px, 40vw);
+  }
+  .stats-box .sp-title {
+    font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: rgba(218,75,163,0.6); margin-bottom: 6px;
+  }
+  .stats-box .si {
+    display: flex; justify-content: space-between; gap: 8px;
+    margin-bottom: 4px; font-size: 9px;
+  }
+  .stats-box .si .si-label { color: rgba(255,255,255,0.5); }
+  .stats-box .si .si-val { color: #DA4BA3; font-weight: 600; }
+
+  .interp-box {
+    position: fixed; top: 40px; left: 8px;
+    bottom: auto;
+    right: auto;
+    background: rgba(14,14,14,0.88);
+    border: 1px solid rgba(218,75,163,0.1);
+    border-radius: 8px;
+    padding: 6px 10px 8px;
+    z-index: 1000;
+    max-width: min(200px, 40vw);
+    font-size: 9px;
+    line-height: 1.45;
+    color: rgba(255,255,255,0.38);
+  }
+  .interp-box strong { color: #DA4BA3; font-weight: 600; }
+
+  .edge-tooltip {
+    background: rgba(14,14,14,0.95) !important;
+    border: 1px solid rgba(218,75,163,0.3) !important;
+    border-radius: 8px !important;
+    padding: 10px 14px !important;
+    font-family: 'DM Sans','Noto Sans SC',sans-serif !important;
+    font-size: 11px !important;
+    color: #f0f0f0 !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+  }
+  .edge-tooltip .tt-head { font-size: 13px; font-weight: 700; color: #DA4BA3; margin-bottom: 6px; }
+  .edge-tooltip .tt-r {
+    display: flex; justify-content: space-between; gap: 16px;
+    margin-bottom: 3px; color: rgba(255,255,255,0.5);
+  }
+  .edge-tooltip .tt-r b { color: #f0f0f0; font-weight: 500; }
+
+  .leaflet-tooltip.boundary-tt {
+    background: rgba(12, 12, 14, 0.94) !important;
+    border: 1px solid rgba(233, 30, 140, 0.4) !important;
+    color: rgba(255, 255, 255, 0.88) !important;
+    font-size: 11px !important;
+    padding: 6px 10px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45) !important;
+  }
+
+  .csv-load-banner {
+    display: none;
+    position: fixed;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 420px;
+    z-index: 2000;
+    padding: 20px 22px;
+    background: rgba(12, 18, 18, 0.96);
+    border: 1px solid rgba(218,75,163,0.45);
+    border-radius: 12px;
+    color: rgba(255,255,255,0.85);
+    font-size: 13px;
+    line-height: 1.55;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  .csv-load-banner code {
+    background: rgba(218,75,163,0.12);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .csv-load-banner input[type=file] { margin-top: 12px; max-width: 100%; font-size: 12px; }
+
+  @media (min-width: 900px) and (min-height: 640px) {
+    .panel-header { padding: 12px 20px 12px; }
+    .panel-header .tag { font-size: 8px; margin-bottom: 2px; }
+    .panel-header h1 { font-size: 18px; }
+    .panel-header .sub { display: block; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="csv-load-banner" class="csv-load-banner">
+  <strong style="color:#DA4BA3">未加载到街段数据</strong>
+  <p style="margin:10px 0 0;">用 <code>file://</code> 打开时无法读取同目录 <code>cld_priority.csv</code>。</p>
+  <p style="margin:8px 0 0;"><strong>推荐：</strong><code>python -m http.server 8080</code> 后打开本页。</p>
+  <p style="margin:8px 0 0;"><strong>或</strong>手动选择 CSV：</p>
+  <input type="file" id="csv-file-input" accept=".csv,text/csv">
+</div>
+
+<div class="panel-header">
+  <div class="tag">CSVI Dimension 03 · Spatial Distribution</div>
+  <h1><span>AC</span> · 缓冲维度 · 街段级空间分布</h1>
+  <div class="sub">数据：<code>cld_priority.csv</code> · 玫红圆点 · 若表含 <code>AC_*_dom</code> 四列则 <strong>AC_phys 图层</strong>用四列<strong>算术平均</strong>替代单列</div>
+</div>
+
+<div class="layer-toggle">
+  <div class="lt-title">显示图层 Layer</div>
+  <button class="lt-btn active" id="btn-phys" onclick="switchLayer('phys')">AC_phys · 物理/五主导均值</button>
+  <button class="lt-btn" id="btn-social" onclick="switchLayer('social')">AC_social · 社会缓冲</button>
+  <button class="lt-btn" id="btn-product" onclick="switchLayer('product')">AC_total · 综合缓冲</button>
+  <button type="button" class="lt-btn active lt-boundary" id="btn-boundary" onclick="toggleBoundaryLayer()" style="margin-top:6px;margin-bottom:0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);font-size:9px">大徐家汇边界 · OSM</button>
+</div>
+
+<div class="legend">
+  <div class="legend-title" id="legendTitle">csvi_AC_phys · 玫红圆点</div>
+  <canvas class="gradient-bar" id="gradBar" height="10"></canvas>
+  <div class="gradient-labels" id="gradLabels">
+    <span>低</span><span>中</span><span>高</span>
+  </div>
+  <div class="formula">
+    <em>AC_phys 图层</em>：五主导列（含 <code>AC_soc_cul_dom</code>）齐全时为五列<strong>均值</strong>；仅四列齐全时为四列均值；否则为 <code>csvi_AC_phys</code>。<br>
+    <em>AC</em> = <em>AC_phys(图层值)</em> × <em>AC_social</em><br>
+    圆点 <em>#DA4BA3</em>，单点较透；<strong>重叠越密越实</strong>
+  </div>
+</div>
+
+<div class="interp-box">
+  <strong>AC低</strong> = 步行设施和第三场所双双缺失。<br><br>
+  玫红圆点表示街段中点（CSV 无整条折线几何）。
+</div>
+
+<div class="stats-box">
+  <div class="sp-title">子指标 Sub-Indicators</div>
+  <div class="si"><span class="si-label">N07</span><span class="si-val" id="v-n07">—</span></div>
+  <div class="si"><span class="si-label">N08</span><span class="si-val" id="v-n08">—</span></div>
+  <div class="si"><span class="si-label">N15</span><span class="si-val" id="v-n15">—</span></div>
+  <div class="si"><span class="si-label">N01</span><span class="si-val" id="v-n01">—</span></div>
+  <div class="si"><span class="si-label">N03</span><span class="si-val" id="v-n03">—</span></div>
+</div>
+
+<script>
+const MAGENTA = '#DA4BA3';
+const R_M = 12;
+const R_M_HOVER = 18;
+
+const map = L.map('map', {
+  center: [31.195, 121.438],
+  zoom: 15,
+  zoomControl: false,
+  attributionControl: false
+});
+
+/** 全部圆共用一块地图 Canvas，避免上万 SVG DOM（主要性能瓶颈） */
+const circleRenderer = L.canvas({ padding: 0.5 });
+/** 单帧最多绘制时长，避免加载时出现长时间卡顿 */
+const CIRCLE_SLICE_MS = 14;
+
+const csvLoadBanner = document.getElementById('csv-load-banner');
+const csvFileInput = document.getElementById('csv-file-input');
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  maxZoom: 19, subdomains: 'abcd'
+}).addTo(map);
+
+L.control.zoom({ position: 'topright' }).addTo(map);
+map.on('zoomend', function () { map.closeTooltip(); });
+
+const boundaryLayerGroup = L.layerGroup().addTo(map);
+addXujiahuiBoundaryToGroup(boundaryLayerGroup);
+let boundaryVisible = true;
+function toggleBoundaryLayer() {
+  boundaryVisible = !boundaryVisible;
+  const btn = document.getElementById('btn-boundary');
+  if (boundaryVisible) {
+    map.addLayer(boundaryLayerGroup);
+    if (btn) btn.classList.add('active');
+  } else {
+    map.removeLayer(boundaryLayerGroup);
+    if (btn) btn.classList.remove('active');
+  }
+}
+
+function addCirclesTimeSliced(edges, drawOne, onComplete) {
+  const n = edges.length;
+  if (n === 0) {
+    onComplete();
+    return;
+  }
+  let i = 0;
+  if (n < 3000) {
+    while (i < n) drawOne(edges[i++]);
+    onComplete();
+    return;
+  }
+  function tick() {
+    const t0 = performance.now();
+    while (i < n && performance.now() - t0 < CIRCLE_SLICE_MS) drawOne(edges[i++]);
+    if (i < n) requestAnimationFrame(tick);
+    else onComplete();
+  }
+  requestAnimationFrame(tick);
+}
+
+function dedupeUndirectedEdges(rows) {
+  const m = new Map();
+  for (const r of rows) {
+    const a = String(r.u);
+    const b = String(r.v);
+    const ab = a < b ? a + '\t' + b : b + '\t' + a;
+    const lon = Number.isFinite(r.lon) ? r.lon.toFixed(6) : 'nan';
+    const lat = Number.isFinite(r.lat) ? r.lat.toFixed(6) : 'nan';
+    const len = Number.isFinite(r.length) ? r.length.toFixed(2) : 'nan';
+    const key = `${ab}\t${lon}\t${lat}\t${len}`;
+    if (!m.has(key)) m.set(key, r);
+  }
+  return Array.from(m.values());
+}
+
+function stripBomKeys(d) {
+  const o = {};
+  for (const k of Object.keys(d)) o[k.replace(/^\uFEFF/, '')] = d[k];
+  return o;
+}
+
+function parseRowAC(d) {
+  d = stripBomKeys(d);
+  const acSocial = +d.csvi_AC_social;
+  const acPhysAgg = window.ACDomAggregate.effectiveAcPhys(d);
+  const acPhysCsv = +d.csvi_AC_phys;
+  const usesDom = window.ACDomAggregate.resourceDomType(d) != null;
+  return {
+    u: d.u,
+    v: d.v,
+    lon: +d.lon,
+    lat: +d.lat,
+    length: +d.length,
+    ac_phys: acPhysAgg,
+    ac_phys_csv: acPhysCsv,
+    usesDomAggregate: usesDom,
+    ac_social: acSocial,
+    ac_total: acPhysAgg * acSocial,
+    N07: +d.N07,
+    N08: +d.N08,
+    N15: +d.N15,
+    N01: +d.N01,
+    N03: +d.N03
+  };
+}
+
+let maxPhys = 0.3;
+let maxSocial = 0.4;
+let maxAcProduct = 0.05;
+const polylines = [];
+let currentAcLayer = 'phys';
+/** 当前 CSV 是否用主导列均值作为 AC_phys 图层 */
+let edgesUseDomAggregate = false;
+
+function normAC(edge) {
+  let v;
+  switch (currentAcLayer) {
+    case 'phys': v = edge.ac_phys / (maxPhys || 0.01); break;
+    case 'social': v = edge.ac_social / (maxSocial || 0.01); break;
+    default: v = edge.ac_total / (maxAcProduct || 1e-6); break;
+  }
+  return Math.max(0, Math.min(1, v));
+}
+
+function acMarkerStyle(edge) {
+  const t = normAC(edge);
+  /* 单点偏透，多圆重叠处 alpha 累积，密集区域更醒目 */
+  const op = 0.1 + t * 0.44;
+  return {
+    radius: R_M,
+    color: MAGENTA,
+    fillColor: MAGENTA,
+    weight: 0.45,
+    opacity: op,
+    fillOpacity: Math.min(0.95, op * 1.02),
+    renderer: circleRenderer
+  };
+}
+
+function drawGradient(maxVal, htmlLabels) {
+  const canvas = document.getElementById('gradBar');
+  const w = Math.max(80, canvas.parentElement.clientWidth - 40);
+  canvas.width = w;
+  const ctx = canvas.getContext('2d');
+  for (let x = 0; x < w; x++) {
+    const t = x / (w - 1 || 1);
+    ctx.fillStyle = `rgba(218,75,163,${0.1 + t * 0.44})`;
+    ctx.fillRect(x, 0, 1, 10);
+  }
+  document.getElementById('gradLabels').innerHTML = htmlLabels;
+}
+
+function switchLayer(layer) {
+  currentAcLayer = layer;
+  document.querySelectorAll('.lt-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`btn-${layer}`).classList.add('active');
+
+  const titleEl = document.getElementById('legendTitle');
+
+  polylines.forEach(({ pl, edge }) => {
+    pl.setStyle(acMarkerStyle(edge));
+    pl.off('mouseout').on('mouseout', function () {
+      this.closeTooltip();
+      this.setStyle(acMarkerStyle(edge));
+    });
+  });
+
+  const midPhys = (maxPhys / 2).toFixed(2);
+  const midSocial = (maxSocial / 2).toFixed(2);
+  const midProd = (maxAcProduct / 2).toFixed(4);
+
+  switch (layer) {
+    case 'phys':
+      titleEl.textContent = edgesUseDomAggregate
+        ? 'AC_phys · 主导列均值 · 玫红圆点'
+        : 'csvi_AC_phys · 玫红圆点';
+      drawGradient(maxPhys, `<span>0</span><span>${midPhys}</span><span>${maxPhys.toFixed(2)}</span>`);
+      break;
+    case 'social':
+      titleEl.textContent = 'csvi_AC_social · 玫红圆点';
+      drawGradient(maxSocial, `<span>0</span><span>${midSocial}</span><span>${maxSocial.toFixed(2)}</span>`);
+      break;
+    case 'product':
+      titleEl.textContent = 'csvi_AC_total (phys×social)';
+      drawGradient(maxAcProduct, `<span>0</span><span>${midProd}</span><span>${maxAcProduct.toFixed(4)}</span>`);
+      break;
+  }
+}
+
+function renderMapFromRaw(raw) {
+  if (!raw || raw.length === 0) {
+    csvLoadBanner.style.display = 'block';
+    return;
+  }
+  const edges = dedupeUndirectedEdges(raw);
+  const ll = edges.map(e => [+e.lat, +e.lon]);
+  if (ll.length === 0 || !ll.every(c => Number.isFinite(c[0]) && Number.isFinite(c[1]))) {
+    csvLoadBanner.style.display = 'block';
+    return;
+  }
+
+  polylines.forEach(({ pl }) => map.removeLayer(pl));
+  polylines.length = 0;
+  csvLoadBanner.style.display = 'none';
+
+  edgesUseDomAggregate = edges.some((x) => x.usesDomAggregate);
+
+  const bounds = L.latLngBounds(ll);
+  if (bounds.isValid()) map.fitBounds(bounds.pad(0.02));
+
+  maxPhys = d3.max(edges, d => d.ac_phys) || 0.01;
+  maxSocial = d3.max(edges, d => d.ac_social) || 0.01;
+  maxAcProduct = d3.max(edges, d => d.ac_total) || 0.001;
+
+  document.getElementById('v-n07').textContent = d3.mean(edges, d => d.N07).toFixed(3);
+  document.getElementById('v-n08').textContent = d3.mean(edges, d => d.N08).toFixed(3);
+  document.getElementById('v-n15').textContent = d3.mean(edges, d => d.N15).toFixed(3);
+  document.getElementById('v-n01').textContent = d3.mean(edges, d => d.N01).toFixed(3);
+  document.getElementById('v-n03').textContent = d3.mean(edges, d => d.N03).toFixed(3);
+
+  currentAcLayer = 'phys';
+
+  addCirclesTimeSliced(edges, edge => {
+    const pl = L.circle([edge.lat, edge.lon], acMarkerStyle(edge)).addTo(map);
+
+    pl.bindTooltip(`
+    <div class="tt-head">AC_phys(图层)=${edge.ac_phys.toFixed(4)} | AC_social=${edge.ac_social.toFixed(4)}</div>
+    ${edge.usesDomAggregate ? `<div class="tt-r"><span>csvi_AC_phys 表列</span><b>${(Number.isFinite(edge.ac_phys_csv) ? edge.ac_phys_csv : 0).toFixed(4)}</b></div>` : ''}
+    <div class="tt-r"><span>AC_total</span><b>${edge.ac_total.toFixed(6)}</b></div>
+    <div class="tt-r"><span>N07</span><b>${edge.N07.toFixed(3)}</b></div>
+    <div class="tt-r"><span>N08</span><b>${edge.N08.toFixed(3)}</b></div>
+    <div class="tt-r"><span>N15</span><b>${edge.N15.toFixed(3)}</b></div>
+    <div class="tt-r"><span>N01</span><b>${edge.N01.toFixed(3)}</b></div>
+    <div class="tt-r"><span>N03</span><b>${edge.N03.toFixed(3)}</b></div>
+  `, { className: 'edge-tooltip', sticky: false, direction: 'top', offset: [0, -10] });
+
+    pl.on('mouseover', function () {
+      this.setStyle({
+        radius: R_M_HOVER,
+        weight: 0.75,
+        color: MAGENTA,
+        fillColor: MAGENTA,
+        opacity: 1,
+        fillOpacity: 0.92,
+        renderer: circleRenderer
+      });
+      this.bringToFront();
+    });
+    pl.on('mouseout', function () {
+      this.closeTooltip();
+      this.setStyle(acMarkerStyle(edge));
+    });
+
+    polylines.push({ pl, edge });
+  }, () => switchLayer('phys'));
+}
+
+function loadCsvText(text) {
+  const t = (text || '').replace(/^\uFEFF/, '');
+  let raw;
+  try {
+    raw = d3.csvParse(t, parseRowAC);
+  } catch (err) {
+    console.error(err);
+    csvLoadBanner.style.display = 'block';
+    return;
+  }
+  renderMapFromRaw(raw);
+}
+
+const csvUrl = new URL('../data/cld/cld_priority.csv', window.location.href).href;
+fetch(csvUrl, { cache: 'no-store' })
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+  .then(loadCsvText)
+  .catch(() => { csvLoadBanner.style.display = 'block'; });
+
+csvFileInput.addEventListener('change', () => {
+  const f = csvFileInput.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => loadCsvText(reader.result);
+  reader.readAsText(f, 'UTF-8');
+});
+</script>
+</body>
+</html>

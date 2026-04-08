@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三类原型</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;800&family=DM+Mono:wght@300;400;500&display=swap');
+
+  :root {
+    --bg:   #07070D;
+    --ink:  #0A0A14;
+    --r:    #E91E8C;
+    --rl:   #FF4DAD;
+    --rd:   rgba(233,30,140,0.08);
+    --rb:   rgba(233,30,140,0.20);
+    --rb2:  rgba(233,30,140,0.40);
+    --grid: rgba(233,30,140,0.028);
+    --t1:   #F0F0F8;
+    --t2:   #55557A;
+    --t3:   #22223A;
+  }
+
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 44px 28px;
+    font-family: 'DM Mono', monospace;
+    word-break: keep-all;
+    line-break: strict;
+  }
+
+  .page { width:100%; max-width:1100px; display:flex; flex-direction:column; gap:0; }
+
+  /* scale strip */
+  .ss {
+    display:grid; grid-template-columns:1fr 1fr 1fr;
+    gap:14px; margin-bottom:5px; padding:0 2px;
+  }
+  .ss-item { display:flex; align-items:center; gap:8px; }
+  .ss-label { font-size:7.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--t3); white-space:nowrap; }
+  .ss-line  { flex:1; height:1px; }
+  .ss-item:nth-child(1) .ss-line { background:linear-gradient(90deg,var(--rb2),var(--rb)); }
+  .ss-item:nth-child(2) .ss-line { background:linear-gradient(90deg,var(--rb2) 40%,transparent); }
+  .ss-item:nth-child(3) .ss-line { display:none; }
+
+  /* cards */
+  .cards { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+
+  .card {
+    background: var(--ink);
+    border-radius:18px; overflow:hidden;
+    display:flex; flex-direction:column;
+    position:relative;
+  }
+  .card::before {
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:20px 20px; z-index:0;
+  }
+  .card>*{position:relative;z-index:1;}
+
+  .c1 { border:1px solid var(--rb); }
+  .c2 { border:1px solid var(--rb); }
+  .c3 { border:1px solid rgba(233,30,140,0.36); box-shadow:0 0 30px rgba(233,30,140,0.05); }
+
+  /* top line thickness = scale */
+  .c1::after { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--r),transparent); z-index:2; }
+  .c2::after { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,transparent,var(--r) 35%,var(--rl) 65%,transparent); z-index:2; }
+  .c3::after { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg,transparent,rgba(233,30,140,.5) 10%,var(--r) 35%,var(--rl) 50%,var(--r) 65%,rgba(233,30,140,.5) 90%,transparent); z-index:2; }
+
+  /* card header — minimal */
+  .ch {
+    padding:13px 16px 11px;
+    border-bottom:1px solid var(--rb);
+    display:flex; align-items:baseline; gap:10px;
+  }
+  .num  { font-size:8.5px; font-weight:500; letter-spacing:.16em; color:var(--rl); background:var(--rd); border:1px solid var(--rb); border-radius:3px; padding:2px 7px; }
+  .cname{ font-size:15px; font-weight:800; color:var(--t1); font-family:'Space Grotesk',sans-serif; letter-spacing:-.01em; }
+  .cen  { font-size:8px; color:var(--t3); letter-spacing:.06em; margin-left:auto; }
+
+  /* diagram */
+  .diag { overflow:hidden; flex:1; }
+  .diag svg { width:100%; display:block; }
+
+  /* footer strip — just two key tags */
+  .cf {
+    display:flex; gap:0; border-top:1px solid var(--rb);
+  }
+  .cf-tag {
+    flex:1; padding:7px 12px;
+    font-size:8px; letter-spacing:.1em; color:var(--t2); text-align:center;
+  }
+  .cf-tag + .cf-tag { border-left:1px solid var(--rb); }
+  .cf-tag strong { color:var(--rl); font-weight:500; display:block; font-size:9.5px; margin-bottom:1px; }
+
+  /* ── ASSEMBLY ── */
+  .asm {
+    margin-top:14px;
+    border:1px solid var(--rb);
+    border-radius:18px;
+    background:var(--ink);
+    overflow:hidden; position:relative;
+  }
+  .asm::before {
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:20px 20px; z-index:0;
+  }
+  .asm::after { content:''; position:absolute; top:0; left:0; right:0; height:1.5px; background:linear-gradient(90deg,transparent,var(--r) 25%,var(--rl) 50%,var(--r) 75%,transparent); z-index:2; }
+  .asm>*{position:relative;z-index:1;}
+
+  .asm-head {
+    padding:11px 20px 9px; border-bottom:1px solid var(--rb);
+    display:flex; align-items:center; gap:12px;
+  }
+  .asm-label { font-size:8.5px; font-weight:500; letter-spacing:.18em; text-transform:uppercase; color:var(--rl); }
+  .asm-sub   { font-size:8px; color:var(--t3); letter-spacing:.1em; margin-left:auto; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="ss">
+    <div class="ss-item"><span class="ss-label">点位</span><div class="ss-line"></div></div>
+    <div class="ss-item"><span class="ss-label">路径</span><div class="ss-line"></div></div>
+    <div class="ss-item"><span class="ss-label">街区</span></div>
+  </div>
+
+  <div class="cards">
+
+    <!-- P-01 -->
+    <div class="card c1">
+      <div class="ch">
+        <span class="num">P-01</span>
+        <span class="cname">触媒装置</span>
+        <span class="cen">Catalyst</span>
+      </div>
+      <div class="diag">
+        <svg viewBox="0 0 340 240" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="g1" cx="50%" cy="50%">
+              <stop offset="0%"   stop-color="#E91E8C" stop-opacity=".26"/>
+              <stop offset="55%"  stop-color="#E91E8C" stop-opacity=".05"/>
+              <stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+
+          <ellipse cx="170" cy="118" rx="108" ry="88" fill="url(#g1)"/>
+
+          <!-- sensing rings -->
+          <circle cx="170" cy="118" r="84" fill="none" stroke="rgba(233,30,140,.07)" stroke-width="1" stroke-dasharray="3 5"/>
+          <circle cx="170" cy="118" r="58" fill="none" stroke="rgba(233,30,140,.11)" stroke-width="1" stroke-dasharray="3 4"/>
+          <circle cx="170" cy="118" r="34" fill="none" stroke="rgba(233,30,140,.18)" stroke-width="1"/>
+
+          <!-- persona dots - elder cluster -->
+          <circle cx="126" cy="94"  r="5.5" fill="rgba(233,30,140,.60)"/>
+          <circle cx="114" cy="120" r="4.5" fill="rgba(233,30,140,.45)"/>
+          <circle cx="132" cy="148" r="4"   fill="rgba(233,30,140,.35)"/>
+          <!-- worker dot - single, other side -->
+          <circle cx="220" cy="88"  r="4"   fill="rgba(233,30,140,.28)"/>
+          <circle cx="228" cy="120" r="3.5" fill="rgba(233,30,140,.22)"/>
+
+          <!-- two variant bands at bottom -->
+          <rect x="28" y="192" width="130" height="20" rx="5"
+                fill="rgba(233,30,140,.07)" stroke="rgba(233,30,140,.20)" stroke-width=".8"/>
+          <text x="93" y="205" text-anchor="middle" fill="rgba(233,30,140,.55)" font-size="8" font-family="DM Mono,monospace">斜土路 · W_elder↑</text>
+
+          <rect x="180" y="192" width="130" height="20" rx="5"
+                fill="rgba(233,30,140,.04)" stroke="rgba(233,30,140,.14)" stroke-width=".8"/>
+          <text x="245" y="205" text-anchor="middle" fill="rgba(233,30,140,.38)" font-size="8" font-family="DM Mono,monospace">田子坊 · W_work↑</text>
+
+          <!-- core device -->
+          <circle cx="170" cy="118" r="22" fill="rgba(233,30,140,.18)" stroke="#E91E8C" stroke-width="1.5"/>
+          <circle cx="170" cy="118" r="22" fill="none" stroke="#FF4DAD" stroke-width=".7" opacity="0">
+            <animate attributeName="r"       values="22;48" dur="3s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values=".4;0"  dur="3s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="170" cy="118" r="9" fill="#E91E8C"/>
+          <text x="170" y="122" text-anchor="middle" fill="#fff" font-size="6.5">5min</text>
+        </svg>
+      </div>
+      <div class="cf">
+        <div class="cf-tag"><strong>激活 / 临界</strong>节点</div>
+        <div class="cf-tag"><strong>单线</strong>干预</div>
+      </div>
+    </div>
+
+    <!-- P-02 -->
+    <div class="card c2">
+      <div class="ch">
+        <span class="num">P-02</span>
+        <span class="cname">连接廊道</span>
+        <span class="cen">Corridor</span>
+      </div>
+      <div class="diag">
+        <svg viewBox="0 0 340 240" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="g2l" cx="50%" cy="50%"><stop offset="0%" stop-color="#E91E8C" stop-opacity=".20"/><stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/></radialGradient>
+            <radialGradient id="g2r" cx="50%" cy="50%"><stop offset="0%" stop-color="#E91E8C" stop-opacity=".20"/><stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/></radialGradient>
+            <linearGradient id="flowg" x1="0%" x2="100%">
+              <stop offset="0%"   stop-color="#E91E8C" stop-opacity=".5"/>
+              <stop offset="50%"  stop-color="#FF4DAD" stop-opacity=".9"/>
+              <stop offset="100%" stop-color="#E91E8C" stop-opacity=".5"/>
+            </linearGradient>
+          </defs>
+
+          <circle cx="68"  cy="118" r="50" fill="url(#g2l)"/>
+          <circle cx="272" cy="118" r="50" fill="url(#g2r)"/>
+
+          <!-- corridor band -->
+          <rect x="94" y="104" width="152" height="28" rx="0" fill="rgba(233,30,140,.04)"/>
+          <line x1="94"  y1="104" x2="246" y2="104" stroke="rgba(233,30,140,.15)" stroke-width=".8"/>
+          <line x1="94"  y1="132" x2="246" y2="132" stroke="rgba(233,30,140,.15)" stroke-width=".8"/>
+
+          <!-- flow line -->
+          <line x1="98" y1="118" x2="242" y2="118" stroke="url(#flowg)" stroke-width="1.5" stroke-dasharray="5 3"/>
+
+          <!-- sequence dots + rhythm numbers -->
+          <circle cx="128" cy="118" r="3.5" fill="rgba(233,30,140,.45)"/>
+          <circle cx="155" cy="118" r="3.5" fill="rgba(233,30,140,.60)"/>
+          <circle cx="185" cy="118" r="3.5" fill="rgba(233,30,140,.60)"/>
+          <circle cx="212" cy="118" r="3.5" fill="rgba(233,30,140,.45)"/>
+          <text x="128" y="96" text-anchor="middle" fill="rgba(233,30,140,.28)" font-size="8">①</text>
+          <text x="155" y="96" text-anchor="middle" fill="rgba(233,30,140,.35)" font-size="8">②</text>
+          <text x="185" y="96" text-anchor="middle" fill="rgba(233,30,140,.35)" font-size="8">③</text>
+          <text x="212" y="96" text-anchor="middle" fill="rgba(233,30,140,.28)" font-size="8">④</text>
+
+          <!-- bottleneck marker -->
+          <rect x="161" y="98" width="18" height="40" rx="2"
+                fill="rgba(245,158,11,.06)" stroke="rgba(245,158,11,.32)" stroke-width=".8" stroke-dasharray="3 2"/>
+
+          <!-- nodes (P-01 instances) -->
+          <circle cx="68"  cy="118" r="24" fill="rgba(233,30,140,.12)" stroke="#E91E8C" stroke-width="1.3"/>
+          <circle cx="68"  cy="118" r="9"  fill="#E91E8C" opacity=".85"/>
+          <circle cx="272" cy="118" r="24" fill="rgba(233,30,140,.12)" stroke="#E91E8C" stroke-width="1.3"/>
+          <circle cx="272" cy="118" r="9"  fill="#E91E8C" opacity=".80"/>
+
+          <!-- P-01 labels -->
+          <text x="68"  y="158" text-anchor="middle" fill="rgba(233,30,140,.35)" font-size="8">P-01</text>
+          <text x="272" y="158" text-anchor="middle" fill="rgba(233,30,140,.35)" font-size="8">P-01</text>
+
+          <!-- AC_phys label -->
+          <text x="170" y="160" text-anchor="middle" fill="rgba(245,158,11,.40)" font-size="8">通行弱</text>
+
+          <!-- move = intervention label -->
+          <text x="170" y="196" text-anchor="middle" fill="rgba(233,30,140,.25)" font-size="9" font-family="DM Mono,monospace">移动即干预</text>
+        </svg>
+      </div>
+      <div class="cf">
+        <div class="cf-tag"><strong>瓶颈</strong>衔接</div>
+        <div class="cf-tag"><strong>触媒簇交界</strong> · 通行弱</div>
+      </div>
+    </div>
+
+    <!-- P-03 -->
+    <div class="card c3">
+      <div class="ch">
+        <span class="num">P-03</span>
+        <span class="cname">场域系统</span>
+        <span class="cen">Field System</span>
+      </div>
+      <div class="diag">
+        <svg viewBox="0 0 340 240" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="g3" cx="50%" cy="50%">
+              <stop offset="0%"   stop-color="#E91E8C" stop-opacity=".14"/>
+              <stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+
+          <!-- field boundary -->
+          <rect x="18" y="16" width="304" height="188" rx="14"
+                fill="rgba(233,30,140,.025)" stroke="rgba(233,30,140,.18)"
+                stroke-width="1" stroke-dasharray="6 5"/>
+
+          <ellipse cx="170" cy="110" rx="128" ry="86" fill="url(#g3)"/>
+
+          <!-- internal corridor lines -->
+          <line x1="72"  y1="72"  x2="172" y2="72"  stroke="rgba(233,30,140,.16)" stroke-width="1.2" stroke-dasharray="4 4"/>
+          <line x1="172" y1="72"  x2="268" y2="72"  stroke="rgba(233,30,140,.12)" stroke-width="1"   stroke-dasharray="4 4"/>
+          <line x1="72"  y1="72"  x2="72"  y2="158" stroke="rgba(233,30,140,.12)" stroke-width="1"   stroke-dasharray="4 4"/>
+          <line x1="172" y1="72"  x2="172" y2="158" stroke="rgba(233,30,140,.16)" stroke-width="1.2" stroke-dasharray="4 4"/>
+          <line x1="268" y1="72"  x2="268" y2="158" stroke="rgba(233,30,140,.10)" stroke-width="1"   stroke-dasharray="4 4"/>
+
+          <!-- P-01 A -->
+          <circle cx="72"  cy="72"  r="16" fill="rgba(233,30,140,.14)" stroke="#E91E8C" stroke-width="1.2"/>
+          <circle cx="72"  cy="72"  r="7"  fill="#E91E8C" opacity=".85"/>
+          <text x="72"  y="55" text-anchor="middle" fill="rgba(233,30,140,.40)" font-size="7.5">A</text>
+
+          <!-- P-01 B -->
+          <circle cx="268" cy="72"  r="16" fill="rgba(233,30,140,.14)" stroke="#E91E8C" stroke-width="1.2"/>
+          <circle cx="268" cy="72"  r="7"  fill="#E91E8C" opacity=".75"/>
+          <text x="268" y="55" text-anchor="middle" fill="rgba(233,30,140,.35)" font-size="7.5">B</text>
+
+          <!-- P-01 C (critical, dimmed) -->
+          <circle cx="72"  cy="158" r="13" fill="rgba(233,30,140,.08)" stroke="rgba(233,30,140,.30)" stroke-width="1"/>
+          <circle cx="72"  cy="158" r="5"  fill="#E91E8C" opacity=".50"/>
+          <text x="72"  y="178" text-anchor="middle" fill="rgba(233,30,140,.28)" font-size="7.5">C↓</text>
+
+          <!-- double-stay center -->
+          <circle cx="170" cy="115" r="24" fill="rgba(233,30,140,.18)" stroke="#E91E8C" stroke-width="1.5"/>
+          <circle cx="170" cy="115" r="24" fill="none" stroke="#FF4DAD" stroke-width=".7" opacity="0">
+            <animate attributeName="r"       values="24;44" dur="3.2s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values=".35;0" dur="3.2s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="170" cy="115" r="9" fill="#E91E8C"/>
+          <text x="170" y="119" text-anchor="middle" fill="#fff" font-size="7">✦</text>
+
+          <!-- external interface lines -->
+          <line x1="18"  y1="115" x2="2"   y2="115" stroke="rgba(233,30,140,.22)" stroke-width=".8" stroke-dasharray="2 3"/>
+          <text x="-2" y="112" text-anchor="end" fill="rgba(233,30,140,.32)" font-size="7">医疗</text>
+
+          <line x1="170" y1="16"  x2="170" y2="2"   stroke="rgba(233,30,140,.22)" stroke-width=".8" stroke-dasharray="2 3"/>
+          <text x="170" y="-1" text-anchor="middle" fill="rgba(233,30,140,.32)" font-size="7">轨交</text>
+
+          <line x1="322" y1="115" x2="338" y2="115" stroke="rgba(233,30,140,.20)" stroke-width=".8" stroke-dasharray="2 3"/>
+          <text x="340" y="118" fill="rgba(233,30,140,.28)" font-size="7">AI</text>
+        </svg>
+      </div>
+      <div class="cf">
+        <div class="cf-tag"><strong>规则</strong>组合</div>
+        <div class="cf-tag"><strong>P-01 + P-02</strong></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- assembly diagram -->
+  <div class="asm">
+    <div class="asm-head">
+      <span class="asm-label">嵌套逻辑</span>
+      <span class="asm-sub">P-01 点 · P-02 连 · P-03 场</span>
+    </div>
+    <svg viewBox="0 0 1060 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+      <defs>
+        <marker id="arr" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+          <polyline points="0,1 5,3 0,5" fill="none" stroke="rgba(233,30,140,.5)" stroke-width="1.2" stroke-linejoin="round"/>
+        </marker>
+        <radialGradient id="ga" cx="50%" cy="50%"><stop offset="0%" stop-color="#E91E8C" stop-opacity=".18"/><stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/></radialGradient>
+        <radialGradient id="gb" cx="50%" cy="50%"><stop offset="0%" stop-color="#E91E8C" stop-opacity=".18"/><stop offset="100%" stop-color="#E91E8C" stop-opacity="0"/></radialGradient>
+      </defs>
+
+      <!-- P-03 boundary -->
+      <rect x="14" y="12" width="1032" height="156" rx="12"
+            fill="rgba(233,30,140,.02)" stroke="rgba(233,30,140,.16)"
+            stroke-width="1" stroke-dasharray="6 5"/>
+      <text x="30" y="26" fill="rgba(233,30,140,.25)" font-size="8" font-family="DM Mono,monospace" letter-spacing=".12em">P-03 · 场域系统</text>
+
+      <!-- node halos -->
+      <circle cx="180" cy="90" r="52" fill="url(#ga)"/>
+      <circle cx="620" cy="90" r="52" fill="url(#gb)"/>
+
+      <!-- P-02 corridor band -->
+      <rect x="232" y="74" width="256" height="32" fill="rgba(233,30,140,.03)"/>
+      <line x1="232" y1="74"  x2="488" y2="74"  stroke="rgba(233,30,140,.12)" stroke-width=".8"/>
+      <line x1="232" y1="106" x2="488" y2="106" stroke="rgba(233,30,140,.12)" stroke-width=".8"/>
+      <text x="360" y="126" text-anchor="middle" fill="rgba(233,30,140,.22)" font-size="8" font-family="DM Mono,monospace">P-02 · 连接廊道</text>
+
+      <!-- bottleneck -->
+      <rect x="346" y="68" width="28" height="44" rx="2"
+            fill="rgba(245,158,11,.05)" stroke="rgba(245,158,11,.28)" stroke-width=".8" stroke-dasharray="3 2"/>
+
+      <!-- flow -->
+      <line x1="236" y1="90" x2="484" y2="90" stroke="rgba(233,30,140,.35)" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <circle cx="275" cy="90" r="3" fill="rgba(233,30,140,.45)"/>
+      <circle cx="318" cy="90" r="3" fill="rgba(233,30,140,.55)"/>
+      <circle cx="402" cy="90" r="3" fill="rgba(233,30,140,.55)"/>
+      <circle cx="445" cy="90" r="3" fill="rgba(233,30,140,.45)"/>
+
+      <!-- P-01 A -->
+      <circle cx="180" cy="90" r="28" fill="rgba(233,30,140,.12)" stroke="#E91E8C" stroke-width="1.3"/>
+      <circle cx="180" cy="90" r="12" fill="#E91E8C" opacity=".85"/>
+      <text x="180" y="94" text-anchor="middle" fill="#fff" font-size="8">A</text>
+      <text x="180" y="140" text-anchor="middle" fill="rgba(233,30,140,.35)" font-size="8" font-family="DM Mono,monospace">斜土路型</text>
+
+      <!-- P-01 B -->
+      <circle cx="620" cy="90" r="28" fill="rgba(233,30,140,.12)" stroke="#E91E8C" stroke-width="1.3"/>
+      <circle cx="620" cy="90" r="12" fill="#E91E8C" opacity=".78"/>
+      <text x="620" y="94" text-anchor="middle" fill="#fff" font-size="8">B</text>
+      <text x="620" y="140" text-anchor="middle" fill="rgba(233,30,140,.30)" font-size="8" font-family="DM Mono,monospace">田子坊型</text>
+
+      <!-- P-01 C critical satellite -->
+      <circle cx="800" cy="60" r="20" fill="rgba(233,30,140,.07)" stroke="rgba(233,30,140,.28)" stroke-width="1"/>
+      <circle cx="800" cy="60" r="8"  fill="#E91E8C" opacity=".50"/>
+      <text x="800" y="64" text-anchor="middle" fill="#fff" font-size="7">C</text>
+      <text x="800" y="92" text-anchor="middle" fill="rgba(233,30,140,.25)" font-size="8" font-family="DM Mono,monospace">临界↓</text>
+      <line x1="646" y1="80" x2="782" y2="64" stroke="rgba(233,30,140,.15)" stroke-width=".8" stroke-dasharray="3 3"/>
+
+      <!-- external interfaces -->
+      <line x1="26"  y1="90" x2="60"  y2="90" stroke="rgba(233,30,140,.22)" stroke-width=".8" marker-end="url(#arr)"/>
+      <text x="22" y="86" text-anchor="end" fill="rgba(233,30,140,.30)" font-size="8" font-family="DM Mono,monospace">医疗</text>
+
+      <line x1="900" y1="90" x2="940" y2="90" stroke="rgba(233,30,140,.18)" stroke-width=".8" marker-end="url(#arr)"/>
+      <text x="944" y="93" fill="rgba(233,30,140,.25)" font-size="8" font-family="DM Mono,monospace">轨交 · AI</text>
+
+      <line x1="360" y1="12" x2="360" y2="2" stroke="rgba(233,30,140,.15)" stroke-width=".8"/>
+    </svg>
+  </div>
+
+</div>
+</body>
+</html>

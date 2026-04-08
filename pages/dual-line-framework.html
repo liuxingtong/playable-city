@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>双线框架</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;800&family=Noto+Sans+SC:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap');
+  :root {
+    --bg:#08080E; --card:#0D0D18; --panel:#12121E;
+    --r:#E91E8C; --rl:#FF4DAD; --rd:rgba(233,30,140,0.10); --rb:rgba(233,30,140,0.24);
+    --r2:#C2185B; --r2b:rgba(194,24,91,0.24);
+    --t1:#EEEEF8; --t2:#66668A; --t3:#2E2E44;
+  }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:28px 24px 32px;font-family:'Noto Sans SC',sans-serif;word-break:keep-all;line-break:strict;}
+
+  .wrap{width:100%;max-width:960px;display:flex;flex-direction:column;gap:0;}
+
+  /* ── LINE ROWS ── */
+  .row{
+    display:grid;
+    grid-template-columns:120px 1fr 120px;
+    min-height:190px;
+    border:1px solid var(--rb);
+    border-radius:16px;
+    background:var(--card);
+    overflow:hidden;
+    position:relative;
+    margin-bottom:8px;
+  }
+  .row::before{content:'';position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(233,30,140,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(233,30,140,.03) 1px,transparent 1px);background-size:20px 20px;z-index:0;}
+  .row>*{position:relative;z-index:1;}
+  .row-a::after{content:'';position:absolute;top:0;left:0;right:0;height:1.5px;background:linear-gradient(90deg,transparent,var(--r),transparent);z-index:2;}
+  .row-b::after{content:'';position:absolute;top:0;left:0;right:0;height:1.5px;background:linear-gradient(90deg,transparent,var(--r2),var(--r),transparent);z-index:2;}
+
+  /* end panels */
+  .ep{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:6px;padding:18px 12px;
+    background:linear-gradient(160deg,rgba(233,30,140,.06),transparent);
+    font-size:10px;text-align:center;
+  }
+  .ep.right{background:linear-gradient(340deg,rgba(233,30,140,.06),transparent);border-left:1px solid var(--rb);}
+  .ep.left{border-right:1px solid var(--rb);}
+  .ep-node{
+    width:38px;height:38px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    border:1px solid var(--rb);
+    font-family:'DM Mono',monospace;font-size:8px;font-weight:500;color:var(--rl);
+    background:var(--rd);
+  }
+  .ep-label{font-size:9.5px;font-weight:600;color:var(--t1);line-height:1.4;}
+  .ep-sub{font-family:'DM Mono',monospace;font-size:8px;color:var(--t3);letter-spacing:.06em;}
+
+  /* center diagram panel */
+  .cp{padding:0;display:flex;align-items:center;justify-content:center;}
+  .cp svg{width:100%;height:190px;}
+
+  /* ── CONVERGENCE ── */
+  .conv-wrap{
+    display:flex;flex-direction:column;align-items:center;
+    gap:0;margin-top:4px;
+  }
+  /* angled funnel svg */
+  .funnel-svg{width:100%;max-width:960px;height:52px;display:block;}
+
+  .conv-card{
+    width:100%;max-width:960px;
+    border:1px solid var(--rb);border-radius:16px;
+    background:var(--card);
+    overflow:hidden;position:relative;
+    display:grid;grid-template-columns:1fr auto 1fr;
+    align-items:stretch;
+  }
+  .conv-card::before{content:'';position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(233,30,140,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(233,30,140,.03) 1px,transparent 1px);background-size:20px 20px;z-index:0;}
+  .conv-card::after{content:'';position:absolute;top:0;left:0;right:0;height:1.5px;background:linear-gradient(90deg,transparent 5%,var(--r2) 30%,var(--r) 50%,var(--r2) 70%,transparent 95%);z-index:2;}
+  .conv-card>*{position:relative;z-index:1;}
+
+  .conv-arm{
+    padding:20px 22px;display:flex;flex-direction:column;gap:6px;justify-content:center;
+  }
+  .conv-arm.right{text-align:right;border-left:1px solid var(--rb);}
+  .conv-arm.left{border-right:1px solid var(--rb);}
+  .arm-tag{font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--r);margin-bottom:2px;}
+  .arm-tag.b{color:var(--r2);}
+  .arm-action{font-size:13px;font-weight:700;color:var(--t1);}
+  .arm-sub{font-size:10px;color:var(--t2);line-height:1.55;}
+  .arm-sub em{font-style:normal;color:var(--rl);}
+
+  .conv-core{
+    padding:20px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:7px;text-align:center;min-width:220px;
+    background:linear-gradient(160deg,rgba(233,30,140,.10),rgba(194,24,91,.07));
+    position:relative;
+  }
+  @keyframes pr{0%{transform:scale(1);opacity:.35} 100%{transform:scale(1.7);opacity:0}}
+  .cc-pulse{position:absolute;inset:0;border-radius:0;border:1px solid var(--r);animation:pr 2.4s ease-out infinite;pointer-events:none;}
+  .cc-badge{font-family:'DM Mono',monospace;font-size:8px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--rl);background:var(--rd);border:1px solid var(--rb);border-radius:4px;padding:2px 8px;}
+  .cc-name{font-size:20px;font-weight:800;color:var(--t1);line-height:1.15;letter-spacing:-.01em;}
+  .cc-desc{font-size:10px;color:var(--t2);line-height:1.65;}
+  .cc-desc strong{color:var(--rl);font-weight:700;}
+
+  /* loop pills -->
+  .loops{display:flex;justify-content:center;gap:8px;padding:12px 0 0;}
+  .lp{display:flex;align-items:center;gap:5px;background:var(--panel);border:1px solid rgba(255,255,255,.05);border-radius:20px;padding:5px 13px;font-size:10px;color:var(--t2);}
+  .lp .dot{width:5px;height:5px;border-radius:50%;background:var(--r);}
+  .lp strong{color:var(--t1);font-weight:600;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ROW A -->
+  <div class="row row-a">
+    <!-- left: city env -->
+    <div class="ep left">
+      <div class="ep-node">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="6" width="4" height="10" fill="#E91E8C" opacity=".8"/><rect x="7" y="3" width="4" height="13" fill="#E91E8C"/><rect x="12" y="8" width="4" height="8" fill="#E91E8C" opacity=".6"/></svg>
+      </div>
+      <div class="ep-label">城市环境</div>
+      <div class="ep-sub">刺激源</div>
+    </div>
+
+    <!-- center SVG diagram -->
+    <div class="cp">
+      <svg viewBox="0 0 560 190" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr-a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <polyline points="0,0 6,3 0,6" fill="none" stroke="#E91E8C" stroke-width="1.2" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arr-a2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <polyline points="0,0 6,3 0,6" fill="none" stroke="#FF4DAD" stroke-width="1.2" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+
+        <!-- label top -->
+        <text x="280" y="22" text-anchor="middle" fill="rgba(233,30,140,.35)" font-size="9" font-family="DM Mono,monospace" letter-spacing=".16em">LINE A · 认知恢复线</text>
+
+        <!-- BEFORE: negative arrow, thick red -->
+        <line x1="90" y1="78" x2="210" y2="78" stroke="#E91E8C" stroke-width="2" marker-end="url(#arr-a)" opacity=".7"/>
+        <rect x="122" y="60" width="56" height="14" rx="4" fill="rgba(233,30,140,.12)" stroke="rgba(233,30,140,.3)" stroke-width=".8"/>
+        <text x="150" y="70" text-anchor="middle" fill="#FF4DAD" font-size="8" font-family="DM Mono,monospace">伤害认知</text>
+
+        <!-- transform box in centre -->
+        <rect x="228" y="58" width="104" height="64" rx="10" fill="rgba(233,30,140,.08)" stroke="#E91E8C" stroke-width="1"/>
+        <text x="280" y="82"  text-anchor="middle" fill="rgba(255,255,255,.6)" font-size="8" font-family="Noto Sans SC,sans-serif">翻转刺激</text>
+        <text x="280" y="96"  text-anchor="middle" fill="#FF4DAD" font-size="11" font-family="DM Mono,monospace" font-weight="500">± → +</text>
+        <text x="280" y="112" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="7.5" font-family="Noto Sans SC,sans-serif">候诊等待 → 训练窗口</text>
+
+        <!-- AFTER: positive arrow, lighter -->
+        <line x1="350" y1="78" x2="470" y2="78" stroke="#FF4DAD" stroke-width="2" marker-end="url(#arr-a2)" opacity=".65"/>
+        <rect x="378" y="60" width="56" height="14" rx="4" fill="rgba(255,77,173,.12)" stroke="rgba(255,77,173,.3)" stroke-width=".8"/>
+        <text x="406" y="70" text-anchor="middle" fill="#FF4DAD" font-size="8" font-family="DM Mono,monospace">训练认知</text>
+
+        <!-- direct benefit label -->
+        <text x="280" y="148" text-anchor="middle" fill="var(--t3)" font-size="8" font-family="Noto Sans SC,sans-serif">直接受益者 · 老年人</text>
+      </svg>
+    </div>
+
+    <!-- right: elder -->
+    <div class="ep right">
+      <div class="ep-node" style="background:rgba(255,77,173,.12);border-color:rgba(255,77,173,.35);">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="6" r="3.5" fill="#FF4DAD" opacity=".9"/><path d="M4 16c0-3.5 10-3.5 10 0" fill="#FF4DAD" opacity=".7"/><line x1="9" y1="10" x2="9" y2="14" stroke="#FF4DAD" stroke-width="1.5"/><line x1="7" y1="16" x2="11" y2="16" stroke="#FF4DAD" stroke-width="1.5"/></svg>
+      </div>
+      <div class="ep-label">老年人</div>
+      <div class="ep-sub">斜土路型</div>
+    </div>
+  </div>
+
+  <!-- ROW B -->
+  <div class="row row-b">
+    <!-- left: workers -->
+    <div class="ep left" style="background:linear-gradient(160deg,rgba(194,24,91,.06),transparent);">
+      <div class="ep-node" style="background:rgba(194,24,91,.12);border-color:rgba(194,24,91,.35);">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="6" cy="5.5" r="2.8" fill="#C2185B" opacity=".9"/><circle cx="12" cy="5.5" r="2.8" fill="#C2185B" opacity=".7"/><path d="M2 15.5c0-3 8-3 8 0" fill="#C2185B" opacity=".8"/><path d="M8 15.5c0-3 8-3 8 0" fill="#C2185B" opacity=".5"/></svg>
+      </div>
+      <div class="ep-label">工作人口</div>
+      <div class="ep-sub" style="color:var(--r2b);color:#5A2A3A">排他 → 接触</div>
+    </div>
+
+    <!-- center SVG -->
+    <div class="cp">
+      <svg viewBox="0 0 560 190" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr-b1" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <polyline points="0,0 6,3 0,6" fill="none" stroke="#C2185B" stroke-width="1.2" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arr-b2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <polyline points="0,0 6,3 0,6" fill="none" stroke="#E91E8C" stroke-width="1.2" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arr-b3" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <polyline points="0,0 6,3 0,6" fill="none" stroke="#FF4DAD" stroke-width="1.2" stroke-linejoin="round"/>
+          </marker>
+          <marker id="arr-b4" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <polyline points="0,0 6,3 0,6" fill="none" stroke="#E91E8C" stroke-width="1.2" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+
+        <text x="280" y="22" text-anchor="middle" fill="rgba(194,24,91,.45)" font-size="9" font-family="DM Mono,monospace" letter-spacing=".16em">LINE B · 人机共生线</text>
+
+        <!-- BEFORE: two groups, exclusion arrows -->
+        <!-- workers pushing -->
+        <line x1="90" y1="68" x2="210" y2="78" stroke="#C2185B" stroke-width="1.8" marker-end="url(#arr-b1)" opacity=".65"/>
+        <rect x="108" y="52" width="52" height="13" rx="4" fill="rgba(194,24,91,.12)" stroke="rgba(194,24,91,.3)" stroke-width=".8"/>
+        <text x="134" y="61" text-anchor="middle" fill="#C2185B" font-size="8" font-family="DM Mono,monospace">排他压力</text>
+        <!-- elder pushed back -->
+        <line x1="210" y1="102" x2="90" y2="112" stroke="#E91E8C" stroke-width="1.8" marker-end="url(#arr-b2)" opacity=".45"/>
+        <rect x="108" y="114" width="52" height="13" rx="4" fill="rgba(233,30,140,.08)" stroke="rgba(233,30,140,.2)" stroke-width=".8"/>
+        <text x="134" y="123" text-anchor="middle" fill="rgba(233,30,140,.55)" font-size="8" font-family="DM Mono,monospace">被排斥</text>
+
+        <!-- transform box -->
+        <rect x="228" y="54" width="104" height="72" rx="10" fill="rgba(194,24,91,.08)" stroke="rgba(194,24,91,.4)" stroke-width="1"/>
+        <text x="280" y="78"  text-anchor="middle" fill="rgba(255,255,255,.6)" font-size="8" font-family="Noto Sans SC,sans-serif">捕捉接触窗口</text>
+        <text x="280" y="94"  text-anchor="middle" fill="#FF4DAD" font-size="11" font-family="DM Mono,monospace" font-weight="500">⇄</text>
+        <text x="280" y="110" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="7.5" font-family="Noto Sans SC,sans-serif">共存 → 代际接触</text>
+
+        <!-- AFTER: bidirectional bright -->
+        <line x1="350" y1="78"  x2="470" y2="68"  stroke="#FF4DAD" stroke-width="1.8" marker-end="url(#arr-b3)" opacity=".65"/>
+        <line x1="470" y1="112" x2="350" y2="102" stroke="#E91E8C" stroke-width="1.8" marker-end="url(#arr-b4)" opacity=".65"/>
+        <rect x="366" y="57" width="56" height="13" rx="4" fill="rgba(255,77,173,.12)" stroke="rgba(255,77,173,.3)" stroke-width=".8"/>
+        <text x="394" y="66" text-anchor="middle" fill="#FF4DAD" font-size="8" font-family="DM Mono,monospace">代际接触</text>
+
+        <text x="280" y="148" text-anchor="middle" fill="var(--t3)" font-size="8" font-family="Noto Sans SC,sans-serif">双向参与者 · 田子坊边缘型</text>
+      </svg>
+    </div>
+
+    <!-- right: elder again -->
+    <div class="ep right" style="background:linear-gradient(340deg,rgba(194,24,91,.06),transparent);">
+      <div class="ep-node" style="background:rgba(233,30,140,.10);border-color:rgba(233,30,140,.28);">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="5.5" r="3.2" fill="#E91E8C" opacity=".9"/><path d="M4 15c0-3 10-3 10 0" fill="#E91E8C" opacity=".7"/><line x1="9" y1="9.5" x2="9" y2="13" stroke="#E91E8C" stroke-width="1.5"/></svg>
+      </div>
+      <div class="ep-label">老年人</div>
+      <div class="ep-sub">田子坊型</div>
+    </div>
+  </div>
+
+  <!-- FUNNEL + CONVERGENCE -->
+  <svg class="funnel-svg" viewBox="0 0 960 52" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <line x1="240" y1="0" x2="480" y2="52" stroke="rgba(233,30,140,.30)" stroke-width="1.2"/>
+    <line x1="720" y1="0" x2="480" y2="52" stroke="rgba(194,24,91,.30)" stroke-width="1.2"/>
+    <polygon points="480,48 474,36 486,36" fill="#E91E8C" opacity=".65"/>
+  </svg>
+
+  <div class="conv-card">
+    <div class="conv-arm left">
+      <div class="arm-tag">认知恢复线</div>
+      <div class="arm-action">翻转负向刺激</div>
+      <div class="arm-sub">感知环境 → <em>激活训练窗口</em></div>
+    </div>
+    <div class="conv-core">
+      <div class="cc-pulse"></div>
+      <div class="cc-badge">TECH INTERFACE</div>
+      <div class="cc-name">人机共生空间</div>
+      <div class="cc-desc"><strong>同时驱动两条线</strong>，感知环境 · 感知人群</div>
+    </div>
+    <div class="conv-arm right">
+      <div class="arm-tag b">人机共生线</div>
+      <div class="arm-action">捕捉接触窗口</div>
+      <div class="arm-sub">感知人群 → <em>激活代际接触</em></div>
+    </div>
+  </div>
+
+  <div class="loops">
+    <div class="lp"><div class="dot"></div><strong>感知</strong>&nbsp;环境 + 人群状态</div>
+    <div class="lp"><div class="dot"></div><strong>判断</strong>&nbsp;刺激类型 / 接触机会</div>
+    <div class="lp"><div class="dot"></div><strong>干预</strong>&nbsp;翻转刺激 / 捕捉窗口</div>
+  </div>
+
+</div>
+</body>
+</html>

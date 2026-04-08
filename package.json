@@ -1,0 +1,40 @@
+{
+  "name": "cards-viz",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync:cld": "node scripts/sync-cld.mjs",
+    "filter:cld-xuhui": "node scripts/filter-cld-xuhui.mjs",
+    "filter:cld-daxujiahui": "node scripts/filter-cld-daxujiahui.mjs",
+    "fetch:daxujiahui-4": "node scripts/fetch-daxujiahui-four-streets.mjs",
+    "fetch:field-parcels": "node scripts/fetch-field-parcels-overpass.mjs",
+    "clip:lan-use": "python scripts/clip_lan_use_to_geojson.py",
+    "predev": "npm run sync:cld",
+    "dev": "vite",
+    "prebuild": "npm run sync:cld",
+    "build": "vite build",
+    "persona:png": "node scripts/persona-png-transparent.mjs",
+    "render:site-osm": "node scripts/render-xujiahui-site-osm.mjs",
+    "render:site-osm:vector": "node scripts/render-xujiahui-site-osm.mjs --vector-only",
+    "render:site-osm:carto": "node scripts/render-xujiahui-site-osm.mjs --tiles carto-light",
+    "render:site-osm:de": "node scripts/render-xujiahui-site-osm.mjs --tiles osm-de",
+    "map:scale": "node scripts/map-scale-zoom.mjs",
+    "screenshot:site": "node scripts/screenshot-site-selection.mjs",
+    "screenshot:site:light": "node scripts/screenshot-site-selection.mjs --light --clean",
+    "screenshot:site:light:bw": "node scripts/screenshot-site-selection.mjs --light --clean --bw"
+  },
+  "dependencies": {
+    "d3": "^7.9.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@turf/turf": "^7.3.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "osmtogeojson": "^3.0.0-beta.5",
+    "playwright": "^1.59.1",
+    "sharp": "^0.34.5",
+    "vite": "^5.4.11"
+  }
+}

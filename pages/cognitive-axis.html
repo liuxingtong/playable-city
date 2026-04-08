@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>认知恢复轴线 · 人机共生空间导则</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --mag: #E91E78;
+    --mag-dim: #E91E7833;
+    --mag-mid: #E91E7866;
+    --mag-glow: #E91E78CC;
+    --bg: #0A0A0F;
+    --bg2: #12121A;
+    --txt: #E8E4E0;
+    --txt-dim: #E8E4E066;
+    --grid: #E91E780A;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--txt);
+    font-family: 'Noto Sans SC', sans-serif;
+    font-weight: 300;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* ─── GRID BACKGROUND ─── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 12px 32px 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+
+  /* ─── GUIDELINE TOGGLES（嵌入叙事页时表头由外层提供，切换固定在视口右下）── */
+  .toggles {
+    position: fixed;
+    bottom: 14px;
+    right: 14px;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    padding: 10px 12px;
+    background: rgba(10, 10, 15, 0.88);
+    border: 1px solid var(--mag-dim);
+    border-radius: 4px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    max-width: min(200px, 42vw);
+  }
+
+  .toggle-btn {
+    width: 100%;
+    text-align: right;
+    background: transparent;
+    border: 1px solid var(--mag-dim);
+    color: var(--txt-dim);
+    font-family: 'Space Mono', 'Noto Sans SC', monospace;
+    font-size: 9px;
+    padding: 7px 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    letter-spacing: 0.5px;
+    border-radius: 2px;
+    line-height: 1.35;
+  }
+
+  .toggle-btn.active {
+    background: var(--mag);
+    border-color: var(--mag);
+    color: #fff;
+    box-shadow: 0 0 20px var(--mag-dim);
+  }
+
+  .toggle-btn:hover:not(.active) {
+    border-color: var(--mag-mid);
+    color: var(--txt);
+  }
+
+  /* ─── MAIN AXIS AREA ─── */
+  .axis-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* ─── ZONE LABELS ─── */
+  .zone-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 20px;
+    margin-bottom: 8px;
+  }
+
+  .zone-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #fff;
+    text-transform: uppercase;
+  }
+
+  .zone-label .zh {
+    display: block;
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: 4px;
+    color: var(--txt);
+    margin-top: 2px;
+  }
+
+  .zone-label.center {
+    text-align: center;
+  }
+
+  .zone-label.right {
+    text-align: right;
+  }
+
+  /* ─── SVG CANVAS ─── */
+  .axis-svg-wrap {
+    flex: 1;
+    position: relative;
+    border: 1px solid var(--mag-dim);
+    border-radius: 2px;
+    background: var(--bg2);
+    overflow: hidden;
+  }
+
+  .axis-svg-wrap svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .axis-svg-wrap svg text {
+    fill: #fff !important;
+    font-weight: 700;
+  }
+
+  /* ─── PROTOTYPE LEGEND ─── */
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    margin-top: 14px;
+    flex-shrink: 0;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--txt-dim);
+    letter-spacing: 1px;
+  }
+
+  .legend-icon {
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--mag-mid);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .legend-icon.street { border-radius: 0; background: repeating-linear-gradient(90deg, var(--mag-dim) 0px, var(--mag-dim) 2px, transparent 2px, transparent 4px); }
+  .legend-icon.corridor { border-radius: 0; background: linear-gradient(180deg, var(--mag-mid), transparent); border-top: 2px solid var(--mag); }
+  .legend-icon.park { border-radius: 50%; background: radial-gradient(circle, var(--mag-dim), transparent); }
+  .legend-icon.box { border-radius: 0; background: var(--mag-dim); transform: rotate(5deg); }
+
+  /* ─── TOOLTIP ─── */
+  .tooltip {
+    position: fixed;
+    background: #1A1A24;
+    border: 1px solid var(--mag-mid);
+    padding: 12px 16px;
+    font-size: 12px;
+    line-height: 1.6;
+    max-width: 220px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 100;
+    color: var(--txt);
+  }
+
+  .tooltip .tt-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--mag);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+
+  .tooltip.show { opacity: 1; }
+
+  /* ─── GUIDELINE OVERLAY PANEL ─── */
+  .guideline-panel {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    right: 200px;
+    background: #0A0A0FDD;
+    border: 1px solid var(--mag-dim);
+    border-radius: 2px;
+    padding: 14px 20px;
+    font-size: 11px;
+    line-height: 1.8;
+    color: var(--txt-dim);
+    backdrop-filter: blur(8px);
+    display: none;
+    animation: fadeUp 0.3s ease;
+  }
+
+  .guideline-panel.show { display: block; }
+
+  .guideline-panel .gp-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--mag);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+
+  .guideline-panel .gp-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .guideline-panel .gp-tag {
+    background: var(--mag-dim);
+    border: 1px solid var(--mag-mid);
+    padding: 2px 10px;
+    font-size: 10px;
+    border-radius: 1px;
+    color: var(--mag-glow);
+    letter-spacing: 1px;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── PULSE ANIMATION ─── */
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; r: 4; }
+    50% { opacity: 0.8; r: 7; }
+  }
+
+  @keyframes dash {
+    to { stroke-dashoffset: -20; }
+  }
+
+  @keyframes nodeGlow {
+    0%, 100% { filter: drop-shadow(0 0 3px var(--mag-dim)); }
+    50% { filter: drop-shadow(0 0 10px var(--mag-mid)); }
+  }
+
+  .pulse-dot { animation: pulse 2s ease-in-out infinite; }
+  .pulse-dot2 { animation: pulse 2s ease-in-out infinite 0.5s; }
+  .pulse-dot3 { animation: pulse 2s ease-in-out infinite 1s; }
+
+  .flow-line { animation: dash 1.5s linear infinite; }
+
+  .node-group { cursor: pointer; }
+  .node-group:hover .node-ring { filter: drop-shadow(0 0 12px var(--mag-glow)); }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 900px) {
+    .container { padding: 10px 12px 16px; }
+    .legend { flex-wrap: wrap; gap: 12px; }
+    .guideline-panel { left: 8px; right: 8px; bottom: 118px; }
+    .toggles {
+      bottom: 10px;
+      right: 10px;
+      max-width: 46vw;
+      padding: 8px;
+    }
+    .toggle-btn { font-size: 8px; padding: 6px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="tooltip" id="tooltip">
+  <div class="tt-title"></div>
+  <div class="tt-body"></div>
+</div>
+
+<div class="container">
+  <div class="zone-labels">
+    <div class="zone-label">
+      POTENTIAL ZONE
+      <span class="zh">斜田认知潜力区</span>
+    </div>
+    <div class="zone-label center">
+      COGNITIVE CORRIDOR
+      <span class="zh">认知廊道</span>
+    </div>
+    <div class="zone-label right">
+      RESOURCE ZONE
+      <span class="zh">资源区</span>
+    </div>
+  </div>
+
+  <div class="axis-svg-wrap" id="svgWrap">
+    <svg id="axisSvg" viewBox="0 0 1400 520" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <linearGradient id="axisGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#E91E78" stop-opacity="0.1"/>
+          <stop offset="50%" stop-color="#E91E78" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="#E91E78" stop-opacity="0.15"/>
+        </linearGradient>
+        <linearGradient id="zoneGradL" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#E91E78" stop-opacity="0.08"/>
+          <stop offset="100%" stop-color="#E91E78" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="zoneGradR" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#E91E78" stop-opacity="0"/>
+          <stop offset="100%" stop-color="#E91E78" stop-opacity="0.08"/>
+        </linearGradient>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glowStrong">
+          <feGaussianBlur stdDeviation="6" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <pattern id="gridPat" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M40 0L0 0 0 40" fill="none" stroke="#E91E78" stroke-opacity="0.04" stroke-width="0.5"/>
+        </pattern>
+        <marker id="arrowMag" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
+          <path d="M0,0 L6,2 L0,4" fill="none" stroke="#E91E78" stroke-width="0.8"/>
+        </marker>
+      </defs>
+
+      <!-- Background grid -->
+      <rect width="1400" height="520" fill="url(#gridPat)"/>
+
+      <!-- Zone backgrounds -->
+      <rect x="0" y="0" width="280" height="520" fill="url(#zoneGradL)" rx="0"/>
+      <rect x="1120" y="0" width="280" height="520" fill="url(#zoneGradR)" rx="0"/>
+
+      <!-- Zone dividers -->
+      <line x1="280" y1="0" x2="280" y2="520" stroke="#E91E78" stroke-opacity="0.15" stroke-dasharray="2,6"/>
+      <line x1="1120" y1="0" x2="1120" y2="520" stroke="#E91E78" stroke-opacity="0.15" stroke-dasharray="2,6"/>
+
+      <!-- ═══════ MAIN AXIS LINE ═══════ -->
+      <line x1="80" y1="260" x2="1320" y2="260" stroke="url(#axisGrad)" stroke-width="1"/>
+      <!-- Flowing particles on axis -->
+      <circle cx="0" cy="260" r="2" fill="#E91E78" opacity="0.6">
+        <animateMotion dur="6s" repeatCount="indefinite" path="M80,0 L1320,0"/>
+      </circle>
+      <circle cx="0" cy="260" r="1.5" fill="#E91E78" opacity="0.4">
+        <animateMotion dur="6s" repeatCount="indefinite" path="M80,0 L1320,0" begin="2s"/>
+      </circle>
+      <circle cx="0" cy="260" r="1" fill="#E91E78" opacity="0.3">
+        <animateMotion dur="6s" repeatCount="indefinite" path="M80,0 L1320,0" begin="4s"/>
+      </circle>
+
+      <!-- ═══════ POTENTIAL ZONE (LEFT) - 散点渗透 ═══════ -->
+
+      <!-- Scattered residential blocks -->
+      <g opacity="0.3">
+        <rect x="30" y="80" width="45" height="35" fill="none" stroke="#E91E78" stroke-opacity="0.2" stroke-dasharray="2,3"/>
+        <rect x="95" y="60" width="35" height="50" fill="none" stroke="#E91E78" stroke-opacity="0.15" stroke-dasharray="2,3"/>
+        <rect x="180" y="75" width="50" height="30" fill="none" stroke="#E91E78" stroke-opacity="0.2" stroke-dasharray="2,3"/>
+        <rect x="40" y="380" width="40" height="45" fill="none" stroke="#E91E78" stroke-opacity="0.15" stroke-dasharray="2,3"/>
+        <rect x="110" y="400" width="55" height="35" fill="none" stroke="#E91E78" stroke-opacity="0.2" stroke-dasharray="2,3"/>
+        <rect x="190" y="370" width="35" height="55" fill="none" stroke="#E91E78" stroke-opacity="0.15" stroke-dasharray="2,3"/>
+        <rect x="60" y="180" width="30" height="40" fill="none" stroke="#E91E78" stroke-opacity="0.12" stroke-dasharray="2,3"/>
+        <rect x="170" y="310" width="40" height="30" fill="none" stroke="#E91E78" stroke-opacity="0.12" stroke-dasharray="2,3"/>
+      </g>
+
+      <!-- Prototype: Box in potential zone (small, embedded) -->
+      <g class="node-group" data-type="box" data-zone="potential"
+         data-title="第三空间 Box"
+         data-desc="嵌入楼栋入口的微型认知模块&#10;3.5m×4m 可移动单元&#10;日常渗透 · 最低训练强度">
+        <rect x="72" y="140" width="22" height="22" fill="#E91E7815" stroke="#E91E78" stroke-opacity="0.4" transform="rotate(3,83,151)"/>
+        <rect x="76" y="144" width="14" height="14" fill="#E91E7830" stroke="none"/>
+        <circle cx="83" cy="151" r="3" fill="#E91E78" class="pulse-dot" opacity="0.5"/>
+      </g>
+
+      <!-- Prototype: Street segment in potential zone (菜场门前) -->
+      <g class="node-group" data-type="street" data-zone="potential"
+         data-title="交感街道"
+         data-desc="菜场入口前的一段自适应地面&#10;升降地面 · 信令感知&#10;嵌入购物决策引导">
+        <line x1="130" y1="228" x2="130" y2="290" stroke="#E91E78" stroke-opacity="0.25" stroke-width="12"/>
+        <line x1="130" y1="235" x2="130" y2="240" stroke="#E91E78" stroke-opacity="0.5" stroke-width="2"/>
+        <line x1="130" y1="250" x2="130" y2="255" stroke="#E91E78" stroke-opacity="0.5" stroke-width="2"/>
+        <line x1="130" y1="265" x2="130" y2="270" stroke="#E91E78" stroke-opacity="0.5" stroke-width="2"/>
+        <line x1="130" y1="280" x2="130" y2="285" stroke="#E91E78" stroke-opacity="0.5" stroke-width="2"/>
+        <circle cx="130" cy="260" r="3" fill="#E91E78" class="pulse-dot2" opacity="0.5"/>
+      </g>
+
+      <!-- Prototype: Mini park in potential zone (社区花园角落) -->
+      <g class="node-group" data-type="park" data-zone="potential"
+         data-title="感知花园"
+         data-desc="社区花园一角的感知微场&#10;智能座椅 · 声景过渡&#10;注意力恢复 · 日常维护">
+        <circle cx="210" y="200" r="18" fill="#E91E7808" stroke="#E91E78" stroke-opacity="0.2" stroke-dasharray="3,3"/>
+        <circle cx="210" cy="200" r="10" fill="#E91E7815" stroke="none"/>
+        <circle cx="210" cy="200" r="3" fill="#E91E78" class="pulse-dot3" opacity="0.5"/>
+      </g>
+
+      <!-- Prototype: Corridor fragment (两栋楼间廊架) -->
+      <g class="node-group" data-type="corridor" data-zone="potential"
+         data-title="微型连廊"
+         data-desc="居民楼间的遮阳廊架&#10;连接日常动线碎片&#10;路径记忆训练载体">
+        <line x1="85" y1="340" x2="165" y2="340" stroke="#E91E78" stroke-opacity="0.3" stroke-width="1"/>
+        <line x1="85" y1="360" x2="165" y2="360" stroke="#E91E78" stroke-opacity="0.3" stroke-width="1"/>
+        <line x1="95" y1="340" x2="95" y2="360" stroke="#E91E78" stroke-opacity="0.15" stroke-width="0.5"/>
+        <line x1="115" y1="340" x2="115" y2="360" stroke="#E91E78" stroke-opacity="0.15" stroke-width="0.5"/>
+        <line x1="135" y1="340" x2="135" y2="360" stroke="#E91E78" stroke-opacity="0.15" stroke-width="0.5"/>
+        <line x1="155" y1="340" x2="155" y2="360" stroke="#E91E78" stroke-opacity="0.15" stroke-width="0.5"/>
+        <circle cx="125" cy="350" r="3" fill="#E91E78" class="pulse-dot" opacity="0.4"/>
+      </g>
+
+      <!-- ═══════ CORRIDOR (CENTER) - 线性交替序列 ═══════ -->
+
+      <!-- Node 1: 交感街道 (near school) -->
+      <g class="node-group" data-type="street" data-zone="corridor"
+         data-title="交感街道 · 学校旁"
+         data-desc="代际接触窗口&#10;放学时段自适应地面激活&#10;认知域：社交认知">
+        <rect x="360" y="220" width="60" height="80" fill="none" stroke="#E91E78" stroke-opacity="0.25"/>
+        <g opacity="0.5">
+          <line x1="368" y1="235" x2="412" y2="235" stroke="#E91E78" stroke-opacity="0.4" stroke-width="1.5"/>
+          <line x1="368" y1="248" x2="412" y2="248" stroke="#E91E78" stroke-opacity="0.3" stroke-width="1.5"/>
+          <line x1="368" y1="261" x2="412" y2="261" stroke="#E91E78" stroke-opacity="0.4" stroke-width="1.5"/>
+          <line x1="368" y1="274" x2="412" y2="274" stroke="#E91E78" stroke-opacity="0.3" stroke-width="1.5"/>
+          <line x1="368" y1="287" x2="412" y2="287" stroke="#E91E78" stroke-opacity="0.4" stroke-width="1.5"/>
+        </g>
+        <!-- Vertical movement arrows -->
+        <path d="M385,242 L385,238 M382,240 L385,236 L388,240" stroke="#E91E78" stroke-opacity="0.6" fill="none" stroke-width="0.8"/>
+        <path d="M395,268 L395,264 M392,266 L395,262 L398,266" stroke="#E91E78" stroke-opacity="0.6" fill="none" stroke-width="0.8"/>
+        <circle cx="390" cy="260" r="5" fill="none" stroke="#E91E78" stroke-opacity="0.6" class="pulse-dot"/>
+        <!-- Label -->
+        <text x="390" y="318" text-anchor="middle" fill="#E91E78" font-size="13" font-family="Space Mono" opacity="0.95">01 STREET</text>
+      </g>
+
+      <!-- Node 2: 感知公园 (near plaza) -->
+      <g class="node-group" data-type="park" data-zone="corridor"
+         data-title="感知公园 · 广场旁"
+         data-desc="高绿视率 · 注意力恢复段&#10;智能座椅+声景装置&#10;认知域：注意力恢复">
+        <circle cx="560" cy="260" r="38" fill="#E91E7808" stroke="#E91E78" stroke-opacity="0.2" stroke-dasharray="4,4"/>
+        <circle cx="560" cy="260" r="24" fill="#E91E7812" stroke="#E91E78" stroke-opacity="0.15"/>
+        <circle cx="560" cy="260" r="12" fill="#E91E7820" stroke="none"/>
+        <!-- Radial sensing lines -->
+        <line x1="560" y1="222" x2="560" y2="232" stroke="#E91E78" stroke-opacity="0.3" stroke-width="0.5"/>
+        <line x1="560" y1="288" x2="560" y2="298" stroke="#E91E78" stroke-opacity="0.3" stroke-width="0.5"/>
+        <line x1="522" y1="260" x2="532" y2="260" stroke="#E91E78" stroke-opacity="0.3" stroke-width="0.5"/>
+        <line x1="588" y1="260" x2="598" y2="260" stroke="#E91E78" stroke-opacity="0.3" stroke-width="0.5"/>
+        <circle cx="560" cy="260" r="4" fill="#E91E78" class="pulse-dot2"/>
+        <text x="560" y="318" text-anchor="middle" fill="#E91E78" font-size="13" font-family="Space Mono" opacity="0.95">02 PARK</text>
+      </g>
+
+      <!-- Node 3: Box (near market) -->
+      <g class="node-group" data-type="box" data-zone="corridor"
+         data-title="第三空间Box · 超市旁"
+         data-desc="建筑退界中的可插拔单元&#10;购物决策训练界面&#10;认知域：执行功能">
+        <rect x="712" y="232" width="56" height="56" fill="#E91E7810" stroke="#E91E78" stroke-opacity="0.35" transform="rotate(2,740,260)"/>
+        <rect x="722" y="242" width="36" height="36" fill="#E91E7818" stroke="#E91E78" stroke-opacity="0.2"/>
+        <!-- Inner module grid -->
+        <line x1="740" y1="242" x2="740" y2="278" stroke="#E91E78" stroke-opacity="0.15" stroke-width="0.5"/>
+        <line x1="722" y1="260" x2="758" y2="260" stroke="#E91E78" stroke-opacity="0.15" stroke-width="0.5"/>
+        <circle cx="740" cy="260" r="4" fill="#E91E78" class="pulse-dot3"/>
+        <text x="740" y="318" text-anchor="middle" fill="#E91E78" font-size="13" font-family="Space Mono" opacity="0.95">03 BOX</text>
+      </g>
+
+      <!-- Node 4: 连廊 (between buildings) -->
+      <g class="node-group" data-type="corridor" data-zone="corridor"
+         data-title="横行连廊 · 办公楼间"
+         data-desc="建筑间的架空连接层&#10;转角遮蔽处路径记忆训练&#10;认知域：空间记忆">
+        <!-- Two building blocks -->
+        <rect x="880" y="210" width="25" height="100" fill="none" stroke="#E91E78" stroke-opacity="0.2"/>
+        <rect x="945" y="210" width="25" height="100" fill="none" stroke="#E91E78" stroke-opacity="0.2"/>
+        <!-- Connecting bridges -->
+        <rect x="905" y="238" width="40" height="6" fill="#E91E7825" stroke="#E91E78" stroke-opacity="0.3" stroke-width="0.5"/>
+        <rect x="905" y="258" width="40" height="6" fill="#E91E7830" stroke="#E91E78" stroke-opacity="0.35" stroke-width="0.5"/>
+        <rect x="905" y="278" width="40" height="6" fill="#E91E7825" stroke="#E91E78" stroke-opacity="0.3" stroke-width="0.5"/>
+        <circle cx="925" cy="261" r="4" fill="#E91E78" class="pulse-dot"/>
+        <text x="925" y="330" text-anchor="middle" fill="#E91E78" font-size="13" font-family="Space Mono" opacity="0.95">04 CORRIDOR</text>
+      </g>
+
+      <!-- ═══════ RESOURCE ZONE (RIGHT) - 聚合场域 ═══════ -->
+
+      <!-- Aggregated complex -->
+      <g opacity="0.9">
+        <!-- Ground layer: Street -->
+        <rect x="1150" y="280" width="140" height="50" fill="#E91E7808" stroke="#E91E78" stroke-opacity="0.2"/>
+        <g opacity="0.4">
+          <line x1="1160" y1="295" x2="1280" y2="295" stroke="#E91E78" stroke-opacity="0.3" stroke-width="1"/>
+          <line x1="1160" y1="310" x2="1280" y2="310" stroke="#E91E78" stroke-opacity="0.3" stroke-width="1"/>
+        </g>
+        <text x="1220" y="348" text-anchor="middle" fill="#E91E78" font-size="12" font-family="Space Mono" opacity="0.95">STREET LAYER</text>
+
+        <!-- Buildings -->
+        <rect x="1155" y="150" width="40" height="130" fill="none" stroke="#E91E78" stroke-opacity="0.25"/>
+        <rect x="1245" y="130" width="45" height="150" fill="none" stroke="#E91E78" stroke-opacity="0.25"/>
+
+        <!-- Park core -->
+        <circle cx="1220" cy="220" r="35" fill="#E91E7810" stroke="#E91E78" stroke-opacity="0.2" stroke-dasharray="3,3"
+                class="node-group" data-type="park" data-zone="resource"
+                data-title="感知公园 · 资源区核心"
+                data-desc="完整感知场域&#10;智能太极·AR交互·声景系统&#10;最高认知训练密度"/>
+        <circle cx="1220" cy="220" r="20" fill="#E91E7818" stroke="#E91E78" stroke-opacity="0.15"/>
+        <circle cx="1220" cy="220" r="6" fill="#E91E78" class="pulse-dot2"/>
+
+        <!-- Corridor connections -->
+        <line x1="1195" y1="185" x2="1195" y2="165" stroke="#E91E78" stroke-opacity="0.35" stroke-width="4"/>
+        <line x1="1245" y1="200" x2="1245" y2="180" stroke="#E91E78" stroke-opacity="0.35" stroke-width="4"/>
+        <line x1="1195" y1="255" x2="1245" y2="255" stroke="#E91E78" stroke-opacity="0.25" stroke-width="4"/>
+
+        <!-- Box modules scattered -->
+        <rect x="1170" y="245" width="16" height="16" fill="#E91E7830" stroke="#E91E78" stroke-opacity="0.4" transform="rotate(-3,1178,253)"/>
+        <rect x="1255" y="240" width="14" height="14" fill="#E91E7825" stroke="#E91E78" stroke-opacity="0.35" transform="rotate(5,1262,247)"/>
+        <rect x="1210" y="165" width="12" height="12" fill="#E91E7820" stroke="#E91E78" stroke-opacity="0.3"/>
+
+        <text x="1220" y="376" text-anchor="middle" fill="#E91E78" font-size="12" font-family="Space Mono" opacity="0.95">AGGREGATED FIELD</text>
+      </g>
+
+      <!-- ═══════ COGNITIVE INTENSITY GRADIENT ═══════ -->
+      <g id="gradientBar">
+        <rect x="80" y="480" width="1240" height="3" fill="url(#axisGrad)" rx="1"/>
+        <text x="80" y="505" fill="#E91E78" font-size="12" font-family="Space Mono" opacity="0.95">LOW INTENSITY</text>
+        <text x="700" y="505" text-anchor="middle" fill="#E91E78" font-size="12" font-family="Space Mono" opacity="0.95">COGNITIVE GRADIENT →</text>
+        <text x="1320" y="505" text-anchor="end" fill="#E91E78" font-size="12" font-family="Space Mono" opacity="0.95">HIGH INTENSITY</text>
+      </g>
+
+      <!-- ═══════ LAYER 1: 感知-判断-干预 ═══════ -->
+      <g id="layer1" opacity="0" style="transition: opacity 0.5s">
+        <!-- Sensor nodes along axis -->
+        <g filter="url(#glow)">
+          <circle cx="140" cy="260" r="2.5" fill="#E91E78" opacity="0.7"/>
+          <circle cx="300" cy="260" r="2.5" fill="#E91E78" opacity="0.7"/>
+          <circle cx="470" cy="260" r="2.5" fill="#E91E78" opacity="0.7"/>
+          <circle cx="650" cy="260" r="2.5" fill="#E91E78" opacity="0.7"/>
+          <circle cx="830" cy="260" r="2.5" fill="#E91E78" opacity="0.7"/>
+          <circle cx="1020" cy="260" r="2.5" fill="#E91E78" opacity="0.7"/>
+          <circle cx="1220" cy="260" r="2.5" fill="#E91E78" opacity="0.7"/>
+        </g>
+        <!-- Data flow lines upward to judgment layer -->
+        <g stroke="#E91E78" stroke-opacity="0.25" stroke-width="0.5" stroke-dasharray="3,5" class="flow-line">
+          <line x1="140" y1="255" x2="140" y2="140"/>
+          <line x1="300" y1="255" x2="300" y2="140"/>
+          <line x1="470" y1="255" x2="470" y2="140"/>
+          <line x1="650" y1="255" x2="650" y2="140"/>
+          <line x1="830" y1="255" x2="830" y2="140"/>
+          <line x1="1020" y1="255" x2="1020" y2="140"/>
+          <line x1="1220" y1="255" x2="1220" y2="140"/>
+        </g>
+        <!-- Judgment layer bar -->
+        <rect x="120" y="130" width="1120" height="20" fill="#E91E7808" stroke="#E91E78" stroke-opacity="0.15" rx="1"/>
+        <text x="680" y="146" text-anchor="middle" fill="#E91E78" font-size="13" font-family="Space Mono" opacity="0.95" letter-spacing="3">感知 → 判断 → 干预 FEEDBACK LOOP</text>
+        <!-- Feedback arrows -->
+        <path d="M1240,150 Q1260,180 1240,200" stroke="#E91E78" stroke-opacity="0.3" fill="none" stroke-width="0.8" marker-end="url(#arrowMag)"/>
+        <path d="M120,150 Q100,180 120,200" stroke="#E91E78" stroke-opacity="0.3" fill="none" stroke-width="0.8" marker-end="url(#arrowMag)"/>
+      </g>
+
+      <!-- ═══════ LAYER 2: 节点就地生长 ═══════ -->
+      <g id="layer2" opacity="0" style="transition: opacity 0.5s">
+        <!-- Condition tags for corridor nodes -->
+        <!-- Node 1 tags -->
+        <g transform="translate(390,180)">
+          <rect x="-40" y="-12" width="80" height="18" fill="#E91E7820" stroke="#E91E78" stroke-opacity="0.3" rx="1"/>
+          <text x="0" y="5" text-anchor="middle" fill="#E91E78" font-size="11" font-family="Noto Sans SC" opacity="0.95">学校 · 代际</text>
+        </g>
+        <g transform="translate(390,206)">
+          <rect x="-40" y="-12" width="80" height="18" fill="#E91E7815" stroke="#E91E78" stroke-opacity="0.2" rx="1"/>
+          <text x="0" y="5" text-anchor="middle" fill="#E91E78" font-size="11" font-family="Noto Sans SC" opacity="0.9">退界灰空间</text>
+        </g>
+        <!-- Node 2 tags -->
+        <g transform="translate(560,180)">
+          <rect x="-40" y="-12" width="80" height="18" fill="#E91E7820" stroke="#E91E78" stroke-opacity="0.3" rx="1"/>
+          <text x="0" y="5" text-anchor="middle" fill="#E91E78" font-size="11" font-family="Noto Sans SC" opacity="0.95">广场 · 高绿视率</text>
+        </g>
+        <g transform="translate(560,206)">
+          <rect x="-40" y="-12" width="80" height="18" fill="#E91E7815" stroke="#E91E78" stroke-opacity="0.2" rx="1"/>
+          <text x="0" y="5" text-anchor="middle" fill="#E91E78" font-size="11" font-family="Noto Sans SC" opacity="0.9">开放空间余量</text>
+        </g>
+        <!-- Node 3 tags -->
+        <g transform="translate(740,180)">
+          <rect x="-40" y="-12" width="80" height="18" fill="#E91E7820" stroke="#E91E78" stroke-opacity="0.3" rx="1"/>
+          <text x="0" y="5" text-anchor="middle" fill="#E91E78" font-size="11" font-family="Noto Sans SC" opacity="0.95">超市 · 购物</text>
+        </g>
+        <g transform="translate(740,206)">
+          <rect x="-40" y="-12" width="80" height="18" fill="#E91E7815" stroke="#E91E78" stroke-opacity="0.2" rx="1"/>
+          <text x="0" y="5" text-anchor="middle" fill="#E91E78" font-size="11" font-family="Noto Sans SC" opacity="0.9">建筑退界</text>
+        </g>
+        <!-- Node 4 tags -->
+        <g transform="translate(925,180)">
+          <rect x="-40" y="-12" width="80" height="18" fill="#E91E7820" stroke="#E91E78" stroke-opacity="0.3" rx="1"/>
+          <text x="0" y="5" text-anchor="middle" fill="#E91E78" font-size="11" font-family="Noto Sans SC" opacity="0.95">办公楼 · 转角</text>
+        </g>
+        <g transform="translate(925,206)">
+          <rect x="-40" y="-12" width="80" height="18" fill="#E91E7815" stroke="#E91E78" stroke-opacity="0.2" rx="1"/>
+          <text x="0" y="5" text-anchor="middle" fill="#E91E78" font-size="11" font-family="Noto Sans SC" opacity="0.9">视线遮蔽</text>
+        </g>
+        <!-- Alternation indicator -->
+        <g transform="translate(0,340)">
+          <text x="390" y="2" text-anchor="middle" fill="#E91E78" font-size="13" font-family="Space Mono" opacity="0.95">社交认知</text>
+          <text x="480" y="2" text-anchor="middle" fill="#E91E78" font-size="16" opacity="0.95">↔</text>
+          <text x="560" y="2" text-anchor="middle" fill="#E91E78" font-size="13" font-family="Space Mono" opacity="0.95">注意力恢复</text>
+          <text x="650" y="2" text-anchor="middle" fill="#E91E78" font-size="16" opacity="0.95">↔</text>
+          <text x="740" y="2" text-anchor="middle" fill="#E91E78" font-size="13" font-family="Space Mono" opacity="0.95">执行功能</text>
+          <text x="830" y="2" text-anchor="middle" fill="#E91E78" font-size="16" opacity="0.95">↔</text>
+          <text x="925" y="2" text-anchor="middle" fill="#E91E78" font-size="13" font-family="Space Mono" opacity="0.95">空间记忆</text>
+        </g>
+      </g>
+
+      <!-- ═══════ LAYER 3: 时空节奏 ═══════ -->
+      <g id="layer3" opacity="0" style="transition: opacity 0.5s">
+        <!-- 800m segment markers -->
+        <g stroke="#E91E78" stroke-opacity="0.3" stroke-width="0.5" stroke-dasharray="1,3">
+          <line x1="420" y1="380" x2="420" y2="410"/>
+          <line x1="660" y1="380" x2="660" y2="410"/>
+          <line x1="900" y1="380" x2="900" y2="410"/>
+        </g>
+        <text x="540" y="408" text-anchor="middle" fill="#E91E78" font-size="12" font-family="Space Mono" opacity="0.95">~800m 认知段落 A</text>
+        <text x="780" y="408" text-anchor="middle" fill="#E91E78" font-size="12" font-family="Space Mono" opacity="0.95">~800m 认知段落 B</text>
+
+        <!-- Rhythm points (200-300m) -->
+        <g>
+          <circle cx="440" cy="265" r="6" fill="none" stroke="#E91E78" stroke-opacity="0.3" stroke-dasharray="2,2"/>
+          <text x="440" y="282" text-anchor="middle" fill="#E91E78" font-size="11" opacity="0.95">节奏点</text>
+        </g>
+        <g>
+          <circle cx="620" cy="265" r="6" fill="none" stroke="#E91E78" stroke-opacity="0.3" stroke-dasharray="2,2"/>
+          <text x="620" y="282" text-anchor="middle" fill="#E91E78" font-size="11" opacity="0.95">节奏点</text>
+        </g>
+        <g>
+          <circle cx="800" cy="265" r="6" fill="none" stroke="#E91E78" stroke-opacity="0.3" stroke-dasharray="2,2"/>
+          <text x="800" y="282" text-anchor="middle" fill="#E91E78" font-size="11" opacity="0.95">节奏点</text>
+        </g>
+
+        <!-- Landmark anchors -->
+        <g>
+          <polygon points="480,245 484,255 476,255" fill="#E91E78" opacity="0.4"/>
+          <text x="480" y="238" text-anchor="middle" fill="#E91E78" font-size="11" opacity="0.95">锚点</text>
+        </g>
+        <g>
+          <polygon points="700,245 704,255 696,255" fill="#E91E78" opacity="0.4"/>
+          <text x="700" y="238" text-anchor="middle" fill="#E91E78" font-size="11" opacity="0.95">锚点</text>
+        </g>
+        <g>
+          <polygon points="960,245 964,255 956,255" fill="#E91E78" opacity="0.4"/>
+          <text x="960" y="238" text-anchor="middle" fill="#E91E78" font-size="11" opacity="0.95">锚点</text>
+        </g>
+
+        <!-- Time-mode bar -->
+        <g transform="translate(340,416)">
+          <rect x="0" y="0" width="600" height="28" fill="#E91E7808" stroke="#E91E78" stroke-opacity="0.15" rx="1"/>
+          <!-- Peak segments -->
+          <rect x="30" y="4" width="60" height="20" fill="#E91E7830" rx="1"/>
+          <text x="60" y="18" text-anchor="middle" fill="#E91E78" font-size="12" font-family="Space Mono" opacity="0.95">9-10h</text>
+          <rect x="180" y="4" width="60" height="20" fill="#E91E7830" rx="1"/>
+          <text x="210" y="18" text-anchor="middle" fill="#E91E78" font-size="12" font-family="Space Mono" opacity="0.95">12-13h</text>
+          <rect x="380" y="4" width="60" height="20" fill="#E91E7830" rx="1"/>
+          <text x="410" y="18" text-anchor="middle" fill="#E91E78" font-size="12" font-family="Space Mono" opacity="0.95">18-19h</text>
+          <!-- Non-peak labels -->
+          <text x="130" y="18" text-anchor="middle" fill="#E91E78" font-size="11" font-family="Noto Sans SC" opacity="0.95">认知刺激</text>
+          <text x="300" y="18" text-anchor="middle" fill="#E91E78" font-size="11" font-family="Noto Sans SC" opacity="0.95">认知刺激</text>
+          <text x="490" y="18" text-anchor="middle" fill="#E91E78" font-size="11" font-family="Noto Sans SC" opacity="0.95">认知刺激</text>
+          <!-- Legend -->
+          <text x="610" y="12" fill="#E91E78" font-size="11" font-family="Space Mono" opacity="0.95">■ 导流干预</text>
+          <text x="610" y="24" fill="#E91E78" font-size="11" font-family="Space Mono" opacity="0.95">□ 认知模式</text>
+        </g>
+      </g>
+
+    </svg>
+
+    <!-- Guideline info panels -->
+    <div class="guideline-panel" id="panel1">
+      <div class="gp-title">导则一 ｜ 感知-判断-干预闭环</div>
+      全轴线共享感知基础设施，传感节点覆盖三段区域。感知层采集行为·感官·情感·模态四层数据，判断层评估暴露风险与干预窗口，干预层触发空间调节。反馈回路持续修正判断参数。
+      <div class="gp-tags">
+        <span class="gp-tag">行为感知</span>
+        <span class="gp-tag">噪声/热环境</span>
+        <span class="gp-tag">人群识别</span>
+        <span class="gp-tag">阈值触发</span>
+        <span class="gp-tag">反馈修正</span>
+      </div>
+    </div>
+    <div class="guideline-panel" id="panel2">
+      <div class="gp-title">导则二 ｜ 节点就地生长与交替</div>
+      每个节点由三重就地条件生成：既有活动 × 空间剩余 × 感知环境。相邻节点认知刺激类型交替变化，形成认知域轮换激活序列。
+      <div class="gp-tags">
+        <span class="gp-tag">既有活动</span>
+        <span class="gp-tag">空间剩余</span>
+        <span class="gp-tag">感知环境</span>
+        <span class="gp-tag">交替激活</span>
+      </div>
+    </div>
+    <div class="guideline-panel" id="panel3">
+      <div class="gp-title">导则三 ｜ 廊道空间时空节奏规划</div>
+      800m为一个认知段落，200-300m设节奏调节点，锚点利用既有建筑特征。高峰时段导流干预，非高峰转为认知刺激模式。
+      <div class="gp-tags">
+        <span class="gp-tag">800m段落</span>
+        <span class="gp-tag">锚点Landmark</span>
+        <span class="gp-tag">节奏调节点</span>
+        <span class="gp-tag">时段切换</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-icon street"></div>交感街道</div>
+    <div class="legend-item"><div class="legend-icon corridor"></div>横行连廊</div>
+    <div class="legend-item"><div class="legend-icon park"></div>感知公园</div>
+    <div class="legend-item"><div class="legend-icon box"></div>第三空间Box</div>
+  </div>
+</div>
+
+<div class="toggles" aria-label="空间导则切换">
+  <button type="button" class="toggle-btn" data-layer="1" onclick="toggleLayer(1)">导则一 感知-判断-干预</button>
+  <button type="button" class="toggle-btn" data-layer="2" onclick="toggleLayer(2)">导则二 节点就地生长</button>
+  <button type="button" class="toggle-btn" data-layer="3" onclick="toggleLayer(3)">导则三 时空节奏</button>
+</div>
+
+<script>
+  // Layer toggle
+  const activeLayers = new Set();
+
+  function toggleLayer(n) {
+    const btn = document.querySelector(`.toggle-btn[data-layer="${n}"]`);
+    const layer = document.getElementById(`layer${n}`);
+    const panel = document.getElementById(`panel${n}`);
+
+    if (activeLayers.has(n)) {
+      activeLayers.delete(n);
+      btn.classList.remove('active');
+      layer.style.opacity = '0';
+      panel.classList.remove('show');
+    } else {
+      activeLayers.add(n);
+      btn.classList.add('active');
+      layer.style.opacity = '1';
+      panel.classList.add('show');
+    }
+
+    // Hide other panels
+    for (let i = 1; i <= 3; i++) {
+      if (i !== n) {
+        document.getElementById(`panel${i}`).classList.remove('show');
+        if (!activeLayers.has(i)) continue;
+      }
+    }
+    // Show only the most recently toggled active panel
+    document.querySelectorAll('.guideline-panel').forEach(p => p.classList.remove('show'));
+    if (activeLayers.size > 0) {
+      const last = Math.max(...activeLayers);
+      document.getElementById(`panel${last}`).classList.add('show');
+    }
+  }
+
+  // Tooltip
+  const tooltip = document.getElementById('tooltip');
+  const ttTitle = tooltip.querySelector('.tt-title');
+  const ttBody = tooltip.querySelector('.tt-body');
+
+  document.querySelectorAll('.node-group').forEach(node => {
+    node.addEventListener('mouseenter', (e) => {
+      const title = node.dataset.title;
+      const desc = node.dataset.desc;
+      if (!title) return;
+      ttTitle.textContent = title;
+      ttBody.innerHTML = desc.replace(/\n/g, '<br>');
+      tooltip.classList.add('show');
+    });
+
+    node.addEventListener('mousemove', (e) => {
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY - 10) + 'px';
+    });
+
+    node.addEventListener('mouseleave', () => {
+      tooltip.classList.remove('show');
+    });
+  });
+
+  // Also handle circle elements with data attributes
+  document.querySelectorAll('circle[data-title]').forEach(node => {
+    node.style.cursor = 'pointer';
+    node.addEventListener('mouseenter', (e) => {
+      ttTitle.textContent = node.dataset.title;
+      ttBody.innerHTML = node.dataset.desc.replace(/\n/g, '<br>');
+      tooltip.classList.add('show');
+    });
+    node.addEventListener('mousemove', (e) => {
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY - 10) + 'px';
+    });
+    node.addEventListener('mouseleave', () => {
+      tooltip.classList.remove('show');
+    });
+  });
+</script>
+</body>
+</html>
