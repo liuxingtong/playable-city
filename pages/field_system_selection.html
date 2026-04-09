@@ -507,7 +507,7 @@ function simulateEdges() {
   return edges;
 }
 
-const CSV_FILENAME = '../data/cld/cld_priority.csv';
+const CSV_FILENAME = '../data/cld_priority.csv';
 
 function estimateNodePositions(rawEdges) {
   const nodes = new Set();
@@ -576,7 +576,7 @@ function buildEdgesFromCsvRows(rows) {
 
 async function loadEdges() {
   try {
-    const rows = await d3.csv(CSV_FILENAME, d3.autoType);
+    const rows = await d3.csv(CSV_FILENAME, { cache: 'no-store' }, d3.autoType);
     if (!rows || !rows.length) throw new Error('empty');
     if (rows[0].priority === undefined || rows[0].N08 === undefined) throw new Error('需要 priority、N08 等列（W_work=N_YP×N08）');
     return buildEdgesFromCsvRows(rows);

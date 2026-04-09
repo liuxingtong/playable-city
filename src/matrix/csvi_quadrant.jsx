@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import * as d3 from "d3";
+import { PERSONA_AXES, attachPersonaScoresAndPercentiles } from "./personaFive.js";
 
 /* ═══════════════════ THEME ═══════════════════ */
 const T = {
@@ -10,16 +11,8 @@ const T = {
   font: "'DM Sans','Noto Sans SC',system-ui,sans-serif",
 };
 
-const Q_COLORS = {
-  Q1: "rgba(218,75,163,0.10)", Q2: "rgba(140,55,170,0.08)",
-  Q3: "rgba(30,15,35,0.06)",  Q4: "rgba(100,45,130,0.07)",
-};
-const Q_LABELS = {
-  Q1: { cn: "双驱停留", en: "Dual Retention" },
-  Q2: { cn: "老年专属", en: "Elder-Centric" },
-  Q3: { cn: "双低衰退", en: "Dual Decline" },
-  Q4: { cn: "工作主导", en: "Work-Dominated" },
-};
+const P_KEYS = ["p_elder", "p_student", "p_white", "p_family", "p_wander"];
+const WP_KEYS = ["Wp_elder", "Wp_student", "Wp_white", "Wp_family", "Wp_wander"];
 
 /** 与 lib/ac-dom-aggregate.js 同步：五主导列齐全则五列均值；否则四列齐全则四列均值；否则 csvi_AC_phys */
 const AC_DOM_KEYS = ["AC_med_dom", "AC_tech_dom", "AC_mkt_dom", "AC_sport_dom", "AC_soc_cul_dom"];
@@ -62,39 +55,7 @@ function csviRgba(v, a=1) { const [r,g,b] = csviRgb(v); return `rgba(${r},${g},$
 /* ═══════════════════ SYNTHETIC DATA ═══════════════════ */
 /* ═══════════════════ EMPIRICAL PERCENTILE (same as map_intervention_nodes) ═══════════════════ */
 function attachPercentileRanks(data) {
-  if (!data?.length) return data;
-  const n = data.length;
-  function rankKey(getVal, setKey) {
-    if (n === 1) {
-      data[0][setKey] = 0.5;
-      return;
-    }
-    const idx = d3.range(n);
-    idx.sort((ia, ib) => {
-      const a = Number.isFinite(getVal(data[ia])) ? getVal(data[ia]) : 0;
-      const b = Number.isFinite(getVal(data[ib])) ? getVal(data[ib]) : 0;
-      return a - b;
-    });
-    const pr = new Array(n);
-    let j = 0;
-    while (j < n) {
-      let k = j;
-      const base = Number.isFinite(getVal(data[idx[j]])) ? getVal(data[idx[j]]) : 0;
-      while (k + 1 < n) {
-        const vb = Number.isFinite(getVal(data[idx[k + 1]])) ? getVal(data[idx[k + 1]]) : 0;
-        if (vb !== base) break;
-        k++;
-      }
-      const mid = (j + k) / 2;
-      const p = mid / (n - 1);
-      for (let t = j; t <= k; t++) pr[idx[t]] = p;
-      j = k + 1;
-    }
-    for (let i = 0; i < n; i++) data[i][setKey] = pr[i];
-  }
-  rankKey((d) => d.W_elder, "p_elder");
-  rankKey((d) => d.W_work, "p_work");
-  return data;
+  return attachPersonaScoresAndPercentiles(data);
 }
 
 function makeDemoData(n = 3000) {
@@ -113,10 +74,14 @@ function makeDemoData(n = 3000) {
     const S = csvi_S_env + csvi_S_contact;
     const AC = csvi_AC_phys * csvi_AC_social;
     const CSVI = (csvi_E * S) / (AC + 1);
+    const N_CD = Math.max(0, Math.min(1, d3.randomNormal(0.2, 0.12)() ));
+    const N_OS = Math.max(0, Math.min(1, d3.randomNormal(0.35, 0.14)() ));
     return {
       id: i, W_work, W_elder, CSVI, csvi_E, csvi_S_env, csvi_S_contact,
       csvi_AC_phys, ac_phys_tabular: csvi_AC_phys, hasAcDom: false,
       csvi_AC_social, S, AC, N_YP, N08,
+      cpvi_E: csvi_E, cpvi_S: S, cpvi_AC: csvi_AC_phys, N_UD: N_YP, N09: N08, N_CD, N_OS,
+      acPhysEff: csvi_AC_phys,
     };
   });
   return attachPercentileRanks(arr);
@@ -125,62 +90,91 @@ function makeDemoData(n = 3000) {
 /* ═══════════════════ PROCESS UPLOADED DATA ═══════════════════ */
 function processUploadedRows(rows) {
   const out = rows.map((d, i) => {
-    const N_YP = +d.N_YP || 0;
-    const N08  = +d.N08 || 0;
-    const csvi_E = +d.csvi_E || 0;
+    const N_YP = +d.N_YP || +d.N_UD || +d.pop_total || 0;
+    const N08 = +d.N08 || +d.N09 || 0;
+    const csvi_E = +d.csvi_E || +d.cpvi_E || 0;
     const csvi_AC_phys_eff = effectiveAcPhysFromRow(d);
-    const csvi_AC_phys_tab = Number(d.csvi_AC_phys) || 0;
+    const csvi_AC_phys_tab = Number(d.csvi_AC_phys) || Number(d.cpvi_AC) || 0;
     const hasAcDom = rowHasAcDomSplit(d);
     const csvi_AC_social = +d.csvi_AC_social || 0;
     const csvi_S_env = +d.csvi_S_env || 0;
     const csvi_S_contact = +d.csvi_S_contact || 0;
+    let cpvi_S = Number(d.cpvi_S);
+    if (!Number.isFinite(cpvi_S)) cpvi_S = csvi_S_env + csvi_S_contact;
     const W_work = N_YP * N08;
     const W_elder = csvi_E * (csvi_AC_phys_eff + 1);
     const S = csvi_S_env + csvi_S_contact;
     const AC = csvi_AC_phys_eff * csvi_AC_social;
     const CSVI = (csvi_E * S) / (AC + 1);
+    const N_CD = +d.N_CD || 0;
+    const N_OS = +d.N_OS || 0;
     return {
       id: i, W_work, W_elder, CSVI, csvi_E, csvi_S_env, csvi_S_contact,
       csvi_AC_phys: csvi_AC_phys_eff, ac_phys_tabular: csvi_AC_phys_tab, hasAcDom,
       csvi_AC_social, S, AC, N_YP, N08, lon: +d.lon, lat: +d.lat,
+      cpvi_E: csvi_E, cpvi_S, cpvi_AC: csvi_AC_phys_eff, N_UD: N_YP, N09: N08, N_CD, N_OS,
+      acPhysEff: csvi_AC_phys_eff,
     };
   });
   return attachPercentileRanks(out);
 }
 
-/* ═══════════════════ QUADRANT CHART (CANVAS) ═══════════════════ */
-const MARGIN = { top: 50, right: 48, bottom: 54, left: 58 };
-const MARG_H = 44; // marginal histogram height
+/* ═══════════════════ RADAR · 五类在地智能体（Canvas） ═══════════════════ */
+const MARGIN_R = { top: 52, right: 36, bottom: 48, left: 36 };
 
-function QuadrantCanvas({ data, width, height, hovered, setHovered, thresholds }) {
+function radarVertex(cx, cy, R, axisIndex, t) {
+  const a = -Math.PI / 2 + (axisIndex * 2 * Math.PI) / 5;
+  return [cx + R * t * Math.cos(a), cy + R * t * Math.sin(a)];
+}
+
+function tracePentagonPath(ctx, cx, cy, R, d) {
+  for (let i = 0; i < 5; i++) {
+    const t = Math.max(0, Math.min(1, d[P_KEYS[i]] ?? 0));
+    const [x, y] = radarVertex(cx, cy, R, i, t);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+function RadarCanvas({ data, width, height, hovered, setHovered }) {
   const canvasRef = useRef(null);
   const qtRef = useRef(null);
-  const plotW = width - MARGIN.left - MARGIN.right;
-  const plotH = height - MARGIN.top - MARGIN.bottom - MARG_H;
+  const plotW = width - MARGIN_R.left - MARGIN_R.right;
+  const plotH = height - MARGIN_R.top - MARGIN_R.bottom;
+  const cx = MARGIN_R.left + plotW / 2;
+  const cy = MARGIN_R.top + plotH / 2;
+  const R = Math.min(plotW, plotH) * 0.36;
 
-  const { xScale, yScale, csviNorm, sizeScale } = useMemo(() => {
-    const xExt = d3.extent(data, d => d.W_work);
-    const yExt = d3.extent(data, d => d.W_elder);
-    const cExt = d3.extent(data, d => d.CSVI);
-    const xPad = (xExt[1] - xExt[0]) * 0.05 || 0.01;
-    const yPad = (yExt[1] - yExt[0]) * 0.05 || 0.001;
-    return {
-      xScale: d3.scaleLinear().domain([xExt[0]-xPad, xExt[1]+xPad]).range([0, plotW]),
-      yScale: d3.scaleLinear().domain([yExt[0]-yPad, yExt[1]+yPad]).range([plotH, 0]),
-      csviNorm: d3.scaleLinear().domain(cExt[0] === cExt[1] ? [0,1] : cExt).range([0,1]).clamp(true),
-      sizeScale: d3.scaleSqrt().domain(cExt[0] === cExt[1] ? [0,1] : cExt).range([1.8, 7]).clamp(true),
-    };
-  }, [data, plotW, plotH]);
+  const csviNorm = useMemo(() => {
+    const cExt = d3.extent(data, (d) => d.CSVI);
+    return d3.scaleLinear().domain(cExt[0] === cExt[1] ? [0, 1] : cExt).range([0, 1]).clamp(true);
+  }, [data]);
 
-  // Build quadtree for hover detection
+  const meanP = useMemo(() => P_KEYS.map((k) => d3.mean(data, (d) => d[k]) || 0), [data]);
+
+  const centroids = useMemo(() => {
+    return data.map((d) => {
+      let sx = 0,
+        sy = 0;
+      for (let i = 0; i < 5; i++) {
+        const t = Math.max(0, Math.min(1, d[P_KEYS[i]] ?? 0));
+        const [x, y] = radarVertex(cx, cy, R, i, t);
+        sx += x;
+        sy += y;
+      }
+      return { x: sx / 5, y: sy / 5, d };
+    });
+  }, [data, cx, cy, R]);
+
   useEffect(() => {
-    qtRef.current = d3.quadtree()
-      .x(d => xScale(d.W_work))
-      .y(d => yScale(d.W_elder))
-      .addAll(data);
-  }, [data, xScale, yScale]);
+    qtRef.current = d3
+      .quadtree()
+      .x((p) => p.x)
+      .y((p) => p.y)
+      .addAll(centroids);
+  }, [centroids]);
 
-  // Draw
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -191,190 +185,138 @@ function QuadrantCanvas({ data, width, height, hovered, setHovered, thresholds }
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
 
-    ctx.save();
-    ctx.translate(MARGIN.left, MARGIN.top + MARG_H);
-
-    // — Quadrant backgrounds —
-    const mx = xScale(thresholds.x), my = yScale(thresholds.y);
-    ctx.fillStyle = Q_COLORS.Q2; ctx.fillRect(0, 0, mx, my);
-    ctx.fillStyle = Q_COLORS.Q1; ctx.fillRect(mx, 0, plotW - mx, my);
-    ctx.fillStyle = Q_COLORS.Q3; ctx.fillRect(0, my, mx, plotH - my);
-    ctx.fillStyle = Q_COLORS.Q4; ctx.fillRect(mx, my, plotW - mx, plotH - my);
-
-    // — Grid —
-    ctx.strokeStyle = "rgba(255,255,255,0.04)";
-    ctx.lineWidth = 0.5;
-    const xTicks = xScale.ticks(6), yTicks = yScale.ticks(6);
-    for (const t of xTicks) { const x = xScale(t); ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,plotH); ctx.stroke(); }
-    for (const t of yTicks) { const y = yScale(t); ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(plotW,y); ctx.stroke(); }
-
-    // — Quadrant dividers —
-    ctx.setLineDash([5, 4]);
-    ctx.strokeStyle = "rgba(218,75,163,0.35)";
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(mx, 0); ctx.lineTo(mx, plotH); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, my); ctx.lineTo(plotW, my); ctx.stroke();
-    ctx.setLineDash([]);
-
-    // — Quadrant labels —
-    ctx.font = `500 10px ${T.font}`;
-    ctx.textAlign = "center";
-    const qlPos = [
-      { x: (mx+plotW)/2, y: 16, q: "Q1" }, { x: mx/2, y: 16, q: "Q2" },
-      { x: mx/2, y: plotH - 8, q: "Q3" }, { x: (mx+plotW)/2, y: plotH - 8, q: "Q4" },
-    ];
-    for (const p of qlPos) {
-      ctx.fillStyle = "rgba(218,75,163,0.35)";
-      ctx.fillText(`${p.q} ${Q_LABELS[p.q].cn}`, p.x, p.y);
-    }
-
-    // — KDE Contours —
-    try {
-      const contourGen = d3.contourDensity()
-        .x(d => xScale(d.W_work))
-        .y(d => yScale(d.W_elder))
-        .size([plotW, plotH])
-        .bandwidth(18)
-        .thresholds(12);
-      const contours = contourGen(data);
-      const cMax = d3.max(contours, c => c.value) || 1;
-      const pathGen = d3.geoPath().context(ctx);
-      for (const c of contours) {
-        const intensity = c.value / cMax;
-        ctx.beginPath();
-        pathGen(c);
-        ctx.fillStyle = csviRgba(intensity * 0.6, intensity * 0.12);
-        ctx.fill();
-      }
-    } catch(e) { /* contour can fail with too few points */ }
-
-    // — Points (sorted: low CSVI first) —
-    const sorted = [...data].sort((a, b) => a.CSVI - b.CSVI);
-    for (const d of sorted) {
-      const px = xScale(d.W_work);
-      const py = yScale(d.W_elder);
-      const nv = csviNorm(d.CSVI);
-      const r = sizeScale(d.CSVI);
-      const isHov = hovered && d.id === hovered.id;
+    for (let g = 1; g <= 4; g++) {
+      const rg = (R * g) / 4;
       ctx.beginPath();
-      ctx.arc(px, py, isHov ? r + 3 : r, 0, Math.PI * 2);
-      ctx.fillStyle = csviRgba(nv, isHov ? 0.95 : 0.55);
-      ctx.fill();
-      if (isHov) {
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+      for (let i = 0; i <= 5; i++) {
+        const ii = i % 5;
+        const [x, y] = radarVertex(cx, cy, rg, ii, 1);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
       }
+      ctx.closePath();
+      ctx.strokeStyle = "rgba(255,255,255,0.07)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
     }
 
-    // — Axes ticks labels —
-    ctx.fillStyle = T.textDim;
-    ctx.font = `300 9px ${T.font}`;
-    ctx.textAlign = "center";
-    for (const t of xTicks) { ctx.fillText(t.toFixed(2), xScale(t), plotH + 14); }
-    ctx.textAlign = "right";
-    for (const t of yTicks) { ctx.fillText(t.toFixed(3), -8, yScale(t) + 3); }
+    for (let i = 0; i < 5; i++) {
+      const [x, y] = radarVertex(cx, cy, R, i, 1);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(x, y);
+      ctx.strokeStyle = "rgba(218,75,163,0.22)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.font = `500 10px ${T.font}`;
+      ctx.fillStyle = T.textMid;
+      ctx.textAlign = "center";
+      const lx = cx + (R + 28) * Math.cos(-Math.PI / 2 + (i * 2 * Math.PI) / 5);
+      const ly = cy + (R + 28) * Math.sin(-Math.PI / 2 + (i * 2 * Math.PI) / 5);
+      ctx.fillText(PERSONA_AXES[i].cn, lx, ly + 3);
+    }
 
-    ctx.restore();
+    const pool = data.length > 2400 ? d3.shuffle([...data]).slice(0, 2400) : data;
+    const sorted = [...pool].sort((a, b) => a.CSVI - b.CSVI);
+    for (const d of sorted) {
+      const nv = csviNorm(d.CSVI);
+      ctx.beginPath();
+      tracePentagonPath(ctx, cx, cy, R, d);
+      ctx.fillStyle = csviRgba(nv, 0.035);
+      ctx.fill();
+    }
+    for (const d of sorted) {
+      const nv = csviNorm(d.CSVI);
+      ctx.beginPath();
+      tracePentagonPath(ctx, cx, cy, R, d);
+      ctx.strokeStyle = csviRgba(nv, 0.11);
+      ctx.lineWidth = 0.4;
+      ctx.stroke();
+    }
 
-    // — Axis titles —
-    ctx.fillStyle = T.textMid;
-    ctx.font = `400 11px ${T.font}`;
-    ctx.textAlign = "center";
-    ctx.fillText("W_work  =  N_YP × Q    →    工作人口停留意愿", MARGIN.left + plotW / 2, height - 10);
-    ctx.save();
-    ctx.translate(14, MARGIN.top + MARG_H + plotH / 2);
-    ctx.rotate(-Math.PI / 2);
-      ctx.fillText("W_elder  =  E × (AC_agg+1)    →    老年人停留意愿", 0, 0);
-    ctx.restore();
-
-    // — Marginal: top (W_work density) —
-    const margTop = MARGIN.top;
-    ctx.save();
-    ctx.translate(MARGIN.left, margTop);
-    const kde = kernelDensityEstimator(kernelEpanechnikov(0.03), xScale.ticks(80));
-    const densityX = kde(data.map(d => d.W_work));
-    const dyMax = d3.max(densityX, d => d[1]) || 1;
-    const dyScale = d3.scaleLinear().domain([0, dyMax]).range([MARG_H, 0]);
+    const meanD = { id: -1 };
+    P_KEYS.forEach((k, i) => {
+      meanD[k] = meanP[i];
+    });
     ctx.beginPath();
-    ctx.moveTo(xScale(densityX[0][0]), MARG_H);
-    for (const [x, y] of densityX) { ctx.lineTo(xScale(x), dyScale(y)); }
-    ctx.lineTo(xScale(densityX[densityX.length-1][0]), MARG_H);
-    ctx.closePath();
-    ctx.fillStyle = "rgba(218,75,163,0.12)";
+    tracePentagonPath(ctx, cx, cy, R, meanD);
+    ctx.fillStyle = "rgba(218,75,163,0.14)";
     ctx.fill();
-    ctx.strokeStyle = "rgba(218,75,163,0.4)";
-    ctx.lineWidth = 1;
     ctx.beginPath();
-    for (let i = 0; i < densityX.length; i++) {
-      const [x, y] = densityX[i];
-      i === 0 ? ctx.moveTo(xScale(x), dyScale(y)) : ctx.lineTo(xScale(x), dyScale(y));
-    }
+    tracePentagonPath(ctx, cx, cy, R, meanD);
+    ctx.strokeStyle = "rgba(255,255,255,0.92)";
+    ctx.lineWidth = 2.2;
     ctx.stroke();
-    ctx.restore();
 
-    // — Marginal: right (W_elder density) —
-    ctx.save();
-    ctx.translate(MARGIN.left + plotW + 4, MARGIN.top + MARG_H);
-    const kdeY = kernelDensityEstimator(kernelEpanechnikov(0.005), yScale.ticks(80));
-    const densityY = kdeY(data.map(d => d.W_elder));
-    const dxMax = d3.max(densityY, d => d[1]) || 1;
-    const dxScale = d3.scaleLinear().domain([0, dxMax]).range([0, MARGIN.right - 4]);
-    ctx.beginPath();
-    ctx.moveTo(0, yScale(densityY[0][0]));
-    for (const [y, v] of densityY) { ctx.lineTo(dxScale(v), yScale(y)); }
-    ctx.lineTo(0, yScale(densityY[densityY.length-1][0]));
-    ctx.closePath();
-    ctx.fillStyle = "rgba(218,75,163,0.12)";
-    ctx.fill();
-    ctx.restore();
+    if (hovered && hovered.id !== -1) {
+      ctx.beginPath();
+      tracePentagonPath(ctx, cx, cy, R, hovered);
+      ctx.fillStyle = "rgba(218,75,163,0.22)";
+      ctx.fill();
+      ctx.beginPath();
+      tracePentagonPath(ctx, cx, cy, R, hovered);
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2.4;
+      ctx.stroke();
+    }
 
-  }, [data, width, height, hovered, thresholds, xScale, yScale, csviNorm, sizeScale, plotW, plotH]);
+    ctx.fillStyle = T.textDim;
+    ctx.font = `400 10px ${T.font}`;
+    ctx.textAlign = "center";
+    ctx.fillText(
+      "五维雷达 · 各轴 = 一类人群的 W 分轴在边表上的分位 P(Wp) · 叠层 = 街段 · 白边 = 全体均值",
+      width / 2,
+      height - 12
+    );
+  }, [data, width, height, hovered, cx, cy, R, csviNorm, meanP]);
 
-  // Mouse handler
-  const handleMouse = useCallback((e) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !qtRef.current) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left - MARGIN.left;
-    const my = e.clientY - rect.top - MARGIN.top - MARG_H;
-    if (mx < 0 || mx > plotW || my < 0 || my > plotH) { setHovered(null); return; }
-    const found = qtRef.current.find(mx, my, 15);
-    setHovered(found || null);
-  }, [plotW, plotH, setHovered]);
+  const handleMouse = useCallback(
+    (e) => {
+      const canvas = canvasRef.current;
+      if (!canvas || !qtRef.current) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const found = qtRef.current.find(mx, my, 24);
+      setHovered(found ? found.d : null);
+    },
+    [setHovered]
+  );
 
   return (
     <div style={{ position: "relative" }}>
-      <canvas
-        ref={canvasRef}
-        style={{ width, height, cursor: hovered ? "crosshair" : "default" }}
-        onMouseMove={handleMouse}
-        onMouseLeave={() => setHovered(null)}
-      />
-      {hovered && (
-        <div style={{
-          position: "absolute",
-          left: MARGIN.left + xScale(hovered.W_work) + 14,
-          top: MARGIN.top + MARG_H + yScale(hovered.W_elder) - 60,
-          background: T.panel, border: `1px solid ${T.accentDim}`,
-          borderRadius: 8, padding: "10px 14px", pointerEvents: "none",
-          backdropFilter: "blur(12px)", zIndex: 10, minWidth: 180,
-          fontFamily: T.font, fontSize: 11, color: T.text,
-          boxShadow: "0 4px 20px rgba(0,0,0,0.5)"
-        }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: T.accent, marginBottom: 6 }}>
-            CSVI = {hovered.CSVI.toFixed(4)}
-          </div>
-          <Row label="W_work" val={hovered.W_work.toFixed(4)} />
-          <Row label="W_elder" val={hovered.W_elder.toFixed(5)} />
-          <Row label="P_work（分位）" val={(hovered.p_work ?? 0).toFixed(3)} />
-          <Row label="P_elder（分位）" val={(hovered.p_elder ?? 0).toFixed(3)} />
-          <Row label="E (暴露)" val={hovered.csvi_E.toFixed(3)} />
-          <Row label="S_env" val={hovered.csvi_S_env.toFixed(3)} />
-          <Row label="S_contact" val={hovered.csvi_S_contact.toFixed(3)} />
-          <Row label="AC_phys（矩阵用）" val={hovered.csvi_AC_phys.toFixed(4)} />
-          {hovered.hasAcDom ? <Row label="AC_phys（表列）" val={hovered.ac_phys_tabular.toFixed(4)} /> : null}
-          <Row label="AC_social" val={hovered.csvi_AC_social.toFixed(3)} />
+      <canvas ref={canvasRef} style={{ width, height, cursor: "default" }} onMouseMove={handleMouse} onMouseLeave={() => setHovered(null)} />
+      {hovered && hovered.id !== -1 && (
+        <div
+          style={{
+            position: "absolute",
+            right: 12,
+            top: MARGIN_R.top + 4,
+            background: T.panel,
+            border: `1px solid ${T.accentDim}`,
+            borderRadius: 8,
+            padding: "10px 14px",
+            pointerEvents: "none",
+            backdropFilter: "blur(12px)",
+            zIndex: 10,
+            minWidth: 200,
+            fontFamily: T.font,
+            fontSize: 11,
+            color: T.text,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.accent, marginBottom: 6 }}>CPVI = {hovered.CSVI.toFixed(4)}</div>
+          {PERSONA_AXES.map((ax, i) => (
+            <Row
+              key={ax.id}
+              label={`W 分位 · ${ax.cn}`}
+              val={`P=${(hovered[P_KEYS[i]] ?? 0).toFixed(3)} · Wp=${(hovered[WP_KEYS[i]] ?? 0).toFixed(3)}`}
+            />
+          ))}
+          <Row label="E" val={hovered.csvi_E.toFixed(3)} />
+          <Row label="S_env / S_con" val={`${hovered.csvi_S_env.toFixed(2)} / ${hovered.csvi_S_contact.toFixed(2)}`} />
+          <Row label="AC（矩阵）" val={hovered.csvi_AC_phys.toFixed(4)} />
         </div>
       )}
     </div>
@@ -387,14 +329,6 @@ function Row({ label, val }) {
       <span>{label}</span><b style={{ color: T.text, fontWeight: 500 }}>{val}</b>
     </div>
   );
-}
-
-/* ═══════════════════ KDE HELPERS ═══════════════════ */
-function kernelDensityEstimator(kernel, ticks) {
-  return (V) => ticks.map(t => [t, d3.mean(V, v => kernel(t - v)) || 0]);
-}
-function kernelEpanechnikov(k) {
-  return (v) => Math.abs(v /= k) <= 1 ? 0.75 * (1 - v * v) / k : 0;
 }
 
 /* ═══════════════════ DECOMPOSITION MINI-BARS ═══════════════════ */
@@ -468,11 +402,12 @@ function Legend() {
         <span>低 CSVI</span><span>高 CSVI</span>
       </div>
       <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)", fontSize: 10, color: T.textDim, lineHeight: 1.65, wordBreak: "keep-all", lineBreak: "strict" }}>
-        <div style={{ whiteSpace: "nowrap" }}><span style={{ color: T.accent, fontWeight: 600 }}>CSVI</span> = E × S ÷ (AC + 1)</div>
-        <div style={{ whiteSpace: "nowrap" }}>横轴 <span style={{ color: T.accent }}>W_work</span> = N_YP × Q</div>
-        <div style={{ whiteSpace: "nowrap" }}>纵轴 <span style={{ color: T.accent }}>W_elder</span> = E × (AC_agg+1)</div>
-        <div style={{ opacity: 0.55, fontSize: 9, marginTop: 3, lineHeight: 1.5 }}>AC_agg：表内五主导列（含 <code>AC_soc_cul_dom</code>）<strong>齐全</strong>时为五列算术平均；仅四列齐全时为四列平均；否则为 <code>csvi_AC_phys</code>（本矩阵不拆资源类型）。</div>
-        <div style={{ opacity: 0.5, fontSize: 9, marginTop: 4 }}>点的大小与颜色表示 CSVI 高低。</div>
+        <div style={{ whiteSpace: "nowrap" }}><span style={{ color: T.accent, fontWeight: 600 }}>CPVI / CSVI</span> = E × S ÷ (AC + 1)</div>
+        <div style={{ opacity: 0.88, marginTop: 4 }}>
+          五轴 = 停留意愿 <strong>W</strong> 按五类人群拆开：每轴一类人的 <strong>Wp</strong>（共享七维特征 × 该类权重），雷达显示表内分位 <strong>P(Wp)∈[0,1]</strong>（见 <code>personaFive.js</code>）。
+        </div>
+        <div style={{ opacity: 0.55, fontSize: 9, marginTop: 4, lineHeight: 1.5 }}>叙事上强调五类人群的<strong>相互干预与共现</strong>，不再用 W_urban×W_work 二轴对立。叠层颜色仍映射 CPVI。</div>
+        <div style={{ opacity: 0.5, fontSize: 9, marginTop: 4 }}><strong>遛娃家庭</strong>轴含低 S（安全）、高 N09、高 AC 等代理，展陈时配合<strong>儿童眼高 1–1.5 m</strong>口述。</div>
       </div>
     </div>
   );
@@ -480,13 +415,17 @@ function Legend() {
 
 /* ═══════════════════ STATS ═══════════════════ */
 function StatsCard({ data }) {
-  const stats = useMemo(() => ({
-    n: data.length,
-    meanCSVI: d3.mean(data, d => d.CSVI) || 0,
-    stdCSVI: d3.deviation(data, d => d.CSVI) || 0,
-    maxCSVI: d3.max(data, d => d.CSVI) || 0,
-    corrR: pearsonR(data.map(d => d.W_work), data.map(d => d.W_elder)),
-  }), [data]);
+  const stats = useMemo(() => {
+    const meanPaxes =
+      P_KEYS.reduce((s, k) => s + (d3.mean(data, (d) => d[k]) || 0), 0) / Math.max(1, P_KEYS.length);
+    return {
+      n: data.length,
+      meanCSVI: d3.mean(data, (d) => d.CSVI) || 0,
+      stdCSVI: d3.deviation(data, (d) => d.CSVI) || 0,
+      maxCSVI: d3.max(data, (d) => d.CSVI) || 0,
+      meanPaxes,
+    };
+  }, [data]);
   return (
     <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10, padding: "14px 16px", backdropFilter: "blur(12px)" }}>
       <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "rgba(218,75,163,0.55)", marginBottom: 10 }}>统计</div>
@@ -494,7 +433,7 @@ function StatsCard({ data }) {
       <StatRow label="μ(CSVI)" val={stats.meanCSVI.toFixed(4)} />
       <StatRow label="σ(CSVI)" val={stats.stdCSVI.toFixed(4)} />
       <StatRow label="max(CSVI)" val={stats.maxCSVI.toFixed(4)} />
-      <StatRow label="ρ(W_work,W_elder)" val={stats.corrR.toFixed(3)} />
+      <StatRow label="五轴 μ(P)" val={stats.meanPaxes.toFixed(3)} />
     </div>
   );
 }
@@ -506,17 +445,6 @@ function StatRow({ label, val }) {
     </div>
   );
 }
-function pearsonR(x, y) {
-  const n = x.length; if (n < 3) return 0;
-  const mx = d3.mean(x), my = d3.mean(y);
-  let num = 0, dx2 = 0, dy2 = 0;
-  for (let i = 0; i < n; i++) {
-    const dx = x[i] - mx, dy = y[i] - my;
-    num += dx * dy; dx2 += dx * dx; dy2 += dy * dy;
-  }
-  return dx2 && dy2 ? num / Math.sqrt(dx2 * dy2) : 0;
-}
-
 /* ═══════════════════ MAIN APP ═══════════════════ */
 const CLD_PRIORITY_CSV = `${import.meta.env.BASE_URL}cld_priority.csv`;
 
@@ -567,22 +495,18 @@ export default function App() {
     return () => ro.disconnect();
   }, []);
 
-  const thresholds = useMemo(() => ({
-    x: d3.median(data, d => d.W_work) || 0.2,
-    y: d3.median(data, d => d.W_elder) || 0.01,
-  }), [data]);
-
-  const quadrants = useMemo(() => {
-    const q = { Q1: [], Q2: [], Q3: [], Q4: [] };
+  const personaBuckets = useMemo(() => {
+    const b = { elder: [], student: [], white: [], family: [], wander: [] };
+    const keys = ["elder", "student", "white", "family", "wander"];
     for (const d of data) {
-      if (d.W_elder >= thresholds.y) {
-        (d.W_work >= thresholds.x ? q.Q1 : q.Q2).push(d);
-      } else {
-        (d.W_work >= thresholds.x ? q.Q4 : q.Q3).push(d);
+      let bi = 0;
+      for (let j = 1; j < 5; j++) {
+        if ((d[P_KEYS[j]] ?? 0) > (d[P_KEYS[bi]] ?? 0)) bi = j;
       }
+      b[keys[bi]].push(d);
     }
-    return q;
-  }, [data, thresholds]);
+    return b;
+  }, [data]);
 
   const handleFile = useCallback(async (e) => {
     const file = e.target.files?.[0];
@@ -609,7 +533,7 @@ export default function App() {
     const canvas = document.querySelector("canvas");
     if (!canvas) return;
     const link = document.createElement("a");
-    link.download = "csvi_quadrant.png";
+    link.download = "persona_five_radar.png";
     link.href = canvas.toDataURL("image/png", 1.0);
     link.click();
   }, []);
@@ -647,11 +571,11 @@ export default function App() {
       }}>
         <div>
           <div style={{ fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: "rgba(218,75,163,0.6)", marginBottom: 2 }}>
-            停留意愿 · 四象限
+            五类在地智能体 · 五维雷达
           </div>
           <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
-            <span style={{ color: T.accent }}>四象限</span>
-            <span style={{ fontSize: 12, fontWeight: 400, color: T.textDim, marginLeft: 8 }}>CSVI 与停留结构</span>
+            <span style={{ color: T.accent }}>雷达投影</span>
+            <span style={{ fontSize: 12, fontWeight: 400, color: T.textDim, marginLeft: 8 }}>关切分位 · CPVI 叠色 · 相互干预叙事</span>
           </h1>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -692,11 +616,7 @@ export default function App() {
       <main style={{ flex: 1, display: "flex", gap: 0, overflow: "hidden", minHeight: 0 }}>
         {/* Chart area */}
         <div style={{ flex: "0 0 58%", minWidth: 0, padding: "12px 0 12px 12px" }}>
-          <QuadrantCanvas
-            data={data} width={dims.w} height={dims.h}
-            hovered={hovered} setHovered={setHovered}
-            thresholds={thresholds}
-          />
+          <RadarCanvas data={data} width={dims.w} height={dims.h} hovered={hovered} setHovered={setHovered} />
         </div>
 
         {/* Side panels */}
@@ -713,30 +633,28 @@ export default function App() {
             fontSize: 9, letterSpacing: 2, textTransform: "uppercase",
             color: "rgba(218,75,163,0.5)", padding: "4px 0 0",
           }}>
-            各象限 · E / S / AC 均值
+            各智能体主导子集 · E / S / AC 均值（argmax P 归属）
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <DecompCard label="Q2 · 老年专属" labelEn="Elder-Centric" points={quadrants.Q2} color="rgba(20,12,28,0.85)" />
-            <DecompCard label="Q1 · 双驱停留" labelEn="Dual Retention" points={quadrants.Q1} color="rgba(28,14,28,0.85)" />
-            <DecompCard label="Q3 · 双低衰退" labelEn="Dual Decline" points={quadrants.Q3} color="rgba(14,10,18,0.85)" />
-            <DecompCard label="Q4 · 工作主导" labelEn="Work-Dominated" points={quadrants.Q4} color="rgba(18,12,24,0.85)" />
+            <DecompCard label="主导 · 梧桐爷叔" labelEn="Elder axis" points={personaBuckets.elder} color="rgba(20,12,28,0.85)" />
+            <DecompCard label="主导 · 高校学生" labelEn="Student axis" points={personaBuckets.student} color="rgba(28,14,28,0.85)" />
+            <DecompCard label="主导 · 商圈白领" labelEn="White-collar" points={personaBuckets.white} color="rgba(18,12,26,0.85)" />
+            <DecompCard label="主导 · 遛娃家庭" labelEn="Family + 1–1.5m" points={personaBuckets.family} color="rgba(22,16,24,0.85)" />
+            <DecompCard label="主导 · 文艺漫游" labelEn="City-walk" points={personaBuckets.wander} color="rgba(16,12,22,0.85)" />
           </div>
 
-          {/* Quadrant interpretation */}
           <div style={{
             background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8,
             padding: "10px 14px", fontSize: 10, color: T.textDim, lineHeight: 1.7,
             backdropFilter: "blur(8px)"
           }}>
             <span style={{ color: "rgba(218,75,163,0.55)", letterSpacing: 1.5, fontSize: 9, textTransform: "uppercase" }}>
-              象限含义
+              叙事：相互干预
             </span>
             <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
-              <div><b style={{ color: T.accent }}>Q2 左上</b> 老年停留偏多、工作人群偏少 → 代际接触弱，<b style={{ color: T.text }}>优先改造</b></div>
-              <div><b style={{ color: T.accent }}>Q1 右上</b> 两侧停留都高 → 潜力大，偏维护</div>
-              <div><b style={{ color: T.accent }}>Q3 左下</b> 两侧都低 → 活力弱</div>
-              <div><b style={{ color: T.accent }}>Q4 右下</b> 工作人群偏多、老年偏少 → 易被挤出</div>
+              <div>五轴<strong>非对立</strong>：同一街段可在多类关切上同时偏高；装置与治理需协调<strong>爷叔日常连续性 × 白领碎片解压 × 学生传播 × 家庭安全（儿童视角）× 漫游叙事</strong>。</div>
+              <div>雷达叠层表达「谁在此段相对更被满足」；<b style={{ color: T.accent }}>CPVI</b> 颜色仍标示可玩—认知脆弱性优先级。</div>
             </div>
           </div>
         </div>

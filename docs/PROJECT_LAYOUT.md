@@ -10,7 +10,7 @@
 | **`pages/`** | 主叙事框架、Leaflet 地图、模型与卡片等 **HTML 页面**（iframe 与相对路径均以此为锚）。 |
 | **`lib/`** | 多页共用的浏览器端逻辑脚本（边界、聚合、DBSCAN、廊道、场域圆等）。 |
 | **`src/matrix/`** | 停留意愿矩阵（Vite）：`stay_willingness_matrix.html`、`matrix_main.jsx`、`csvi_quadrant.jsx`。 |
-| **`data/cld/`** | CLD/CSVI 边表：`cld_priority.csv`（主表）及 `cld_priority_beifan.csv` 等备份；`npm run sync:cld` 将主表复制到 `public/cld_priority.csv` 供矩阵 `fetch`。 |
+| **`data/cld_priority.csv`** | CLD/CSVI 边表主文件；`npm run sync:cld` 按 `data/daxujiahui-four-streets-union.geojson` 裁剪后写入 `public/cld_priority.csv` 供矩阵 `fetch`（无边界文件时整表复制）。 |
 | **`assets/images/`** | 叙事页插图等静态资源。 |
 | **`package.json`** / **`vite.config.js`** | 依赖与 Vite 构建（`dist/`）。 |
 
@@ -41,7 +41,7 @@
 
 | 路径 | 用途 |
 |------|------|
-| **`data/`** | 静态地理数据、选址草稿 JSON、POI GeoJSON；**`data/cld/`** 为边表 CSV。 |
+| **`data/`** | 静态地理数据、选址草稿 JSON、POI GeoJSON；边表主文件 **`data/cld_priority.csv`**。 |
 | **`docs/`** | 手册与说明。 |
 | **`profiles/`** | 人物画像 HTML。 |
 | **`public/`** | 构建拷贝资源（如 `sync:cld` 后的 `cld_priority.csv`）。 |
@@ -51,7 +51,7 @@
 
 ## 资源与 JSX
 
-- **`src/matrix/csvi_quadrant.jsx` / `matrix_main.jsx`**：Vite 矩阵应用；`fetch` 使用 `import.meta.env.BASE_URL` + `cld_priority.csv`（运行时由 `public/` 提供，与 `sync:cld` 同步自 `data/cld/cld_priority.csv`）。
+- **`src/matrix/csvi_quadrant.jsx` / `matrix_main.jsx`**：Vite 矩阵应用；`fetch` 使用 `import.meta.env.BASE_URL` + `cld_priority.csv`（运行时由 `public/` 提供，与 `sync:cld` 自 `data/cld_priority.csv` 裁剪同步）。
 - 叙事插图：`<img src="../assets/images/1.jpg">` 等（相对 `pages/1narrative-framework.html`）。
 
 ## 常用命令
@@ -59,7 +59,7 @@
 ```bash
 npm run dev              # Vite 开发（默认入口见 vite.config）
 npm run build
-npm run sync:cld         # data/cld/cld_priority.csv → public/cld_priority.csv
+npm run sync:cld         # data/cld_priority.csv（大徐家汇裁剪）→ public/cld_priority.csv
 npm run filter:cld-xuhui
 npm run filter:cld-daxujiahui
 ```

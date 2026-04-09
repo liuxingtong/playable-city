@@ -5,7 +5,7 @@
  *
  * 用法:
  *   node scripts/filter-cld-daxujiahui.mjs
- *   node scripts/filter-cld-daxujiahui.mjs --input data/cld/cld_priority.csv --output cld_priority_daxujiahui.csv
+ *   node scripts/filter-cld-daxujiahui.mjs --input data/cld_priority.csv --output cld_priority_daxujiahui.csv
  *   node scripts/filter-cld-daxujiahui.mjs --boundary ./other.geojson
  */
 import fs from "fs";
@@ -17,7 +17,7 @@ const DEFAULT_BOUNDARY = path.join(root, "data", "daxujiahui-four-streets-union.
 
 function parseArgs(argv) {
   const o = {
-    input: path.join(root, "data", "cld", "cld_priority.csv"),
+    input: path.join(root, "data", "cld_priority.csv"),
     output: path.join(root, "cld_priority_daxujiahui.csv"),
     boundary: null,
   };
@@ -28,7 +28,7 @@ function parseArgs(argv) {
     else if (a === "--boundary" && argv[i + 1]) o.boundary = path.resolve(root, argv[++i]);
     else if (a === "-h" || a === "--help") {
       console.log(`用法: node scripts/filter-cld-daxujiahui.mjs [选项]
-  --input <path>    默认 data/cld/cld_priority.csv
+  --input <path>    默认 data/cld_priority.csv
   --output <path>   默认 cld_priority_daxujiahui.csv
   --boundary <path>  自定义 Polygon/MultiPolygon GeoJSON（默认 data/daxujiahui-four-streets-union.geojson）`);
       process.exit(0);

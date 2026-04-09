@@ -4,7 +4,7 @@
  *
  * 用法:
  *   node scripts/filter-cld-xuhui.mjs
- *   node scripts/filter-cld-xuhui.mjs --input data/cld/cld_priority.csv --output cld_priority_xuhui.csv
+ *   node scripts/filter-cld-xuhui.mjs --input data/cld_priority.csv --output cld_priority_xuhui.csv
  *   node scripts/filter-cld-xuhui.mjs --boundary ./other.geojson
  *   node scripts/filter-cld-xuhui.mjs --refresh-boundary   # 需可访问 Nominatim，写入 scripts/cache/
  */
@@ -21,7 +21,7 @@ const UA = "cards-viz/1.0 (midterm xuhui filter)";
 
 function parseArgs(argv) {
   const o = {
-    input: path.join(root, "data", "cld", "cld_priority.csv"),
+    input: path.join(root, "data", "cld_priority.csv"),
     output: path.join(root, "cld_priority_xuhui.csv"),
     boundary: null,
     refreshBoundary: false,
@@ -34,7 +34,7 @@ function parseArgs(argv) {
     else if (a === "--boundary" && argv[i + 1]) o.boundary = path.resolve(root, argv[++i]);
     else if (a === "-h" || a === "--help") {
       console.log(`用法: node scripts/filter-cld-xuhui.mjs [选项]
-  --input <path>   默认 data/cld/cld_priority.csv
+  --input <path>   默认 data/cld_priority.csv
   --output <path>  默认 cld_priority_xuhui.csv
   --boundary <geojson>  自定义边界
   --refresh-boundary    从 Nominatim 更新 scripts/cache/ 中的多边形`);

@@ -244,10 +244,10 @@
 <div class="panel-header">
   <div class="tag">Potential & Resource Nodes · 潜力与资源</div>
   <h1>
-    <span class="hl-a">潜力节点</span>（<span class="hl-b">激活</span>三亚型 A₁/A₂/A₃；<em style="font-style:normal;opacity:0.85">界内按 priority 前 50% 标点</em>）
-    · <span class="hl-a" style="color:#5ce1e6">资源节点</span>（<em style="font-style:normal;opacity:0.85">主导类 AC 各取前 10%</em>）
+    <span class="hl-a">潜力节点</span>（<span class="hl-b">激活</span>；<em style="font-style:normal;opacity:0.85">CPVI 高三档 ∧ 五类关切任一分位高三档 · 界内前 50% 标点</em>）
+    · <span class="hl-a" style="color:#5ce1e6">资源节点</span>（<em style="font-style:normal;opacity:0.85">五主导列 argmax 分型，各类前 10%</em>）
   </h1>
-  <div class="sub">大徐家汇边界内街段；潜力标点取前 <strong>50%</strong>；资源按医疗/科技/商业/体育/文化<strong>五类各前 10%</strong>。无廊道层。</div>
+  <div class="sub">大徐家汇边界内街段；潜力标点取前 <strong>50%</strong>；资源按交通/慢行、科技、商业、体育、文化<strong>五类各前 10%</strong>。无廊道层。</div>
 </div>
 
 <div class="legend-panel">
@@ -255,16 +255,8 @@
     <div class="lg-title" style="color:rgba(255,255,255,0.45);margin-bottom:8px">潜力节点 POTENTIAL</div>
     <div class="lg-title activated">激活 ACTIVATED</div>
     <div class="lg-item">
-      <div class="lg-symbol"><svg width="20" height="20"><polygon points="10,2 18,17 2,17" fill="none" stroke="#e91e8c" stroke-width="2"/></svg></div>
-      <div class="lg-label">A₁ · 老年人主导型</div>
-    </div>
-    <div class="lg-item">
-      <div class="lg-symbol"><svg width="20" height="20"><polygon points="10,18 18,3 2,3" fill="none" stroke="#e91e8c" stroke-width="2"/></svg></div>
-      <div class="lg-label">A₂ · 工作人口主导型</div>
-    </div>
-    <div class="lg-item">
-      <div class="lg-symbol"><svg width="20" height="20"><polygon points="10,1 12.5,7 19,7 13.5,11.5 15.5,18 10,14 4.5,18 6.5,11.5 1,7 7.5,7" fill="#e91e8c" fill-opacity="0.7" stroke="#e91e8c" stroke-width="1.5"/></svg></div>
-      <div class="lg-label">A₃ · 双向停留型</div>
+      <div class="lg-symbol"><svg width="20" height="20"><polygon points="10,1 12.5,7 19,7 13.5,11.5 15.5,18 10,14 4.5,18 6.5,11.5 1,7 7.5,7" fill="#e91e8c" fill-opacity="0.65" stroke="#e91e8c" stroke-width="1.5"/></svg></div>
+      <div class="lg-label">统一符号 · 不分子型<span class="lg-sub">与矩阵五维雷达同构：五类关切分位任一为高三档</span></div>
     </div>
   </div>
   <hr class="lg-divider">
@@ -272,7 +264,7 @@
     <div class="lg-title resource">资源节点 RESOURCE</div>
     <div class="lg-item">
       <div class="lg-symbol"><svg width="20" height="20"><polygon points="10,1 18,6 18,14 10,19 2,14 2,6" fill="none" stroke="#5ce1e6" stroke-width="1.8"/></svg></div>
-      <div class="lg-label">五主导列取类型 · 界内按类各前 10% 标点 · 非潜力</div>
+      <div class="lg-label">五列齐全 → 取 argmax 定类 · 界内按类各前 10% · 非潜力</div>
     </div>
   </div>
   <hr class="lg-divider">
@@ -280,7 +272,7 @@
     <div class="lg-title" style="color:var(--magenta-dim)">底图 BASE NETWORK</div>
     <div class="lg-item">
       <div class="lg-symbol"><svg width="20" height="4"><line x1="0" y1="2" x2="20" y2="2" stroke="rgba(233,30,140,0.45)" stroke-width="2"/></svg></div>
-      <div class="lg-label" style="color:rgba(255,255,255,0.35)">边界内街段 · CSVI 着色 · 全量</div>
+      <div class="lg-label" style="color:rgba(255,255,255,0.35)">边界内街段 · CPVI 着色 · 全量</div>
     </div>
   </div>
 </div>
@@ -290,7 +282,7 @@
   <div class="lc-title">图层控制 Layers</div>
   <div class="lc-row act" onclick="toggleLayer('activated')">
     <div class="lc-check on" id="chk-activated"></div>
-    <span class="lc-label">潜力 · 激活（前 50%）</span>
+    <span class="lc-label">潜力 · 激活（前 50%，不分子型）</span>
     <span class="lc-count" id="cnt-activated">—</span>
   </div>
   <div class="lc-row res" onclick="toggleLayer('resource')">
@@ -331,8 +323,8 @@
 <!-- 要点（精简） -->
 <div class="formula-panel">
   <div class="fp-title">要点</div>
-  <div class="fp-row" style="color:rgba(255,255,255,0.55)">潜力：CSVI 高 + W 轴至少一轴高 → A₁/A₂/A₃；界内按 priority 取前 50% 标点</div>
-  <div class="fp-row" style="color:rgba(255,255,255,0.55)">资源：五主导列可判类型且非潜力；界内按主导类各取前 10% 标点</div>
+  <div class="fp-row" style="color:rgba(255,255,255,0.55)">潜力：CPVI Jenks 高三档 + 五类人群 W 分轴分位（p_elder…p_wander，由 Wp_* 排名）至少一类 Jenks 高三档；界内按 priority 前 50% 标点</div>
+  <div class="fp-row" style="color:rgba(255,255,255,0.55)">资源：五主导列齐全 → 对每行取五列中<strong>最大列</strong>为类型；非潜力且中点在界内；五类各按该列数值排序取前 10%</div>
 </div>
 
 <script>
@@ -426,12 +418,89 @@ function getClassificationBreaks(values, nClasses) {
 }
 
 /**
- * 研究区内经验分位 P∈[0,1]（平均秩处理并列）。
- * 对 W_elder、W_work 各自独立排名，使后续 Jenks「高档」= 本轴上相对靠前，两轴可比。
+ * 与 src/matrix/personaFive.js 同构：五根轴 = 五类人群的 **W 分轴**（Wp_*），非「五个指标各占一轴」。
+ * 七维特征 [E,sInv,AC,N_UD,N09,N_CD,N_OS] 表内 min–max → z，再 Wp_k = 权重_k·z；p_* = Wp_k 经验分位。
+ */
+const W_PERSONA_WEIGHTS_MAP = [
+  [0.08, 0.18, 0.22, 0.05, 0.22, 0.05, 0.2],
+  [0.32, 0.05, 0.1, 0.22, 0.08, 0.23, 0.0],
+  [0.08, 0.2, 0.08, 0.32, 0.32, 0.0, 0.0],
+  [0.12, 0.28, 0.25, 0.05, 0.3, 0.0, 0.0],
+  [0.38, 0.05, 0.08, 0.08, 0.09, 0.32, 0.0],
+];
+const WP_KEYS_MAP = ['Wp_elder', 'Wp_student', 'Wp_white', 'Wp_family', 'Wp_wander'];
+
+function rawFeatureTupleEdge(e) {
+  const E = e.cpvi_E || 0;
+  let S = e.cpvi_S;
+  if (!Number.isFinite(S)) S = 0;
+  S = Math.max(0, Math.min(1.5, S));
+  const sInv = Math.max(0, Math.min(1, 1 - S / 1.2));
+  const AC = Number.isFinite(e.acPhysEff) ? e.acPhysEff : (e.cpvi_AC || 0);
+  const N_UD = e.N_UD || 0;
+  const N09 = e.N09 || 0;
+  const N_CD = e.N_CD || 0;
+  const N_OS = e.N_OS || 0;
+  return [E, sInv, AC, N_UD, N09, N_CD, N_OS];
+}
+
+function extent7Edges(edges) {
+  const lo = Array(7).fill(Infinity);
+  const hi = Array(7).fill(-Infinity);
+  edges.forEach((e) => {
+    const t = rawFeatureTupleEdge(e);
+    for (let j = 0; j < 7; j++) {
+      const v = t[j];
+      if (Number.isFinite(v)) {
+        if (v < lo[j]) lo[j] = v;
+        if (v > hi[j]) hi[j] = v;
+      }
+    }
+  });
+  for (let j = 0; j < 7; j++) {
+    if (!Number.isFinite(lo[j]) || !Number.isFinite(hi[j])) {
+      lo[j] = 0;
+      hi[j] = 1;
+    }
+    if (hi[j] <= lo[j]) {
+      lo[j] -= 1;
+      hi[j] += 1;
+    }
+  }
+  return { lo, hi };
+}
+
+function zFromTupleMap(t, lo, hi) {
+  const z = [];
+  for (let j = 0; j < 7; j++) {
+    const v = t[j];
+    const L = lo[j];
+    const H = hi[j];
+    if (!Number.isFinite(v) || H <= L) z[j] = 0.5;
+    else z[j] = Math.max(0, Math.min(1, (v - L) / (H - L)));
+  }
+  return z;
+}
+
+function dot7Map(w, z) {
+  let s = 0;
+  for (let j = 0; j < 7; j++) s += w[j] * z[j];
+  return s;
+}
+
+/**
+ * 研究区内：先算 Wp_*（五类 W 分轴），再对各 Wp 做经验分位 → p_elder…p_wander（与矩阵雷达一致）。
+ * 注：e.W_elder 仍为旧口径 W_urban=E×(AC+1)，与 Wp_elder 不同名，互不覆盖。
  */
 function addEmpiricalPercentileRanks(edges) {
   const n = edges.length;
   if (!n) return;
+  const { lo, hi } = extent7Edges(edges);
+  edges.forEach((e) => {
+    const t = rawFeatureTupleEdge(e);
+    const z = zFromTupleMap(t, lo, hi);
+    for (let k = 0; k < 5; k++) e[WP_KEYS_MAP[k]] = dot7Map(W_PERSONA_WEIGHTS_MAP[k], z);
+  });
   function ranksFor(getter, setter) {
     if (n === 1) {
       edges[0][setter] = 0.5;
@@ -464,12 +533,15 @@ function addEmpiricalPercentileRanks(edges) {
     }
     for (let i = 0; i < n; i++) edges[i][setter] = pr[i];
   }
-  ranksFor(e => e.W_elder, 'p_elder');
-  ranksFor(e => e.W_work, 'p_work');
+  ranksFor((e) => e.Wp_elder, 'p_elder');
+  ranksFor((e) => e.Wp_student, 'p_student');
+  ranksFor((e) => e.Wp_white, 'p_white');
+  ranksFor((e) => e.Wp_family, 'p_family');
+  ranksFor((e) => e.Wp_wander, 'p_wander');
 }
 
 // ============================================================
-//  DATA: 优先加载 ../data/cld/cld_priority.csv（需通过本地 HTTP 打开页面）
+//  DATA: ../data/cld_priority.csv；边中点按大徐家汇四街道并集裁剪（xujiahui-osm-boundary.js）
 // ============================================================
 function gaussRand(mean, std) {
   let u=0,v=0;
@@ -478,7 +550,7 @@ function gaussRand(mean, std) {
   return mean + std * Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
 }
 
-const CSV_FILENAME = '../data/cld/cld_priority.csv';
+const CSV_FILENAME = '../data/cld_priority.csv';
 
 /** 表中 lon/lat 为边段中点；用 Gauss–Seidel 近似恢复端点坐标以绘制线段 */
 function estimateNodePositions(rawEdges) {
@@ -513,30 +585,39 @@ function buildEdgesFromCsvRows(rows) {
     v: String(r.v),
     lon: +r.lon,
     lat: +r.lat,
-    csvi_E: +r.csvi_E,
-    csvi_S_env: +r.csvi_S_env,
-    csvi_S_contact: +r.csvi_S_contact,
-    csvi_AC_phys: +r.csvi_AC_phys,
-    csvi_AC_social: +r.csvi_AC_social,
-    AC_med_dom: r.AC_med_dom,
-    AC_tech_dom: r.AC_tech_dom,
-    AC_mkt_dom: r.AC_mkt_dom,
-    AC_sport_dom: r.AC_sport_dom,
+    /* 优先读新列名，回退旧列名 */
+    cpvi_E:  +r.cpvi_E  || +r.csvi_E  || 0,
+    cpvi_S:  Number.isFinite(+r.cpvi_S)
+               ? +r.cpvi_S
+               : (+r.csvi_S_env || 0) + (+r.csvi_S_contact || 0),
+    cpvi_AC: Number.isFinite(+r.cpvi_AC) ? +r.cpvi_AC : +r.csvi_AC_phys || 0,
+    /* 五主导列：AC_traf_dom 替代 AC_med_dom */
+    AC_traf_dom:    r.AC_traf_dom,
+    AC_tech_dom:    r.AC_tech_dom,
+    AC_mkt_dom:     r.AC_mkt_dom,
+    AC_sport_dom:   r.AC_sport_dom,
     AC_soc_cul_dom: r.AC_soc_cul_dom,
-    N_YP: +r.N_YP,
-    N08: +r.N08,
+    /* 旧版四列兼容（ACDomAggregate 内部处理） */
+    AC_med_dom:     r.AC_med_dom,
+    N_UD: +r.N_UD  || +r.pop_total || 0,
+    N09:  +r.N09   || +r.N08       || 0,
+    N_CD: +r.N_CD  || 0,
+    N_OS: +r.N_OS  || 0,
     priority: +r.priority
   }));
   const pos = estimateNodePositions(raw);
   const agg = window.ACDomAggregate;
   return raw.map((r) => {
     const from = pos[r.u],
-      to = pos[r.v];
+      to   = pos[r.v];
     const midLon = (from.lon + to.lon) / 2;
     const midLat = (from.lat + to.lat) / 2;
-    const sTotal = r.csvi_S_env + r.csvi_S_contact;
-    const acPhysEff = agg.effectiveAcPhys(r);
+    const acPhysEff  = agg.effectiveAcPhys(r);
     const resourceDom = agg.resourceDomType(r);
+    /* W_urban = E × (cpvi_AC + 1)  [手册 §5.8] */
+    const W_urban = r.cpvi_E * (acPhysEff + 1);
+    /* W_work  = N_UD_norm × N09    [手册 §5.8] */
+    const W_work  = Math.max(0, r.N_UD * r.N09);
     return {
       u: r.u,
       v: r.v,
@@ -544,24 +625,26 @@ function buildEdgesFromCsvRows(rows) {
       to,
       midLon,
       midLat,
-      csvi_E: r.csvi_E,
-      csvi_S_env: r.csvi_S_env,
-      csvi_S_contact: r.csvi_S_contact,
-      csvi_AC_phys: r.csvi_AC_phys,
-      AC_med_dom: r.AC_med_dom,
-      AC_tech_dom: r.AC_tech_dom,
-      AC_mkt_dom: r.AC_mkt_dom,
-      AC_sport_dom: r.AC_sport_dom,
+      cpvi_E:  r.cpvi_E,
+      cpvi_S:  r.cpvi_S,
+      cpvi_AC: r.cpvi_AC,
+      /* 保留旧字段名供 ACDomAggregate 内部 fallback 使用 */
+      csvi_AC_phys: r.cpvi_AC,
+      AC_traf_dom:    r.AC_traf_dom,
+      AC_med_dom:     r.AC_med_dom,
+      AC_tech_dom:    r.AC_tech_dom,
+      AC_mkt_dom:     r.AC_mkt_dom,
+      AC_sport_dom:   r.AC_sport_dom,
       AC_soc_cul_dom: r.AC_soc_cul_dom,
       acPhysEff,
       resourceDom,
-      csvi_AC_social: r.csvi_AC_social,
-      N_YP: r.N_YP,
-      N08: r.N08,
+      N_UD:  r.N_UD,
+      N09:   r.N09,
+      N_CD:  r.N_CD,
+      N_OS:  r.N_OS,
       priority: r.priority,
-      W_elder: r.csvi_E * (acPhysEff + 1),
-      W_work: Math.max(0, (+r.N_YP || 0) * (+r.N08 || 0)),
-      S_contact_ratio: sTotal > 0 ? r.csvi_S_contact / sTotal : 0
+      W_elder: W_urban,
+      W_work:  W_work
     };
   });
 }
@@ -612,48 +695,49 @@ function simulateEdges() {
 
     const proxCenter = Math.max(0, 1 - distC*1.5);
 
-    e.csvi_E = Math.max(0.05, Math.min(0.95, gaussRand(0.35 + proxSW*0.3 + proxCenter*0.2, 0.10)));
-    e.csvi_S_env = Math.max(0, Math.min(0.4, gaussRand(0.08, 0.03)));
-    e.csvi_S_contact = Math.max(0, Math.min(0.8, gaussRand(0.35 + proxSE*0.2, 0.08)));
-    e.N_YP = Math.max(0.1, Math.min(0.9, gaussRand(0.45 + proxSE*0.25 + proxCenter*0.1, 0.08)));
-    e.N08 = Math.max(0, Math.min(1, gaussRand(0.48, 0.14)));
+    e.cpvi_E  = Math.max(0.05, Math.min(0.95, gaussRand(0.35 + proxSW*0.3 + proxCenter*0.2, 0.10)));
+    e.cpvi_S  = Math.max(0, Math.min(0.5, gaussRand(0.18 + proxSE*0.15, 0.06)));
+    e.N_UD    = Math.max(0.1, Math.min(0.9, gaussRand(0.45 + proxSE*0.25 + proxCenter*0.1, 0.08)));
+    e.N09     = Math.max(0, Math.min(1, gaussRand(0.48, 0.14)));
 
-    const dPark1 = Math.sqrt(Math.pow(e.midLon-(centerLon-0.005),2) + Math.pow(e.midLat-(centerLat+0.006),2));
-    const parkProx = Math.max(0, 1 - dPark1/0.006);
+    const dPark1   = Math.sqrt(Math.pow(e.midLon-(centerLon-0.005),2) + Math.pow(e.midLat-(centerLat+0.006),2));
+    const parkProx  = Math.max(0, 1 - dPark1/0.006);
+    e.N_CD    = Math.max(0, Math.min(1, gaussRand(0.22 + proxSW * 0.2, 0.1)));
+    e.N_OS    = Math.max(0, Math.min(1, gaussRand(0.32 + parkProx * 0.1, 0.12)));
     const corridorDist = Math.abs(e.midLat - (centerLat - 0.005));
-    const inCorridor = corridorDist < 0.003 && e.midLon > centerLon-0.01 && e.midLon < centerLon+0.01;
-    e.csvi_AC_phys = Math.max(0.001, Math.min(0.3,
+    const inCorridor   = corridorDist < 0.003 && e.midLon > centerLon-0.01 && e.midLon < centerLon+0.01;
+    e.cpvi_AC = Math.max(0.001, Math.min(0.3,
       gaussRand(0.04 + parkProx*0.15 - (inCorridor?0.03:0), 0.025)));
-    const b = e.csvi_AC_phys;
-    e.AC_med_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
-    e.AC_tech_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
-    e.AC_mkt_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
-    e.AC_sport_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    /* 旧列名供 ACDomAggregate fallback */
+    e.csvi_AC_phys = e.cpvi_AC;
+    const b = e.cpvi_AC;
+    e.AC_traf_dom    = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    e.AC_tech_dom    = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    e.AC_mkt_dom     = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
+    e.AC_sport_dom   = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
     e.AC_soc_cul_dom = Math.max(0.001, Math.min(0.35, b * gaussRand(1, 0.12)));
-    e.csvi_AC_social = Math.max(0, Math.min(0.4, gaussRand(0.06 + proxCenter*0.15, 0.04)));
 
     e.priority = Math.max(0, Math.min(1,
-      e.csvi_E * (e.csvi_S_env + e.csvi_S_contact) / Math.max(0.001, e.csvi_AC_phys * e.csvi_AC_social + 0.01)
+      e.cpvi_E * e.cpvi_S / Math.max(0.001, e.cpvi_AC + 0.01)
     ));
-    e.priority = Math.min(1, e.priority / 30);
+    e.priority = Math.min(1, e.priority / 10);
 
-    e.acPhysEff = window.ACDomAggregate.effectiveAcPhys(e);
+    e.acPhysEff  = window.ACDomAggregate.effectiveAcPhys(e);
     e.resourceDom = window.ACDomAggregate.resourceDomType(e);
-    e.W_elder = e.csvi_E * (e.acPhysEff + 1);
-    e.W_work = Math.max(0, e.N_YP * e.N08);
-
-    const sTotal = e.csvi_S_env + e.csvi_S_contact;
-    e.S_contact_ratio = sTotal > 0 ? e.csvi_S_contact / sTotal : 0;
+    e.W_elder = e.cpvi_E  * (e.acPhysEff + 1);   /* W_urban */
+    e.W_work  = Math.max(0, e.N_UD * e.N09);
   });
   return edges;
 }
 
 async function loadEdges() {
   try {
-    const rows = await d3.csv(CSV_FILENAME, d3.autoType);
+    const rows = await d3.csv(CSV_FILENAME, { cache: 'no-store' }, d3.autoType);
     if (!rows || !rows.length) throw new Error('CSV 为空');
-    if (rows[0].priority === undefined || rows[0].csvi_E === undefined || rows[0].N08 === undefined)
-      throw new Error('CSV 列不匹配（需要 priority、csvi_*、N08、N_YP 等列；W_work=N_YP×N08 与矩阵对齐）');
+    const hasPriority = rows[0].priority !== undefined;
+    const hasE  = rows[0].cpvi_E !== undefined || rows[0].csvi_E !== undefined;
+    if (!hasPriority || !hasE)
+      throw new Error('CSV 列不匹配（需要 priority、cpvi_E/csvi_E、N_UD/N09；建议含 N_CD、N_OS 以校准五类雷达/潜力判定）');
     return buildEdgesFromCsvRows(rows);
   } catch (err) {
     const why = (err && err.message) ? err.message : String(err);
@@ -684,18 +768,26 @@ async function runPipeline(edges) {
 addEmpiricalPercentileRanks(edges);
 
 const priorityValues = edges.map(e => e.priority);
-const pElderValues = edges.map(e => e.p_elder);
-const pWorkValues = edges.map(e => e.p_work);
-
 const csviBreaks = getClassificationBreaks(priorityValues, 3);
-const wElderBreaks = getClassificationBreaks(pElderValues, 3);
-const wWorkBreaks = getClassificationBreaks(pWorkValues, 3);
+const breaksElder = getClassificationBreaks(edges.map(e => e.p_elder), 3);
+const breaksStudent = getClassificationBreaks(edges.map(e => e.p_student), 3);
+const breaksWhite = getClassificationBreaks(edges.map(e => e.p_white), 3);
+const breaksFamily = getClassificationBreaks(edges.map(e => e.p_family), 3);
+const breaksWander = getClassificationBreaks(edges.map(e => e.p_wander), 3);
 
 edges.forEach((e) => {
-  e.csviClass = classifyJenks(e.priority, csviBreaks); // 0=low,1=mid,2=high
-  e.wElderClass = classifyJenks(e.p_elder, wElderBreaks);
-  e.wWorkClass = classifyJenks(e.p_work, wWorkBreaks);
+  e.csviClass = classifyJenks(e.priority, csviBreaks);
+  e.perClass_elder = classifyJenks(e.p_elder, breaksElder);
+  e.perClass_student = classifyJenks(e.p_student, breaksStudent);
+  e.perClass_white = classifyJenks(e.p_white, breaksWhite);
+  e.perClass_family = classifyJenks(e.p_family, breaksFamily);
+  e.perClass_wander = classifyJenks(e.p_wander, breaksWander);
 });
+
+function anyPersonaJenksHigh(e) {
+  return e.perClass_elder === 2 || e.perClass_student === 2 || e.perClass_white === 2
+    || e.perClass_family === 2 || e.perClass_wander === 2;
+}
 
 // ============================================================
 //  NODE CLASSIFICATION
@@ -703,15 +795,8 @@ edges.forEach((e) => {
 const activatedEdges = [];
 
 edges.forEach((e) => {
-  // --- ACTIVATED: CSVI high AND at least one W high ---
-  if (e.csviClass === 2 && (e.wElderClass === 2 || e.wWorkClass === 2)) {
-    if (e.wElderClass === 2 && e.wWorkClass <= 1) {
-      e.nodeType = 'act_elder'; // 老年人主导型
-    } else if (e.wWorkClass === 2 && e.wElderClass <= 1) {
-      e.nodeType = 'act_work'; // 工作人口主导型
-    } else {
-      e.nodeType = 'act_both'; // 双向停留型
-    }
+  if (e.csviClass === 2 && anyPersonaJenksHigh(e)) {
+    e.nodeType = 'act_potential';
     activatedEdges.push(e);
     return;
   }
@@ -736,7 +821,7 @@ const resourceCandidatesInStudy = edges.filter(
 // ============================================================
 //  RENDER
 // ============================================================
-// CSVI color for base network（玫红单色系：低值偏暗 → 高值偏亮）
+// CPVI color for base network（玫红单色系：低值偏暗 → 高值偏亮）
 function csviColorFromT(t) {
   t = Math.max(0, Math.min(1, t));
   const r = Math.round(88 + t * 147);
@@ -759,11 +844,12 @@ function takeTopFractionByMetric(arr, metricFn, frac) {
   return [...arr].sort((a, b) => metricFn(b) - metricFn(a)).slice(0, k);
 }
 
-/** 医疗/科技/商业/体育/文化 各取 top frac（按各自主导列 resourceDom.max 排序） */
+/** 五主导类各取 top frac（按该类的 resourceDom.max 排序）；含 AC_med_dom 以兼容旧表 */
 function takeTopFractionPerResourceDom(arr, frac) {
-  const keys = (window.ACDomAggregate && window.ACDomAggregate.DOM_KEYS) || [
-    'AC_med_dom', 'AC_tech_dom', 'AC_mkt_dom', 'AC_sport_dom', 'AC_soc_cul_dom'
+  const base = (window.ACDomAggregate && window.ACDomAggregate.DOM_KEYS) || [
+    'AC_traf_dom', 'AC_tech_dom', 'AC_mkt_dom', 'AC_sport_dom', 'AC_soc_cul_dom'
   ];
+  const keys = Array.from(new Set([...base, 'AC_med_dom']));
   const out = [];
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i];
@@ -835,28 +921,6 @@ function starIcon(color, size=24) {
   });
 }
 
-/** 正三角 ▲（顶点朝上） */
-function triangleUpIcon(color, size=22) {
-  const c = size/2;
-  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-    <polygon points="${c},2 ${size-2},${size-2} 2,${size-2}"
-      fill="${color}" fill-opacity="0.25" stroke="${color}" stroke-width="2" />
-  </svg>`;
-  return L.divIcon({
-    html: svg, className: '', iconSize: [size, size], iconAnchor: [c, c]
-  });
-}
-/** 倒三角 ▼（顶点朝下） */
-function triangleDownIcon(color, size=22) {
-  const c = size/2;
-  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-    <polygon points="${c},${size-2} ${size-2},2 2,2"
-      fill="${color}" fill-opacity="0.25" stroke="${color}" stroke-width="2" />
-  </svg>`;
-  return L.divIcon({
-    html: svg, className: '', iconSize: [size, size], iconAnchor: [c, c]
-  });
-}
 /** 正六边形 · 资源节点（认知资产 / 高 AC） */
 function hexNodeIcon(color, size = 20) {
   const c = size / 2;
@@ -878,21 +942,15 @@ function hexNodeIcon(color, size = 20) {
 const MAG_NODE = '#e91e8c';
 const RES_NODE = '#5ce1e6';
 const NODE_ICONS = {
-  act_elder: triangleUpIcon(MAG_NODE, 20),
-  act_work: triangleDownIcon(MAG_NODE, 20),
-  act_both: starIcon(MAG_NODE, 26),
+  act_potential: starIcon(MAG_NODE, 24),
   resource: hexNodeIcon(RES_NODE, 22),
 };
 
 const nodeStyles = {
-  act_elder: { typeCN: '潜力 · 激活·老年人主导型', typeEN: 'Potential A₁', typeClass: 't-act',
-    note: 'W_elder高 W_work低 → 认知恢复线主导' },
-  act_work: { typeCN: '潜力 · 激活·工作人口主导型', typeEN: 'Potential A₂', typeClass: 't-act',
-    note: 'W_work高 W_elder低 → 人机共生线主导' },
-  act_both: { typeCN: '潜力 · 激活·双向停留型', typeEN: 'Potential A₃', typeClass: 't-act',
-    note: '两者都高 → 稀缺，双线共同作用' },
-  resource: { typeCN: '资源节点', typeEN: 'Resource', typeClass: 't-res',
-    note: '主导类列界内前 10%；子类型见 tooltip' },
+  act_potential: { typeCN: '潜力 · 激活', typeEN: 'Potential · activated', typeClass: 't-act',
+    note: 'CPVI 高三档且五类关切分位至少一类高三档（同雷达五轴）' },
+  resource:  { typeCN: '资源节点', typeEN: 'Resource', typeClass: 't-res',
+    note: '五主导列 argmax 分型；界内各类前 10%' },
 };
 
 function makeTooltip(e) {
@@ -905,15 +963,16 @@ function makeTooltip(e) {
     return `
     <div class="tt-type ${s.typeClass}">${s.typeEN}</div>
     <div class="tt-name">${s.typeCN}${dom ? ' · ' + dom.label : ''}</div>
-    <div class="tt-r"><span>AC（${domLab}）</span><b>${domVal.toFixed(4)}</b></div>
-    <div class="tt-r"><span>CSVI</span><b>${e.priority.toFixed(4)}</b></div>`;
+    <div class="tt-r"><span>主导列（argmax）</span><b>${domLab}</b></div>
+    <div class="tt-r"><span>该列值</span><b>${domVal.toFixed(4)}</b></div>
+    <div class="tt-r"><span>CPVI</span><b>${e.priority.toFixed(4)}</b></div>`;
   }
   return `
     <div class="tt-type ${s.typeClass}">${s.typeEN}</div>
     <div class="tt-name">${s.typeCN}</div>
-    <div class="tt-r"><span>CSVI</span><b>${e.priority.toFixed(4)}</b></div>
-    <div class="tt-r"><span>W_elder</span><b>${e.W_elder.toFixed(4)}</b></div>
-    <div class="tt-r"><span>W_work</span><b>${e.W_work.toFixed(4)}</b></div>`;
+    <div class="tt-r"><span>CPVI</span><b>${e.priority.toFixed(4)}</b></div>
+    <div class="tt-r"><span>W_urban = E×(AC+1)</span><b>${e.W_elder.toFixed(4)}</b></div>
+    <div class="tt-r"><span>W_work = N_UD×N09</span><b>${e.W_work.toFixed(4)}</b></div>`;
 }
 
 // Place classified nodes（潜力：priority 前 NODE_MARKER_POTENTIAL_TOP_FRAC；资源：五主导类各前 NODE_MARKER_RESOURCE_TOP_FRAC）
@@ -940,9 +999,6 @@ resourceDrawList.forEach((e) => placeNodeMarker(e, 'resource'));
 // ============================================================
 //  STATS UPDATE
 // ============================================================
-const actElderN = activatedDrawList.filter(e => e.nodeType === 'act_elder').length;
-const actWorkN = activatedDrawList.filter(e => e.nodeType === 'act_work').length;
-const actBothN = activatedDrawList.filter(e => e.nodeType === 'act_both').length;
 const nNetInStudy = networkEdgesInStudy.length;
 const nActAll = activatedInStudy.length;
 const nResAll = resourceCandidatesInStudy.length;
@@ -956,7 +1012,7 @@ document.getElementById('st-res').textContent =
 document.getElementById('st-total').textContent = `${nNetInStudy} / ${edges.length}`;
 
 document.getElementById('cnt-activated').textContent = nActAll
-  ? `${nAct}/${nActAll} ·50% ·A₁${actElderN} A₂${actWorkN} A₃${actBothN}`
+  ? `${nAct}/${nActAll} ·前50%`
   : '0';
 document.getElementById('cnt-resource').textContent = nResAll
   ? `${nRes}/${nResAll} ·五类各10%`
@@ -980,7 +1036,10 @@ if (noteEl) {
   }
 }
 
-loadEdges().then((edges) => {
+loadEdges().then(async (edges) => {
+  if (typeof filterEdgeRecordsToDaxujiahuiStudy === 'function') {
+    edges = await filterEdgeRecordsToDaxujiahuiStudy(edges);
+  }
   runPipeline(edges);
 });
 </script>

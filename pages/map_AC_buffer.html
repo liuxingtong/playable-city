@@ -212,44 +212,44 @@
 </div>
 
 <div class="panel-header">
-  <div class="tag">CSVI Dimension 03 · Spatial Distribution</div>
-  <h1><span>AC</span> · 缓冲维度 · 街段级空间分布</h1>
-  <div class="sub">数据：<code>cld_priority.csv</code> · 玫红圆点 · 若表含 <code>AC_*_dom</code> 四列则 <strong>AC_phys 图层</strong>用四列<strong>算术平均</strong>替代单列</div>
+  <div class="tag">CPVI Dimension 03 · Spatial Distribution</div>
+  <h1><span>AC</span> · 缓冲维度 · 认知缓冲能力 · 街段级空间分布</h1>
+  <div class="sub">数据：<code>cld_priority.csv</code> · 玫红圆点 · AC = 0.40·N_OS + 0.35·N_CD + 0.25·N09</div>
 </div>
 
 <div class="layer-toggle">
   <div class="lt-title">显示图层 Layer</div>
-  <button class="lt-btn active" id="btn-phys" onclick="switchLayer('phys')">AC_phys · 物理/五主导均值</button>
-  <button class="lt-btn" id="btn-social" onclick="switchLayer('social')">AC_social · 社会缓冲</button>
-  <button class="lt-btn" id="btn-product" onclick="switchLayer('product')">AC_total · 综合缓冲</button>
+  <button class="lt-btn active" id="btn-phys" onclick="switchLayer('phys')">cpvi_AC · 综合缓冲（总）</button>
+  <button class="lt-btn" id="btn-social" onclick="switchLayer('social')">N_OS · 开敞空间 ×0.40</button>
+  <button class="lt-btn" id="btn-product" onclick="switchLayer('product')">N_CD · 文化场所 ×0.35</button>
+  <button class="lt-btn" id="btn-n09" onclick="switchLayer('n09')">N09 · 街道舒适 ×0.25</button>
   <button type="button" class="lt-btn active lt-boundary" id="btn-boundary" onclick="toggleBoundaryLayer()" style="margin-top:6px;margin-bottom:0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);font-size:9px">大徐家汇边界 · OSM</button>
 </div>
 
 <div class="legend">
-  <div class="legend-title" id="legendTitle">csvi_AC_phys · 玫红圆点</div>
+  <div class="legend-title" id="legendTitle">cpvi_AC · 综合缓冲 · 玫红圆点</div>
   <canvas class="gradient-bar" id="gradBar" height="10"></canvas>
   <div class="gradient-labels" id="gradLabels">
     <span>低</span><span>中</span><span>高</span>
   </div>
   <div class="formula">
-    <em>AC_phys 图层</em>：五主导列（含 <code>AC_soc_cul_dom</code>）齐全时为五列<strong>均值</strong>；仅四列齐全时为四列均值；否则为 <code>csvi_AC_phys</code>。<br>
-    <em>AC</em> = <em>AC_phys(图层值)</em> × <em>AC_social</em><br>
+    <em>AC</em> = 0.40·<em>N_OS</em> + 0.35·<em>N_CD</em> + 0.25·<em>N09</em><br>
+    五主导列（含 <code>AC_traf_dom</code>）齐全时用五列<strong>均值</strong>替代 cpvi_AC<br>
     圆点 <em>#DA4BA3</em>，单点较透；<strong>重叠越密越实</strong>
   </div>
 </div>
 
 <div class="interp-box">
-  <strong>AC低</strong> = 步行设施和第三场所双双缺失。<br><br>
+  <strong>AC低</strong> = 开敞空间匮乏、文化场所稀缺<br>且街道舒适度不足，三项缓冲均弱。<br><br>
   玫红圆点表示街段中点（CSV 无整条折线几何）。
 </div>
 
 <div class="stats-box">
   <div class="sp-title">子指标 Sub-Indicators</div>
-  <div class="si"><span class="si-label">N07</span><span class="si-val" id="v-n07">—</span></div>
-  <div class="si"><span class="si-label">N08</span><span class="si-val" id="v-n08">—</span></div>
-  <div class="si"><span class="si-label">N15</span><span class="si-val" id="v-n15">—</span></div>
-  <div class="si"><span class="si-label">N01</span><span class="si-val" id="v-n01">—</span></div>
-  <div class="si"><span class="si-label">N03</span><span class="si-val" id="v-n03">—</span></div>
+  <div class="si"><span class="si-label">N_OS（开敞空间）</span><span class="si-val" id="v-n07">—</span></div>
+  <div class="si"><span class="si-label">N_CD（文化场所）</span><span class="si-val" id="v-n08">—</span></div>
+  <div class="si"><span class="si-label">N09（街道舒适）</span><span class="si-val" id="v-n15">—</span></div>
+  <div class="si"><span class="si-label">cpvi_AC（综合）</span><span class="si-val" id="v-n01">—</span></div>
 </div>
 
 <script>
@@ -338,43 +338,53 @@ function stripBomKeys(d) {
 
 function parseRowAC(d) {
   d = stripBomKeys(d);
-  const acSocial = +d.csvi_AC_social;
-  const acPhysAgg = window.ACDomAggregate.effectiveAcPhys(d);
-  const acPhysCsv = +d.csvi_AC_phys;
-  const usesDom = window.ACDomAggregate.resourceDomType(d) != null;
+  /* 新列 cpvi_AC；五主导列齐全时用均值聚合 */
+  const acAgg    = window.ACDomAggregate.effectiveAcPhys(d);
+  const usesDom  = window.ACDomAggregate.resourceDomType(d) != null;
+  /* 三分量：优先读新列，回退旧列 */
+  const nOS  = +d.N_OS  || 0;
+  const nCD  = +d.N_CD  || +d.N01 || 0;   /* N01 为旧版文化+社交POI */
+  const n09  = +d.N09   || +d.N08 || 0;   /* N08 为旧版街道舒适度 */
+  /* cpvi_AC 回退：若无聚合则用公式计算 */
+  const cpviAC = usesDom
+    ? acAgg
+    : (Number.isFinite(+d.cpvi_AC)
+        ? +d.cpvi_AC
+        : (0.40 * nOS + 0.35 * nCD + 0.25 * n09));
   return {
     u: d.u,
     v: d.v,
     lon: +d.lon,
     lat: +d.lat,
     length: +d.length,
-    ac_phys: acPhysAgg,
-    ac_phys_csv: acPhysCsv,
+    ac_phys:       cpviAC,      /* 主显示层：cpvi_AC（或聚合） */
+    ac_phys_csv:   +d.cpvi_AC || +d.csvi_AC_phys || 0,
     usesDomAggregate: usesDom,
-    ac_social: acSocial,
-    ac_total: acPhysAgg * acSocial,
-    N07: +d.N07,
-    N08: +d.N08,
-    N15: +d.N15,
-    N01: +d.N01,
-    N03: +d.N03
+    ac_social:     nOS,         /* 第二层：N_OS × 0.40 */
+    ac_total:      nCD,         /* 第三层：N_CD × 0.35 */
+    ac_n09:        n09,         /* 第四层：N09 × 0.25 */
+    N_OS: nOS,
+    N_CD: nCD,
+    N09:  n09
   };
 }
 
 let maxPhys = 0.3;
 let maxSocial = 0.4;
-let maxAcProduct = 0.05;
+let maxAcProduct = 0.5;
+let maxN09 = 0.5;
 const polylines = [];
 let currentAcLayer = 'phys';
-/** 当前 CSV 是否用主导列均值作为 AC_phys 图层 */
+/** 当前 CSV 是否用主导列均值作为 cpvi_AC 图层 */
 let edgesUseDomAggregate = false;
 
 function normAC(edge) {
   let v;
   switch (currentAcLayer) {
-    case 'phys': v = edge.ac_phys / (maxPhys || 0.01); break;
-    case 'social': v = edge.ac_social / (maxSocial || 0.01); break;
-    default: v = edge.ac_total / (maxAcProduct || 1e-6); break;
+    case 'phys':    v = edge.ac_phys   / (maxPhys    || 0.01); break;
+    case 'social':  v = edge.ac_social / (maxSocial  || 0.01); break;
+    case 'product': v = edge.ac_total  / (maxAcProduct || 0.01); break;
+    default:        v = edge.ac_n09   / (maxN09     || 0.01); break;
   }
   return Math.max(0, Math.min(1, v));
 }
@@ -422,34 +432,43 @@ function switchLayer(layer) {
     });
   });
 
-  const midPhys = (maxPhys / 2).toFixed(2);
-  const midSocial = (maxSocial / 2).toFixed(2);
-  const midProd = (maxAcProduct / 2).toFixed(4);
+  const midPhys    = (maxPhys    / 2).toFixed(3);
+  const midSocial  = (maxSocial  / 2).toFixed(3);
+  const midProd    = (maxAcProduct / 2).toFixed(3);
+  const midN09     = (maxN09     / 2).toFixed(3);
 
   switch (layer) {
     case 'phys':
       titleEl.textContent = edgesUseDomAggregate
-        ? 'AC_phys · 主导列均值 · 玫红圆点'
-        : 'csvi_AC_phys · 玫红圆点';
-      drawGradient(maxPhys, `<span>0</span><span>${midPhys}</span><span>${maxPhys.toFixed(2)}</span>`);
+        ? 'cpvi_AC · 主导列均值 · 玫红圆点'
+        : 'cpvi_AC · 综合缓冲 · 玫红圆点';
+      drawGradient(maxPhys, `<span>0</span><span>${midPhys}</span><span>${maxPhys.toFixed(3)}</span>`);
       break;
     case 'social':
-      titleEl.textContent = 'csvi_AC_social · 玫红圆点';
-      drawGradient(maxSocial, `<span>0</span><span>${midSocial}</span><span>${maxSocial.toFixed(2)}</span>`);
+      titleEl.textContent = 'N_OS · 开敞空间嵌入度 ×0.40 · 玫红圆点';
+      drawGradient(maxSocial, `<span>0</span><span>${midSocial}</span><span>${maxSocial.toFixed(3)}</span>`);
       break;
     case 'product':
-      titleEl.textContent = 'csvi_AC_total (phys×social)';
-      drawGradient(maxAcProduct, `<span>0</span><span>${midProd}</span><span>${maxAcProduct.toFixed(4)}</span>`);
+      titleEl.textContent = 'N_CD · 文化场所密度 ×0.35 · 玫红圆点';
+      drawGradient(maxAcProduct, `<span>0</span><span>${midProd}</span><span>${maxAcProduct.toFixed(3)}</span>`);
+      break;
+    case 'n09':
+      titleEl.textContent = 'N09 · 街道舒适度 ×0.25 · 玫红圆点';
+      drawGradient(maxN09, `<span>0</span><span>${midN09}</span><span>${maxN09.toFixed(3)}</span>`);
       break;
   }
 }
 
-function renderMapFromRaw(raw) {
+async function renderMapFromRaw(raw) {
   if (!raw || raw.length === 0) {
     csvLoadBanner.style.display = 'block';
     return;
   }
-  const edges = dedupeUndirectedEdges(raw);
+  let edges = dedupeUndirectedEdges(raw);
+  if (typeof filterEdgeRecordsToDaxujiahuiStudy === 'function') {
+    const wrapped = edges.map((e) => Object.assign({}, e, { midLon: +e.lon, midLat: +e.lat }));
+    edges = await filterEdgeRecordsToDaxujiahuiStudy(wrapped);
+  }
   const ll = edges.map(e => [+e.lat, +e.lon]);
   if (ll.length === 0 || !ll.every(c => Number.isFinite(c[0]) && Number.isFinite(c[1]))) {
     csvLoadBanner.style.display = 'block';
@@ -465,15 +484,15 @@ function renderMapFromRaw(raw) {
   const bounds = L.latLngBounds(ll);
   if (bounds.isValid()) map.fitBounds(bounds.pad(0.02));
 
-  maxPhys = d3.max(edges, d => d.ac_phys) || 0.01;
-  maxSocial = d3.max(edges, d => d.ac_social) || 0.01;
-  maxAcProduct = d3.max(edges, d => d.ac_total) || 0.001;
+  maxPhys      = d3.max(edges, d => d.ac_phys)   || 0.01;
+  maxSocial    = d3.max(edges, d => d.ac_social)  || 0.01;
+  maxAcProduct = d3.max(edges, d => d.ac_total)   || 0.01;
+  maxN09       = d3.max(edges, d => d.ac_n09)     || 0.01;
 
-  document.getElementById('v-n07').textContent = d3.mean(edges, d => d.N07).toFixed(3);
-  document.getElementById('v-n08').textContent = d3.mean(edges, d => d.N08).toFixed(3);
-  document.getElementById('v-n15').textContent = d3.mean(edges, d => d.N15).toFixed(3);
-  document.getElementById('v-n01').textContent = d3.mean(edges, d => d.N01).toFixed(3);
-  document.getElementById('v-n03').textContent = d3.mean(edges, d => d.N03).toFixed(3);
+  document.getElementById('v-n07').textContent = d3.mean(edges, d => d.N_OS).toFixed(3);
+  document.getElementById('v-n08').textContent = d3.mean(edges, d => d.N_CD).toFixed(3);
+  document.getElementById('v-n15').textContent = d3.mean(edges, d => d.N09).toFixed(3);
+  document.getElementById('v-n01').textContent = d3.mean(edges, d => d.ac_phys).toFixed(3);
 
   currentAcLayer = 'phys';
 
@@ -481,14 +500,11 @@ function renderMapFromRaw(raw) {
     const pl = L.circle([edge.lat, edge.lon], acMarkerStyle(edge)).addTo(map);
 
     pl.bindTooltip(`
-    <div class="tt-head">AC_phys(图层)=${edge.ac_phys.toFixed(4)} | AC_social=${edge.ac_social.toFixed(4)}</div>
-    ${edge.usesDomAggregate ? `<div class="tt-r"><span>csvi_AC_phys 表列</span><b>${(Number.isFinite(edge.ac_phys_csv) ? edge.ac_phys_csv : 0).toFixed(4)}</b></div>` : ''}
-    <div class="tt-r"><span>AC_total</span><b>${edge.ac_total.toFixed(6)}</b></div>
-    <div class="tt-r"><span>N07</span><b>${edge.N07.toFixed(3)}</b></div>
-    <div class="tt-r"><span>N08</span><b>${edge.N08.toFixed(3)}</b></div>
-    <div class="tt-r"><span>N15</span><b>${edge.N15.toFixed(3)}</b></div>
-    <div class="tt-r"><span>N01</span><b>${edge.N01.toFixed(3)}</b></div>
-    <div class="tt-r"><span>N03</span><b>${edge.N03.toFixed(3)}</b></div>
+    <div class="tt-head">cpvi_AC = ${edge.ac_phys.toFixed(4)} <span style="opacity:0.6">· 认知缓冲能力</span></div>
+    ${edge.usesDomAggregate ? `<div class="tt-r"><span>cpvi_AC 表列</span><b>${(Number.isFinite(edge.ac_phys_csv) ? edge.ac_phys_csv : 0).toFixed(4)}</b></div>` : ''}
+    <div class="tt-r"><span>N_OS（开敞空间 ×0.40）</span><b>${edge.N_OS.toFixed(4)}</b></div>
+    <div class="tt-r"><span>N_CD（文化场所 ×0.35）</span><b>${edge.N_CD.toFixed(4)}</b></div>
+    <div class="tt-r"><span>N09（街道舒适 ×0.25）</span><b>${edge.N09.toFixed(4)}</b></div>
   `, { className: 'edge-tooltip', sticky: false, direction: 'top', offset: [0, -10] });
 
     pl.on('mouseover', function () {
@@ -510,9 +526,10 @@ function renderMapFromRaw(raw) {
 
     polylines.push({ pl, edge });
   }, () => switchLayer('phys'));
+  /* 确保 btn-n09 的 active 类与其他按钮互斥 */
 }
 
-function loadCsvText(text) {
+async function loadCsvText(text) {
   const t = (text || '').replace(/^\uFEFF/, '');
   let raw;
   try {
@@ -522,10 +539,10 @@ function loadCsvText(text) {
     csvLoadBanner.style.display = 'block';
     return;
   }
-  renderMapFromRaw(raw);
+  await renderMapFromRaw(raw);
 }
 
-const csvUrl = new URL('../data/cld/cld_priority.csv', window.location.href).href;
+const csvUrl = new URL('../data/cld_priority.csv', window.location.href).href;
 fetch(csvUrl, { cache: 'no-store' })
   .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
   .then(loadCsvText)

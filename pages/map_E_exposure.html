@@ -208,14 +208,14 @@
 </div>
 
 <div class="panel-header">
-  <div class="tag">CSVI Dimension 01 · Spatial Distribution</div>
+  <div class="tag">CPVI Dimension 01 · Spatial Distribution</div>
   <h1><span>E</span> · 暴露维度 · 街段级空间分布</h1>
-  <div class="sub">Exposure — 数据：<code>cld_priority.csv</code> · 边中点玫红圆点</div>
+  <div class="sub">Exposure — 认知刺激需求强度 · 数据：<code>cld_priority.csv</code> · 边中点玫红圆点</div>
 </div>
 
 <div class="stats-box">
   <div class="stat-row">
-    <div class="stat-label">Mean csvi_E</div>
+    <div class="stat-label">Mean cpvi_E</div>
     <div class="stat-val">—</div>
   </div>
   <div class="stat-row">
@@ -229,43 +229,33 @@
 </div>
 
 <div class="legend">
-  <div class="legend-title">csvi_E · 玫红圆点（深浅 = 值）</div>
+  <div class="legend-title">cpvi_E · 玫红圆点（深浅 = 值）</div>
   <canvas class="gradient-bar" id="gradBar" height="10"></canvas>
   <div class="gradient-labels">
     <span>0.0</span><span>0.5</span><span>1.0</span>
   </div>
   <div class="formula">
+    <em>E</em> = pop_total × (1 + <em>N_CD_norm</em>)<br>
     颜色固定 <em>#DA4BA3</em>，单点较透；重叠处更实<br>
     <span style="opacity:0.55;font-size:10px">圆点固定约 12m 半径，随地图缩放变化</span>
   </div>
 </div>
 
 <div class="sub-panel">
-  <div class="sp-title">五类画像 Personas</div>
+  <div class="sp-title">E 分量 Components</div>
   <div class="persona-item">
     <div class="persona-dot" style="background:#DA4BA3"></div>
-    <span class="persona-name">w₁ 隔代照料者</span>
-    <span class="persona-val">N01+N_GC</span>
+    <span class="persona-name">pop_total</span>
+    <span class="persona-val">城市人口密度</span>
   </div>
   <div class="persona-item">
     <div class="persona-dot" style="background:#DA4BA3"></div>
-    <span class="persona-name">w₂ 医疗重度使用者</span>
-    <span class="persona-val">N_MED</span>
+    <span class="persona-name">N_CD</span>
+    <span class="persona-val">文化场所密度</span>
   </div>
-  <div class="persona-item">
-    <div class="persona-dot" style="background:#DA4BA3"></div>
-    <span class="persona-name">w₃ 晨练社群组织者</span>
-    <span class="persona-val">体育POI</span>
-  </div>
-  <div class="persona-item">
-    <div class="persona-dot" style="background:#DA4BA3"></div>
-    <span class="persona-name">w₄ 独居高龄老人</span>
-    <span class="persona-val">N02</span>
-  </div>
-  <div class="persona-item">
-    <div class="persona-dot" style="background:#DA4BA3"></div>
-    <span class="persona-name">w₅ 活跃新老年</span>
-    <span class="persona-val">pop₆₀₋₆₄</span>
+  <div class="persona-item" style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08)">
+    <div class="persona-dot" style="background:transparent;border:1px solid rgba(218,75,163,0.4)"></div>
+    <span class="persona-name" style="font-size:8px;color:rgba(255,255,255,0.35);font-style:italic">E = pop_total × (1 + N_CD_norm)</span>
   </div>
   <div class="boundary-sep">
     <button type="button" class="boundary-toggle-btn active" id="btn-boundary-e" onclick="toggleBoundaryLayer()">大徐家汇边界 · OSM</button>
@@ -372,17 +362,18 @@ function stripBomKeys(d) {
 
 function parseRow(d) {
   d = stripBomKeys(d);
+  /* 优先读新列 cpvi_E，回退旧列 csvi_E */
+  const eVal = +d.cpvi_E || +d.csvi_E || 0;
   return {
     u: d.u,
     v: d.v,
     lon: +d.lon,
     lat: +d.lat,
     length: +d.length,
-    csvi_E: +d.csvi_E,
-    N01: +d.N01,
-    N02: +d.N02,
-    N_GC: +d.N_GC,
-    N_MED: +d.N_MED
+    cpvi_E: eVal,
+    N_CD:   +d.N_CD  || 0,
+    N_UD:   +d.N_UD  || 0,
+    N_SI:   +d.N_SI  || 0
   };
 }
 
@@ -401,12 +392,16 @@ function styleFromE(ev) {
   };
 }
 
-function renderMapFromRaw(raw) {
+async function renderMapFromRaw(raw) {
   if (!raw || raw.length === 0) {
     csvLoadBanner.style.display = 'block';
     return;
   }
-  const edges = dedupeUndirectedEdges(raw);
+  let edges = dedupeUndirectedEdges(raw);
+  if (typeof filterEdgeRecordsToDaxujiahuiStudy === 'function') {
+    const wrapped = edges.map((e) => Object.assign({}, e, { midLon: +e.lon, midLat: +e.lat }));
+    edges = await filterEdgeRecordsToDaxujiahuiStudy(wrapped);
+  }
   const ll = edges.map(e => [+e.lat, +e.lon]);
   const ok = ll.length > 0 && ll.every(c => Number.isFinite(c[0]) && Number.isFinite(c[1]));
   if (!ok) {
@@ -421,33 +416,35 @@ function renderMapFromRaw(raw) {
   const bounds = L.latLngBounds(ll);
   if (bounds.isValid()) map.fitBounds(bounds.pad(0.02));
 
-  const eMean = d3.mean(edges, d => d.csvi_E);
-  const eStd = d3.deviation(edges, d => d.csvi_E);
+  const eMean = d3.mean(edges, d => d.cpvi_E);
+  const eStd = d3.deviation(edges, d => d.cpvi_E);
   document.querySelector('.stats-box .stat-val').textContent = (eMean != null && !Number.isNaN(eMean) ? eMean : 0).toFixed(3);
   document.querySelectorAll('.stats-box .stat-val')[1].textContent = (eStd != null && !Number.isNaN(eStd) ? eStd : 0).toFixed(3);
   document.querySelectorAll('.stats-box .stat-val')[2].textContent = String(edges.length);
 
   addCirclesTimeSliced(edges, edge => {
-    const ev = Number.isFinite(edge.csvi_E) ? edge.csvi_E : 0;
+    const ev = Number.isFinite(edge.cpvi_E) ? edge.cpvi_E : 0;
     const dot = L.circle([edge.lat, edge.lon], styleFromE(ev)).addTo(map);
     edgeMarkers.push(dot);
 
     dot.bindTooltip(`
-    <div class="tt-head">csvi_E = ${ev.toFixed(4)} <span style="opacity:0.6">· 边中点</span></div>
-    <div class="tt-r"><span>N01</span><b>${Math.max(0, edge.N01).toFixed(3)}</b></div>
-    <div class="tt-r"><span>N02</span><b>${Math.max(0, edge.N02).toFixed(3)}</b></div>
-    <div class="tt-r"><span>N_GC</span><b>${Math.max(0, edge.N_GC).toFixed(3)}</b></div>
-    <div class="tt-r"><span>N_MED</span><b>${Math.max(0, edge.N_MED).toFixed(3)}</b></div>
+    <div class="tt-head">cpvi_E = ${ev.toFixed(4)} <span style="opacity:0.6">· 边中点</span></div>
+    <div class="tt-r"><span>N_UD（城市密度）</span><b>${Math.max(0, edge.N_UD).toFixed(3)}</b></div>
+    <div class="tt-r"><span>N_CD（文化场所）</span><b>${Math.max(0, edge.N_CD).toFixed(3)}</b></div>
+    <div class="tt-r"><span>N_SI（街道界面）</span><b>${Math.max(0, edge.N_SI).toFixed(3)}</b></div>
     <div class="tt-r"><span>长度</span><b>${Math.max(1, edge.length).toFixed(0)}m</b></div>
   `, { className: 'edge-tooltip', sticky: false, direction: 'top', offset: [0, -10] });
 
     dot.on('mouseover', function () {
       this.setStyle({
-        ...styleFromE(ev),
         radius: R_M_HOVER,
+        stroke: true,
+        color: MAGENTA,
         weight: 0.75,
         opacity: 1,
-        fillOpacity: 0.92
+        fillColor: MAGENTA,
+        fillOpacity: 0.92,
+        renderer: circleRenderer
       });
       this.bringToFront();
     });
@@ -458,7 +455,7 @@ function renderMapFromRaw(raw) {
   }, () => {});
 }
 
-function loadCsvText(text) {
+async function loadCsvText(text) {
   const t = (text || '').replace(/^\uFEFF/, '');
   let raw;
   try {
@@ -468,10 +465,10 @@ function loadCsvText(text) {
     csvLoadBanner.style.display = 'block';
     return;
   }
-  renderMapFromRaw(raw);
+  await renderMapFromRaw(raw);
 }
 
-const csvUrl = new URL('../data/cld/cld_priority.csv', window.location.href).href;
+const csvUrl = new URL('../data/cld_priority.csv', window.location.href).href;
 fetch(csvUrl, { cache: 'no-store' })
   .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
   .then(loadCsvText)

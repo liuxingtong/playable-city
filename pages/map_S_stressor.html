@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>S · 伤害维度 — 空间分布</title>
+<title>S · 敏感维度 — 空间分布</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
@@ -195,36 +195,37 @@
 </div>
 
 <div class="panel-header">
-  <div class="tag">CSVI Dimension 02 · Spatial Distribution</div>
-  <h1><span>S</span> · 伤害维度 · 街段级空间分布</h1>
-  <div class="sub">数据：<code>cld_priority.csv</code> · 玫红圆点</div>
+  <div class="tag">CPVI Dimension 02 · Spatial Distribution</div>
+  <h1><span>S</span> · 敏感维度 · 认知负荷风险 · 街段级空间分布</h1>
+  <div class="sub">数据：<code>cld_priority.csv</code> · 玫红圆点 · S = Motor_Pressure × max(0, 1 − N_OS_norm)</div>
 </div>
 
 <div class="layer-toggle">
   <div class="lt-title">显示图层 Layer</div>
-  <button class="lt-btn active" id="btn-env" onclick="switchLayer('env')">S_env · 环境伤害</button>
-  <button class="lt-btn" id="btn-contact" onclick="switchLayer('contact')">S_contact · 接触浪费</button>
-  <button class="lt-btn" id="btn-total" onclick="switchLayer('total')">S_total · 总伤害</button>
+  <button class="lt-btn active" id="btn-env" onclick="switchLayer('env')">cpvi_S · 敏感度（总）</button>
+  <button class="lt-btn" id="btn-contact" onclick="switchLayer('contact')">Motor_P · 机动车压力</button>
+  <button class="lt-btn" id="btn-total" onclick="switchLayer('total')">N_OS · 开敞空间对冲</button>
   <button type="button" class="lt-btn active lt-boundary" id="btn-boundary" onclick="toggleBoundaryLayer()" style="margin-top:6px;margin-bottom:0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);font-size:9px">大徐家汇边界 · OSM</button>
 </div>
 
 <div class="legend">
-  <div class="legend-title" id="legendTitle">csvi_S_env · 玫红圆点</div>
+  <div class="legend-title" id="legendTitle">cpvi_S · 玫红圆点</div>
   <canvas class="gradient-bar" id="gradBar" height="10"></canvas>
   <div class="gradient-labels" id="gradLabels">
     <span>低</span><span>中</span><span>高</span>
   </div>
   <div class="formula">
-    <em>S</em> = <em>S_env</em> + <em>S_contact</em><br>
+    <em>S</em> = Motor_Pressure × max(0, 1 − <em>N_OS_norm</em>)<br>
+    开敞空间越丰富，机动车压力被对冲越多<br>
     圆点颜色 <em>#DA4BA3</em>，单点较透；<strong>重叠越密越实</strong>
   </div>
 </div>
 
 <div class="stats-box">
   <div class="sp-title">子指标 Sub-Indicators</div>
-  <div class="si"><span class="si-label">N17</span><span class="si-val" id="v-n17">—</span></div>
-  <div class="si"><span class="si-label">N14</span><span class="si-val" id="v-n14">—</span></div>
-  <div class="si"><span class="si-label">N_YP</span><span class="si-val" id="v-nyp">—</span></div>
+  <div class="si"><span class="si-label">N_CL（认知负荷）</span><span class="si-val" id="v-n17">—</span></div>
+  <div class="si"><span class="si-label">Motor_P（均值）</span><span class="si-val" id="v-n14">—</span></div>
+  <div class="si"><span class="si-label">N_OS（均值）</span><span class="si-val" id="v-nyp">—</span></div>
 </div>
 
 <script>
@@ -311,20 +312,24 @@ function stripBomKeys(d) {
 
 function parseRowS(d) {
   d = stripBomKeys(d);
-  const sEnv = +d.csvi_S_env;
-  const sContact = +d.csvi_S_contact;
+  /* cpvi_S：新列；回退旧版 S_env+S_contact */
+  const sTotal = Number.isFinite(+d.cpvi_S)
+    ? +d.cpvi_S
+    : (+d.csvi_S_env || 0) + (+d.csvi_S_contact || 0);
+  const motorP = +d.Motor_Pressure || 0;
+  const nOS    = +d.N_OS           || 0;
   return {
     u: d.u,
     v: d.v,
     lon: +d.lon,
     lat: +d.lat,
     length: +d.length,
-    s_env: sEnv,
-    s_contact: sContact,
-    s_total: sEnv + sContact,
-    N17: +d.N17,
-    N14: +d.N14,
-    N_YP: +d.N_YP
+    s_env:     sTotal,   /* 主显示层：cpvi_S */
+    s_contact: motorP,   /* 第二层：Motor_Pressure */
+    s_total:   nOS,      /* 第三层：N_OS（对冲因子，高值=对冲强） */
+    N_CL:  +d.N_CL  || 0,
+    Motor_P: motorP,
+    N_OS:  nOS
   };
 }
 
@@ -389,26 +394,30 @@ function switchLayer(layer) {
 
   switch (layer) {
     case 'env':
-      titleEl.textContent = 'csvi_S_env · 玫红圆点';
+      titleEl.textContent = 'cpvi_S · 敏感度（总） · 玫红圆点';
       drawGradient(maxEnv, mv => `<span>0</span><span>${(mv / 2).toFixed(2)}</span><span>${mv.toFixed(2)}</span>`);
       break;
     case 'contact':
-      titleEl.textContent = 'csvi_S_contact · 玫红圆点';
+      titleEl.textContent = 'Motor_Pressure · 机动车压力 · 玫红圆点';
       drawGradient(maxContact, mv => `<span>0</span><span>${(mv / 2).toFixed(2)}</span><span>${mv.toFixed(2)}</span>`);
       break;
     case 'total':
-      titleEl.textContent = 'csvi_S_total · 玫红圆点';
+      titleEl.textContent = 'N_OS · 开敞空间嵌入度（越高S越低）';
       drawGradient(maxTotal, mv => `<span>0</span><span>${(mv / 2).toFixed(2)}</span><span>${mv.toFixed(2)}</span>`);
       break;
   }
 }
 
-function renderMapFromRaw(raw) {
+async function renderMapFromRaw(raw) {
   if (!raw || raw.length === 0) {
     csvLoadBanner.style.display = 'block';
     return;
   }
-  const edges = dedupeUndirectedEdges(raw);
+  let edges = dedupeUndirectedEdges(raw);
+  if (typeof filterEdgeRecordsToDaxujiahuiStudy === 'function') {
+    const wrapped = edges.map((e) => Object.assign({}, e, { midLon: +e.lon, midLat: +e.lat }));
+    edges = await filterEdgeRecordsToDaxujiahuiStudy(wrapped);
+  }
   const ll = edges.map(e => [+e.lat, +e.lon]);
   if (ll.length === 0 || !ll.every(c => Number.isFinite(c[0]) && Number.isFinite(c[1]))) {
     csvLoadBanner.style.display = 'block';
@@ -426,9 +435,9 @@ function renderMapFromRaw(raw) {
   maxContact = d3.max(edges, d => d.s_contact) || 0.01;
   maxTotal = d3.max(edges, d => d.s_total) || 0.01;
 
-  document.getElementById('v-n17').textContent = d3.mean(edges, d => d.N17).toFixed(3);
-  document.getElementById('v-n14').textContent = d3.mean(edges, d => d.N14).toFixed(3);
-  document.getElementById('v-nyp').textContent = d3.mean(edges, d => d.N_YP).toFixed(3);
+  document.getElementById('v-n17').textContent = d3.mean(edges, d => d.N_CL).toFixed(3);
+  document.getElementById('v-n14').textContent = d3.mean(edges, d => d.Motor_P).toFixed(3);
+  document.getElementById('v-nyp').textContent = d3.mean(edges, d => d.N_OS).toFixed(3);
 
   currentLayer = 'env';
 
@@ -436,11 +445,10 @@ function renderMapFromRaw(raw) {
     const pl = L.circle([edge.lat, edge.lon], sMarkerStyle(edge)).addTo(map);
 
     pl.bindTooltip(`
-    <div class="tt-head">S_env=${edge.s_env.toFixed(4)} | S_contact=${edge.s_contact.toFixed(4)}</div>
-    <div class="tt-r"><span>S_total</span><b>${edge.s_total.toFixed(4)}</b></div>
-    <div class="tt-r"><span>N17</span><b>${edge.N17.toFixed(3)}</b></div>
-    <div class="tt-r"><span>N14</span><b>${edge.N14.toFixed(3)}</b></div>
-    <div class="tt-r"><span>N_YP</span><b>${edge.N_YP.toFixed(3)}</b></div>
+    <div class="tt-head">cpvi_S = ${edge.s_env.toFixed(4)} <span style="opacity:0.6">· 认知负荷风险</span></div>
+    <div class="tt-r"><span>Motor_Pressure</span><b>${edge.s_contact.toFixed(4)}</b></div>
+    <div class="tt-r"><span>N_OS（开敞空间对冲）</span><b>${edge.s_total.toFixed(4)}</b></div>
+    <div class="tt-r"><span>N_CL（认知负荷）</span><b>${edge.N_CL.toFixed(3)}</b></div>
   `, { className: 'edge-tooltip', sticky: false, direction: 'top', offset: [0, -10] });
 
     pl.on('mouseover', function () {
@@ -464,7 +472,7 @@ function renderMapFromRaw(raw) {
   }, () => switchLayer('env'));
 }
 
-function loadCsvText(text) {
+async function loadCsvText(text) {
   const t = (text || '').replace(/^\uFEFF/, '');
   let raw;
   try {
@@ -474,10 +482,10 @@ function loadCsvText(text) {
     csvLoadBanner.style.display = 'block';
     return;
   }
-  renderMapFromRaw(raw);
+  await renderMapFromRaw(raw);
 }
 
-const csvUrl = new URL('../data/cld/cld_priority.csv', window.location.href).href;
+const csvUrl = new URL('../data/cld_priority.csv', window.location.href).href;
 fetch(csvUrl, { cache: 'no-store' })
   .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
   .then(loadCsvText)

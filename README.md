@@ -8,7 +8,7 @@
 npm install
 ```
 
-- **矩阵等 Vite 页面**：`npm run dev`（默认打开 `src/matrix/stay_willingness_matrix.html`；会先执行 `sync:cld` 将 `data/cld/cld_priority.csv` 同步到 `public/cld_priority.csv`）。
+- **矩阵等 Vite 页面**：`npm run dev`（默认打开 `src/matrix/stay_willingness_matrix.html`；会先执行 `sync:cld`：自 `data/cld_priority.csv` 按大徐家汇四街道并集裁剪后写入 `public/cld_priority.csv`，无边界 GeoJSON 时整表复制）。
 - **多数 HTML（含叙事框架、地图）**：需通过 **HTTP 以仓库根为站点根** 访问（否则 `fetch` CSV / GeoJSON 会失败）。例如：
   - 在项目根目录：`python -m http.server 8080`，浏览器打开 `http://localhost:8080/` 或 `http://localhost:8080/pages/1narrative-framework.html`；
   - `npx serve .` 或 VS Code Live Server，根目录指向本仓库；
@@ -31,7 +31,7 @@ npm run build
 | `pages/xujiahui-site-selection-osm-light.html` | 同上逻辑的浅色 OSM 副本；`?export`、`?bw`、`?zoom`、`?scaleHint` 等 |
 | `pages/field_system_selection.html` | 同算法独立页，**绘制**玫红簇间廊道折线 |
 | `csvi-model.html` 等 | 见 `docs/PROJECT_LAYOUT.md` |
-| `src/matrix/stay_willingness_matrix.html` | 停留意愿矩阵 Vite 入口（同目录 `matrix_main.jsx`、`csvi_quadrant.jsx`）；构建产出在 `dist/src/matrix/` |
+| `src/matrix/stay_willingness_matrix.html` | 停留意愿 **五维雷达** Vite 入口（`csvi_quadrant.jsx` + `personaFive.js`）；构建产出在 `dist/src/matrix/` |
 
 共享浏览器脚本在 **`lib/`**（地图页以 `../lib/*.js` 引用）。
 
@@ -39,8 +39,8 @@ npm run build
 
 | 命令 | 作用 |
 |------|------|
-| `npm run sync:cld` | `data/cld/cld_priority.csv` → `public/cld_priority.csv` |
-| `data/cld/cld_priority.csv` 可选列 | `AC_med_dom`、`AC_tech_dom`、`AC_mkt_dom`、`AC_sport_dom`：**四列同行为非空**时，`map_AC_buffer` 与停留意愿矩阵用**算术平均**作为 AC_phys；`map_intervention_nodes` 另用 **argmax** 标资源主导类型 |
+| `npm run sync:cld` | `data/cld_priority.csv` →（按 `data/daxujiahui-four-streets-union.geojson` 裁剪）→ `public/cld_priority.csv` |
+| `data/cld_priority.csv` 可选列 | `AC_med_dom`、`AC_tech_dom`、`AC_mkt_dom`、`AC_sport_dom`：**四列同行为非空**时，`map_AC_buffer` 与停留意愿矩阵用**算术平均**作为 AC_phys；`map_intervention_nodes` 另用 **argmax** 标资源主导类型 |
 | `npm run filter:cld-daxujiahui` | 按大徐家汇四街道并集筛选 CSV |
 | `npm run fetch:daxujiahui-4` | 拉取四街道边界 GeoJSON → `data/` |
 | `npm run clip:lan-use` | 需已安装 Python `pyshp`：裁剪用地 → `data/lan_use_daxujiahui.geojson`（供选址页用地统计） |
