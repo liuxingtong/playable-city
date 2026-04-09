@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>人机共生空间与老年认知恢复 · 设计叙事</title>
+<title>可玩城市 · 人机共生与认知潜力 — 大徐家汇研究叙事</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@200;300;400;500;700;900&family=JetBrains+Mono:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
 
@@ -32,9 +32,11 @@
   --font-body:    'Noto Sans SC', sans-serif;
   --font-mono:    'JetBrains Mono', monospace;
 
-  --section-gap: 8vw;
-  --content-max: 1280px;
+  --section-gap: clamp(20px, 2.5vw, 40px);
+  --content-max: min(98vw, 2000px);
   --iframe-ratio: 56.25%;
+  /* 全屏嵌入：为每节标题+简介预留的垂直空间 */
+  --embed-chrome: clamp(140px, 20vh, 220px);
 }
 
 html {
@@ -67,8 +69,13 @@ body::before {
 .dot-nav {
   position: fixed; right: 20px; top: 50%; transform: translateY(-50%);
   z-index: 1000;
-  display: flex; flex-direction: column; gap: 14px;
+  display: flex; flex-direction: column; gap: 10px;
   align-items: center;
+  max-height: min(88vh, 920px);
+  overflow-y: auto;
+  overflow-x: visible;
+  padding: 6px 0;
+  scrollbar-width: thin;
 }
 .dot-nav a {
   width: 8px; height: 8px; border-radius: 50%;
@@ -111,11 +118,11 @@ body::before {
 }
 .section-title {
   font-family: var(--font-display);
-  font-size: clamp(28px, 4vw, 52px);
+  font-size: clamp(14px, 2vw, 26px);
   font-weight: 700; line-height: 1.2;
   color: #fff;
-  margin-bottom: 16px;
-  max-width: 800px;
+  margin-bottom: 8px;
+  max-width: 960px;
   text-wrap: balance;
 }
 .section-title em {
@@ -124,10 +131,10 @@ body::before {
   text-shadow: 0 0 40px var(--magenta-50);
 }
 .section-desc {
-  font-size: 15px; line-height: 1.85;
+  font-size: 14px; line-height: 1.75;
   color: var(--text-dim);
-  max-width: 640px;
-  margin-bottom: 40px;
+  max-width: min(920px, 92vw);
+  margin-bottom: 14px;
 }
 .section-desc strong { color: var(--text); font-weight: 500; }
 
@@ -164,24 +171,13 @@ body::before {
 .card-slot .aspect.ratio-21-9 { padding-top: 42.86%; }
 .card-slot.persona-embed .aspect.ratio-persona { padding-top: 162%; }
 #s4 .persona-layout-scale {
-  width: 1940px;
-  max-width: none;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
-  zoom: 0.66;
-}
-@media (max-width: 1343px) {
-  #s4 .persona-layout-scale { zoom: 0.62; }
-}
-@media (max-width: 1200px) {
-  #s4 .persona-layout-scale { zoom: 0.56; }
-}
-@media (max-width: 1050px) {
-  #s4 .persona-layout-scale { zoom: 0.50; }
+  zoom: 1;
 }
 @media (max-width: 900px) {
   #s4 .persona-layout-scale {
-    zoom: 1;
-    width: 100%;
     overflow-x: auto;
     overflow-y: visible;
     -webkit-overflow-scrolling: touch;
@@ -189,18 +185,35 @@ body::before {
 }
 .card-grid.persona-layout {
   display: grid;
-  grid-template-columns: repeat(5, 380px);
-  gap: 10px;
-  width: 1940px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
   align-items: start;
 }
 .card-grid.persona-layout .card-slot { min-width: 0; }
 .card-grid.persona-layout .persona-embed .aspect.ratio-persona {
   padding-top: 0;
   aspect-ratio: 380 / 620;
-  width: 380px;
+  width: 100%;
   height: auto;
+  min-height: clamp(300px, 48svh, 880px);
   max-height: none;
+}
+@media (max-width: 1200px) {
+  .card-grid.persona-layout {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .card-grid.persona-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .card-grid.persona-layout {
+    grid-template-columns: 1fr;
+  }
 }
 .card-grid.persona-layout .card-slot .slot-badge {
   font-size: 9px;
@@ -217,84 +230,67 @@ body::before {
 }
 .card-slot.pole-embed .aspect.pole-embed-aspect {
   padding-top: 0;
-  height: clamp(440px, 58vw, 860px);
-  min-height: 400px;
+  height: calc(100svh - var(--embed-chrome));
+  min-height: min(480px, 70svh);
 }
 .card-slot.dual-line-embed .aspect.dual-line-aspect {
   padding-top: 0;
-  height: clamp(600px, 88vh, 940px);
-  min-height: 580px;
+  height: calc(100svh - var(--embed-chrome));
+  min-height: min(520px, 65svh);
 }
 @media (max-width: 600px) {
   .card-slot.dual-line-embed .aspect.dual-line-aspect {
-    height: clamp(560px, 90vh, 900px);
-    min-height: 540px;
+    min-height: 55svh;
   }
 }
 .card-slot.cld-embed .aspect.cld-embed-aspect {
   padding-top: 0;
-  height: clamp(720px, 88vh, 980px);
-  min-height: 640px;
+  height: calc(100svh - var(--embed-chrome));
+  min-height: min(560px, 68svh);
 }
 @media (max-width: 600px) {
   .card-slot.cld-embed .aspect.cld-embed-aspect {
-    height: clamp(640px, 85vh, 900px);
-    min-height: 560px;
-  }
-}
-.card-slot.matrix-embed .aspect.matrix-embed-aspect {
-  padding-top: 0;
-  height: clamp(640px, 88vh, 920px);
-  min-height: 600px;
-}
-@media (max-width: 600px) {
-  .card-slot.matrix-embed .aspect.matrix-embed-aspect {
-    height: clamp(560px, 90vh, 880px);
-    min-height: 520px;
+    min-height: 58svh;
   }
 }
 .card-slot.node-type-embed .aspect.node-type-embed-aspect {
   padding-top: 0;
-  height: clamp(500px, 58vw, 620px);
-  min-height: 480px;
+  height: calc(100svh - var(--embed-chrome));
+  min-height: min(480px, 62svh);
 }
 @media (max-width: 600px) {
   .card-slot.node-type-embed .aspect.node-type-embed-aspect {
-    height: clamp(520px, 92vh, 720px);
-    min-height: 500px;
+    min-height: 54svh;
   }
 }
 .card-slot.prototype-embed .aspect.prototype-embed-aspect {
   padding-top: 0;
-  height: clamp(520px, 62vw, 680px);
-  min-height: 500px;
+  height: calc(100svh - var(--embed-chrome));
+  min-height: min(500px, 64svh);
 }
 @media (max-width: 600px) {
   .card-slot.prototype-embed .aspect.prototype-embed-aspect {
-    height: clamp(540px, 92vh, 760px);
-    min-height: 520px;
+    min-height: 56svh;
   }
 }
 .card-slot.cognitive-axis-embed .aspect.cognitive-axis-aspect {
   padding-top: 0;
-  height: clamp(520px, 62vw, 700px);
-  min-height: 500px;
+  height: calc(100svh - var(--embed-chrome));
+  min-height: min(500px, 64svh);
 }
 @media (max-width: 600px) {
   .card-slot.cognitive-axis-embed .aspect.cognitive-axis-aspect {
-    height: clamp(560px, 92vh, 780px);
-    min-height: 540px;
+    min-height: 56svh;
   }
 }
 .card-slot.map-intervention-embed .aspect.map-intervention-aspect {
   padding-top: 0;
-  height: clamp(560px, 78vh, 900px);
-  min-height: 520px;
+  height: calc(100svh - var(--embed-chrome));
+  min-height: min(520px, 66svh);
 }
 @media (max-width: 600px) {
   .card-slot.map-intervention-embed .aspect.map-intervention-aspect {
-    height: clamp(520px, 88vh, 820px);
-    min-height: 480px;
+    min-height: 54svh;
   }
 }
 .card-grid.cols-3.map-trio .card-slot.map-csvi-embed {
@@ -302,30 +298,29 @@ body::before {
 }
 .card-grid.cols-3.map-trio .card-slot.map-csvi-embed .aspect.map-csvi-aspect {
   padding-top: 0;
-  height: clamp(560px, 62vh, 840px);
-  min-height: 540px;
+  height: calc((100svh - var(--embed-chrome) - 24px) / 1);
+  min-height: min(420px, 38svh);
 }
 @media (max-width: 900px) {
   .card-grid.cols-3.map-trio .card-slot.map-csvi-embed .aspect.map-csvi-aspect {
-    height: clamp(520px, 56vh, 780px);
-    min-height: 500px;
+    height: calc((100svh - var(--embed-chrome) - 32px) / 2);
+    min-height: min(380px, 36svh);
   }
 }
 @media (max-width: 600px) {
   .card-grid.cols-3.map-trio .card-slot.map-csvi-embed .aspect.map-csvi-aspect {
-    height: clamp(480px, 52vh, 720px);
-    min-height: 460px;
+    height: calc((100svh - var(--embed-chrome) - 48px) / 3);
+    min-height: min(320px, 30svh);
   }
 }
 .card-slot.csvi-model-embed .aspect.csvi-model-aspect {
   padding-top: 0;
-  height: clamp(720px, 88vh, 960px);
-  min-height: 680px;
+  height: calc(100svh - var(--embed-chrome));
+  min-height: min(560px, 68svh);
 }
 @media (max-width: 600px) {
   .card-slot.csvi-model-embed .aspect.csvi-model-aspect {
-    height: clamp(640px, 90vh, 880px);
-    min-height: 600px;
+    min-height: 58svh;
   }
 }
 /* data-system-viz 内页 .page 固定 min-width:1480px；按比例缩小以适配卡槽宽度，避免横向拖动 */
@@ -336,11 +331,10 @@ body::before {
 .card-slot.data-system-viz-embed .aspect.data-system-viz-aspect {
   padding-top: 0;
   overflow: hidden;
-  /* 与 1480×H 设计稿对齐；H 略大于实际内容可减少 iframe 内滚动条 */
   --dsv-design-w: 1480px;
   --dsv-design-h: 1080px;
-  height: calc(var(--dsv-design-h) * min(1, 100cqi / var(--dsv-design-w)));
-  min-height: 320px;
+  height: calc(100svh - var(--embed-chrome));
+  min-height: min(400px, 50svh);
 }
 .card-slot.data-system-viz-embed .data-system-viz-scale-wrap {
   position: absolute;
@@ -424,7 +418,11 @@ body::before {
 .card-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
 
 .card-grid .card-slot .aspect { padding-top: 130%; }
-.card-grid.cols-2.figure-pair .card-slot .aspect.ratio-16-9 { padding-top: 56.25%; }
+.card-grid.cols-2.figure-pair .card-slot .aspect.ratio-16-9 {
+  padding-top: 0;
+  height: calc(100svh - var(--embed-chrome));
+  min-height: min(360px, 55svh);
+}
 
 @media (max-width: 900px) {
   .card-grid.cols-5 { grid-template-columns: repeat(3, 1fr); }
@@ -434,13 +432,10 @@ body::before {
     overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     padding-bottom: 8px;
-    zoom: 1;
-    width: 100%;
   }
   .card-grid.persona-layout {
-    grid-template-columns: repeat(5, 380px);
-    gap: 10px;
-    width: 1940px;
+    grid-template-columns: repeat(5, minmax(260px, 1fr));
+    min-width: min(100%, 1400px);
   }
 }
 @media (max-width: 600px) {
@@ -448,6 +443,10 @@ body::before {
   .card-grid.cols-3 { grid-template-columns: 1fr; }
   .card-grid.cols-2 { grid-template-columns: 1fr; }
   .section-desc { font-size: 14px; }
+  .card-grid.cols-2.figure-pair .card-slot .aspect.ratio-16-9 {
+    height: calc(45svh - 48px);
+    min-height: 200px;
+  }
 }
 
 .split {
@@ -459,6 +458,17 @@ body::before {
 .split.reverse { grid-template-columns: 1fr 380px; }
 .split.reverse .split-text { order: 2; }
 .split.reverse .split-card { order: 1; }
+
+/* 双层叙事节：简介置顶，嵌入全宽占满视高 */
+#s3 .split,
+#s3 .split.reverse {
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+#s3 .split.reverse .split-text,
+#s3 .split.reverse .split-card { order: 0; }
+#s3 .split-card { width: 100%; min-width: 0; }
 
 @media (max-width: 900px) {
   .split, .split.reverse {
@@ -483,7 +493,7 @@ body::before {
     radial-gradient(ellipse 80% 60% at 50% 40%, rgba(233,30,140,0.08) 0%, transparent 70%),
     radial-gradient(ellipse 40% 50% at 20% 70%, rgba(0,229,255,0.04) 0%, transparent 60%);
 }
-#hero .hero-content { position: relative; z-index: 1; max-width: 800px; padding: 0 24px; }
+#hero .hero-content { position: relative; z-index: 1; max-width: min(920px, 94vw); padding: 0 24px; }
 #hero .hero-sup {
   font-family: var(--font-mono);
   font-size: 11px; letter-spacing: 4px;
@@ -493,10 +503,10 @@ body::before {
 }
 #hero h1 {
   font-family: var(--font-display);
-  font-size: clamp(36px, 6vw, 72px);
+  font-size: clamp(18px, 3vw, 36px);
   font-weight: 700; line-height: 1.15;
   color: #fff;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   text-wrap: balance;
 }
 #hero h1 em {
@@ -504,8 +514,8 @@ body::before {
   text-shadow: 0 0 60px var(--magenta-50);
 }
 #hero .hero-sub {
-  font-size: 16px; color: var(--text-dim);
-  line-height: 1.8; max-width: 560px; margin: 0 auto 40px;
+  font-size: 15px; color: var(--text-dim);
+  line-height: 1.8; max-width: min(720px, 92vw); margin: 0 auto 32px;
   text-wrap: balance;
 }
 #hero .scroll-cue {
@@ -584,35 +594,68 @@ body::before {
     0 20px 60px rgba(0,0,0,0.5),
     inset 0 0 0 1px rgba(233,30,140,0.06);
 }
+
+/* 叙事占位：深化设计 / 方案 / 可复用系统 */
+.narrative-placeholder {
+  margin-top: 12px;
+  border: 1px dashed var(--magenta-20);
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgba(233,30,140,0.06), transparent 50%);
+  padding: clamp(22px, 4vw, 40px);
+  min-height: calc(100svh - var(--embed-chrome));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+}
+.narrative-placeholder .np-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--magenta);
+}
+.narrative-placeholder .np-lead {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.75;
+  max-width: min(52ch, 92vw);
+  text-align: left;
+}
+.narrative-placeholder .np-lead strong { color: var(--text); font-weight: 500; }
 </style>
 </head>
 <body>
 
 <nav class="dot-nav" id="dotNav">
   <a href="#hero"><span class="dot-label">首页</span></a>
-  <a href="#s1"><span class="dot-label">01 六极核</span></a>
-  <a href="#s2"><span class="dot-label">02 两种失灵</span></a>
-  <a href="#s3"><span class="dot-label">03 双线框架</span></a>
-  <a href="#s4"><span class="dot-label">04 五类画像</span></a>
-  <a href="#s4b"><span class="dot-label">04b 系统流程</span></a>
-  <a href="#s5"><span class="dot-label">05 CSVI 框架</span></a>
+  <a href="#s1"><span class="dot-label">01 极核与基底</span></a>
+  <a href="#s2"><span class="dot-label">02 认知生态张力</span></a>
+  <a href="#s3"><span class="dot-label">03 物理与虚拟双层</span></a>
+  <a href="#s4"><span class="dot-label">04 五类人群画像</span></a>
+  <a href="#s4b"><span class="dot-label">04b 研究流程总览</span></a>
+  <a href="#s5"><span class="dot-label">05 CPVI 模型</span></a>
   <a href="#s6"><span class="dot-label">06 E/S/AC 地图</span></a>
-  <a href="#s7"><span class="dot-label">07 停留矩阵</span></a>
-  <a href="#s8"><span class="dot-label">08 节点类型</span></a>
-  <a href="#s8-map"><span class="dot-label">08 节点地图</span></a>
-  <a href="#s9"><span class="dot-label">09 节点选址</span></a>
-  <a href="#s10"><span class="dot-label">10 认知轴线</span></a>
-  <a href="#s11"><span class="dot-label">11 因果与 SD 仿真</span></a>
+  <a href="#s8"><span class="dot-label">08 潜力与资源类型</span></a>
+  <a href="#s8-map"><span class="dot-label">08 街段地图</span></a>
+  <a href="#s9"><span class="dot-label">09 一核五轴</span></a>
+  <a href="#s9b"><span class="dot-label">09b 智能体踏勘</span></a>
+  <a href="#s9c"><span class="dot-label">09c Top3 共议</span></a>
+  <a href="#s9d"><span class="dot-label">09d 方案详呈</span></a>
+  <a href="#s10"><span class="dot-label">10 导则与双层设计</span></a>
+  <a href="#s11"><span class="dot-label">11 CLD 与 SD</span></a>
+  <a href="#s11b"><span class="dot-label">11b 可复用系统</span></a>
   <a href="#s12"><span class="dot-label">12 开放问题</span></a>
 </nav>
 
 <section id="hero" class="section">
   <div class="hero-content">
-    <div class="hero-sup">徐家汇适老化改造 · 设计叙事</div>
-    <h1>人机共生空间与老年<em>认知恢复</em></h1>
+    <div class="hero-sup">大徐家汇 · 可玩城市研究 · 叙事 v7</div>
+    <h1>人机共生空间 · 激活城市<em>认知潜力</em></h1>
     <p class="hero-sub">
-      徐家汇认知刺激资源密集，但对许多老年人而言，入口错位或难以进入。
-      下文说明如何用模型找到干预点，并在人机共生空间里落地。
+      「可玩城市」指向一种<strong>认知生态</strong>：物理层提升空间可玩性（边界、尺度、文脉、感官），虚拟层以 <strong>AI 伴游者</strong> 与城市镜像延伸感知维度。
+      研究区为<strong>大徐家汇四街道并集</strong>，并聚焦<strong>衡复风貌区</strong>约 5 公顷选址；核心指数为 <strong>CPVI = (E×S)/(AC+1)</strong>。下文按手册步骤展开：人群认知 → 区域识别 → 精细选址 → 设计方案 → 效果验证。
     </p>
     <div class="scroll-cue">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v12M3 9l5 5 5-5"/></svg>
@@ -627,15 +670,15 @@ body::before {
   <div class="section-inner">
     <div class="section-num reveal">01</div>
     <h2 class="section-title reveal reveal-delay-1">
-      六个极核制造的<em>结构性条件</em>
+      大徐家汇 · <em>极核与认知刺激资源</em>
     </h2>
     <p class="section-desc reveal reveal-delay-2">
-      医疗、商业、交通、体育、<strong>文化</strong>等极核让徐家汇成为高强度认知刺激场：既有商业与换乘带来的高压刺激，也有书院、风貌区与地标叙事提供的慢节奏素材。
-      第六极核——<strong>科技产业集聚</strong>——提供了用技术手段翻转压制的现实条件。
+      医疗、商业、交通、体育、文化与<strong>科技产业</strong>等极核构成高强度认知刺激场：既有换乘与商圈带来的高压接触，也有书院、风貌区与地标叙事提供的慢节奏素材。
+      这一<strong>空间锚点</strong>为后续小红书人群画像、CPVI 街段评分与 DBSCAN 片区识别提供区域语境。
     </p>
 
-    <div class="card-slot pole-embed reveal reveal-delay-3" style="margin-top: 32px;">
-      <span class="slot-badge">六极核空间分布</span>
+    <div class="card-slot pole-embed reveal reveal-delay-3" style="margin-top: 12px;">
+      <span class="slot-badge">六极核 · 空间分布</span>
       <div class="aspect pole-embed-aspect">
         <iframe data-src="xujiahui-pole-cards.html?v=6" loading="lazy" title="徐家汇六极核空间分布"></iframe>
         <div class="placeholder">
@@ -653,22 +696,22 @@ body::before {
   <div class="section-inner">
     <div class="section-num reveal">02</div>
     <h2 class="section-title reveal reveal-delay-1">
-      两种失灵，<em>同一个空间</em>
+      认知生态中的<em>两类张力</em>
     </h2>
     <p class="section-desc reveal reveal-delay-2">
-      斜土路的负向刺激制造认知负荷，田子坊的优质认知素材被防御状态屏蔽。
-      两种失灵背后是同一个缺位：<strong>没有机制能把已有刺激和已有人群转化为认知资源</strong>。
+      「可玩城市」不是把城市做成游乐场，而是关注<strong>刺激、缓冲与引导</strong>如何塑造感知深度与探索意愿。
+      斜土路一侧负向刺激推高认知负荷，田子坊一侧优质素材却被防御状态屏蔽——反差指向同一缺口：<strong>缺少把既有刺激稳定转化为可消化认知资源的机制</strong>。
     </p>
 
-    <div class="card-grid cols-2 figure-pair reveal reveal-delay-3" style="margin-top: 32px;">
+    <div class="card-grid cols-2 figure-pair reveal reveal-delay-3" style="margin-top: 12px;">
       <div class="card-slot">
-        <span class="slot-badge">失灵① · 斜土路</span>
+        <span class="slot-badge">案例 ① · 斜土路 · 负荷</span>
         <div class="aspect ratio-16-9">
           <img src="../assets/images/1.jpg" alt="斜土路：负向刺激与认知负荷" loading="lazy" decoding="async">
         </div>
       </div>
       <div class="card-slot">
-        <span class="slot-badge">失灵② · 田子坊</span>
+        <span class="slot-badge">案例 ② · 田子坊 · 屏蔽</span>
         <div class="aspect ratio-16-9">
           <img src="../assets/images/2.jpg" alt="田子坊：优质认知素材与防御屏蔽" loading="lazy" decoding="async">
         </div>
@@ -685,22 +728,23 @@ body::before {
       <div class="split-text">
         <div class="section-num reveal">03</div>
         <h2 class="section-title reveal reveal-delay-1">
-          <em>认知恢复</em>线 + <em>人机共生</em>线
+          <em>物理层</em>与<em>虚拟层</em> · 双重结构
         </h2>
         <p class="section-desc reveal reveal-delay-2">
-          认知恢复线修复"环境→老年人"伤害；人机共生线将工作人口在场
-          从排他力量转化为代际接触机会。<strong>人机共生空间是同时驱动两条线的技术界面。</strong>
+          <strong>物理层</strong>通过更新提升可玩性：边界渗透、尺度亲切感、历史文脉可读性、感官丰富度。
+          <strong>虚拟层</strong>引入 AI 伴游者在镜像城市中漫游并 <em>reach out</em>，与你在物理空间中的感知双向传递，并可结合 AR 真幻叠合。
+          下图沿用「认知恢复 × 人机共生」双线示意，与手册中的<strong>物理—虚拟双层</strong>叙事对应。
         </p>
       </div>
       <div class="split-card reveal reveal-delay-3">
 
         <div class="card-slot dual-line-embed">
-          <span class="slot-badge">双线框架概念</span>
+          <span class="slot-badge">双层框架 · 示意</span>
           <div class="aspect dual-line-aspect">
-            <iframe data-src="dual-line-framework.html" loading="lazy" title="认知恢复线与人机共生线"></iframe>
+            <iframe data-src="dual-line-framework.html" loading="lazy" title="物理层与虚拟层 · 双线框架示意"></iframe>
             <div class="placeholder">
               <div class="ph-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><path d="M4 12h16M12 4v16"/></svg></div>
-              <span class="ph-label">双线框架概念卡片</span>
+              <span class="ph-label">物理层与虚拟层 · 双线示意</span>
             </div>
           </div>
         </div>
@@ -716,10 +760,10 @@ body::before {
   <div class="section-inner">
     <div class="section-num reveal">04</div>
     <h2 class="section-title reveal reveal-delay-1">
-      五类<em>老年人群画像</em>
+      第一章 · 五类<em>人群画像</em>（行为数据锚点）
     </h2>
     <p class="section-desc reveal reveal-delay-2">
-      五类老年人在出行节律、与就业人群的交集上差异明显，是后续空间分析的共同起点。
+      以<strong>大徐家汇</strong>为范围爬取小红书等内容，经话题与行为聚类得到五类与片区互动最鲜明的人群；画像是后续 CPVI 权重、踏勘语义评分、设计方案与 CLD 五轴雷达的<strong>共同人视角锚点</strong>（下列卡片为画像交互页，与手册 Agent1–5 叙事一一对应）。
     </p>
 
     <div class="persona-layout-scale reveal reveal-delay-3">
@@ -791,15 +835,14 @@ body::before {
   <div class="section-inner">
     <div class="section-num reveal">04b</div>
     <h2 class="section-title reveal reveal-delay-1">
-      从画像到决策的<em>系统流程</em>
+      研究步骤 · <em>数据—模型—空间—验证</em>
     </h2>
     <p class="section-desc reveal reveal-delay-2">
-      人群与多源空间数据汇入同一套流程：<strong>指标挂载 → 模型变量 → CSVI（E / S / AC）</strong>，
-      再与地图、停留矩阵、节点与选址衔接。下图是全流程总览。
+      人群认知 → <strong>CPVI</strong> 街段得分与 <strong>E/S/AC</strong> 地图 → DBSCAN <strong>潜力区 / 资源区 / 连接轴线</strong> → 衡复<strong>五类智能体踏勘</strong>与优先地块 → 物理+虚拟<strong>人机共生</strong>方案 → <strong>CLD / SD</strong> 改造前后评估与迭代。下图为指标挂载与模型汇入路径总览。
     </p>
 
-    <div class="card-slot data-system-viz-embed reveal reveal-delay-3" style="margin-top: 28px;">
-      <span class="slot-badge">数据系统演化 · 全流程</span>
+    <div class="card-slot data-system-viz-embed reveal reveal-delay-3" style="margin-top: 12px;">
+      <span class="slot-badge">数据系统 · 全流程</span>
       <div class="aspect data-system-viz-aspect">
         <div class="data-system-viz-scale-wrap">
           <iframe data-src="data-system-viz.html" loading="lazy" title="徐家汇 · 数据系统演化架构"></iframe>
@@ -819,20 +862,20 @@ body::before {
   <div class="section-inner">
     <div class="section-num reveal">05</div>
     <h2 class="section-title reveal reveal-delay-1">
-      <em>CSVI</em> 脆弱性模型 · 结构框架
+      第二章 · <em>CPVI</em> · 城市可玩-认知脆弱性指数
     </h2>
     <p class="section-desc reveal reveal-delay-2">
-      <strong>CSVI = E × S ÷ (AC+1)</strong>：暴露度 E、敏感性 S、适应能力 AC 合成单一得分；
-      <strong>两种失灵</strong>分别体现在 S 的两项（S<sub>env</sub> / S<sub>contact</sub>）。下方为结构示意。
+      手册核心公式 <strong>CPVI = E × S ÷ (AC+1)</strong>：<strong>E</strong> 暴露度（人流与文化接触需求）、<strong>S</strong> 敏感性（如机动车压力、开敞不足）、<strong>AC</strong> 适应能力（绿化、文化场所、舒适街道等缓冲）。
+      分数越高 → 越宜<strong>优先部署可玩接口</strong>。本页交互组件标题仍为 CSVI，与 CPVI <strong>同式同义</strong>，仅为历史标签。
     </p>
 
-    <div class="card-slot csvi-model-embed reveal reveal-delay-3" style="margin-top: 32px;">
-      <span class="slot-badge">CSVI 模型结构</span>
+    <div class="card-slot csvi-model-embed reveal reveal-delay-3" style="margin-top: 12px;">
+      <span class="slot-badge">CPVI / CSVI · 结构</span>
       <div class="aspect csvi-model-aspect">
-        <iframe data-src="csvi-model.html" loading="lazy" title="CSVI 模型 · E × S ÷ (AC+1)"></iframe>
+        <iframe data-src="csvi-model.html" loading="lazy" title="CPVI 模型 · E × S ÷ (AC+1)"></iframe>
         <div class="placeholder">
           <div class="ph-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--magenta)" stroke-width="1.5"><rect x="4" y="5" width="6" height="14" rx="1"/><rect x="13" y="8" width="6" height="11" rx="1"/><path d="M4 5v14M7 5v14M13 8v11M16 8v11"/><path d="M10 12h3"/></svg></div>
-          <span class="ph-label">CSVI 模型 · E × S ÷ (AC+1)</span>
+          <span class="ph-label">CPVI / CSVI · E × S ÷ (AC+1)</span>
         </div>
       </div>
     </div>
@@ -845,13 +888,13 @@ body::before {
   <div class="section-inner">
     <div class="section-num reveal">06</div>
     <h2 class="section-title reveal reveal-delay-1">
-      CSVI <em>三维度地图</em>
+      CPVI 三分量 · <em>E / S / AC</em> 空间分布
     </h2>
     <p class="section-desc reveal reveal-delay-2">
-      与上一节同一套结果：<strong>E、S、AC</strong> 在徐汇区的空间分布。
+      与上一节同一套街段结果的三张分图，在大徐家汇研究区内的<strong>路网尺度</strong>呈现（技术口径见手册附录）。
     </p>
 
-    <div class="card-grid cols-3 map-trio reveal reveal-delay-3" style="margin-top: 32px;">
+    <div class="card-grid cols-3 map-trio reveal reveal-delay-3" style="margin-top: 12px;">
       <div class="card-slot map-csvi-embed">
         <div class="aspect map-csvi-aspect">
           <iframe data-src="map_E_exposure.html" loading="lazy" title="E · 暴露维度 — 空间分布"></iframe>
@@ -863,10 +906,10 @@ body::before {
       </div>
       <div class="card-slot map-csvi-embed">
         <div class="aspect map-csvi-aspect">
-          <iframe data-src="map_S_stressor.html" loading="lazy" title="S · 伤害维度 — 空间分布"></iframe>
+          <iframe data-src="map_S_stressor.html" loading="lazy" title="S · 敏感维度 — 空间分布"></iframe>
           <div class="placeholder">
             <div class="ph-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg></div>
-            <span class="ph-label">S · 伤害维度</span>
+            <span class="ph-label">S · 敏感维度</span>
           </div>
         </div>
       </div>
@@ -885,44 +928,19 @@ body::before {
 
 <div class="divider"></div>
 
-<section id="s7" class="section">
-  <div class="section-inner">
-    <div class="section-num reveal">07</div>
-    <h2 class="section-title reveal reveal-delay-1">
-      停留意愿<em>矩阵</em>
-    </h2>
-    <p class="section-desc reveal reveal-delay-2">
-      用两条停留意愿指标作平面投影，同一套计算从不同侧面呈现<strong>脆弱性差异</strong>。
-    </p>
-
-    <div class="card-slot matrix-embed reveal reveal-delay-3" style="margin-top: 32px;">
-      <span class="slot-badge">停留意愿矩阵</span>
-      <div class="aspect matrix-embed-aspect">
-        <iframe data-src="../dist/src/matrix/stay_willingness_matrix.html?v=radar1" loading="lazy" title="停留意愿 · 五类智能体五维雷达"></iframe>
-        <div class="placeholder">
-          <div class="ph-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--magenta)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="16" r="1.5" fill="var(--magenta)" stroke="none"/><circle cx="12" cy="9" r="1.5" fill="var(--magenta)" stroke="none"/><circle cx="16" cy="14" r="1.5" fill="var(--magenta)" stroke="none"/><circle cx="10" cy="12" r="1.5" fill="var(--magenta)" stroke="none"/></svg></div>
-          <span class="ph-label">停留意愿矩阵（W_elder × W_work）</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<div class="divider"></div>
-
 <section id="s8" class="section">
   <div class="section-inner">
     <div class="section-num reveal">08</div>
     <h2 class="section-title reveal reveal-delay-1">
-      潜力与资源：<em>类型卡片</em>
+      DBSCAN · <em>潜力区 · 资源区 · 连接轴线</em>
     </h2>
     <p class="section-desc reveal reveal-delay-2">
-      <strong>潜力节点</strong>为激活三亚型（A₁/A₂/A₃），判定与街段 CSVI、W 轴一致；
-      <strong>资源节点</strong>对应表内五列资源主导（医疗/科技/商业/体育/文化，列名含 <code>AC_soc_cul_dom</code>）；未拆类的页面用五列<strong>均值</strong>作 AC_phys（旧表仅四列时退回四列均值）。叙事与地图<strong>不单独呈现廊道空间</strong>。
+      对 CPVI 与 Wp 结果做<strong>触媒 DBSCAN</strong>：<strong>潜力区</strong>（CPVI 高且至少一类 Wp 高）、<strong>资源区</strong>（五类主导 AC 各前 10%）、<strong>连接轴线</strong>（簇间接缝廊道，玫红折线见独立页）。
+      下列卡片为节点类型示意；技术参数见手册附录 E。
     </p>
 
-    <div class="card-slot node-type-embed reveal reveal-delay-3" style="margin-top: 32px;">
-      <span class="slot-badge">节点类型 · v3</span>
+    <div class="card-slot node-type-embed reveal reveal-delay-3" style="margin-top: 12px;">
+      <span class="slot-badge">潜力 · 资源 · 廊道</span>
       <div class="aspect node-type-embed-aspect">
         <iframe data-src="node-type-cards-v3.html?v=4" loading="lazy" title="潜力节点 · 资源节点 · 廊道（卡片示意）"></iframe>
         <div class="placeholder">
@@ -940,14 +958,14 @@ body::before {
   <div class="section-inner">
     <div class="section-num reveal">08</div>
     <h2 class="section-title reveal reveal-delay-1">
-      潜力与资源：<em>地图分布</em>
+      潜力节点与资源节点 · <em>街段地图</em>
     </h2>
     <p class="section-desc reveal reveal-delay-2">
-      以<strong>斜田潜力区</strong>为核，识别四类资源与五条认知轴，推动资源向老年人汇聚，构建<strong>「一核五轴·多点共生」</strong>网络。
+      第二章输出在<strong>大徐家汇路网</strong>上的落位，用于框定若干<strong>导则化大片区</strong>；衡复风貌区因历史肌理完整、社区—城市交界面丰富、五类人群共现度高，进入第三章约 <strong>5 公顷</strong>精细选址。
     </p>
 
-    <div class="card-slot map-intervention-embed reveal reveal-delay-3" style="margin-top: 32px;">
-      <span class="slot-badge">潜力 · 资源 · 街段地图</span>
+    <div class="card-slot map-intervention-embed reveal reveal-delay-3" style="margin-top: 12px;">
+      <span class="slot-badge">街段 · 潜力与资源</span>
       <div class="aspect map-intervention-aspect">
         <iframe data-src="map_intervention_nodes.html?v=14" loading="lazy" title="潜力与资源节点 · 街段地图"></iframe>
         <div class="placeholder">
@@ -965,14 +983,14 @@ body::before {
   <div class="section-inner">
     <div class="section-num reveal">09</div>
     <h2 class="section-title reveal reveal-delay-1">
-      节点选址：<em>空间结构</em>
+      第三章 · 衡复风貌区 · <em>一核五轴空间格局</em>
     </h2>
     <p class="section-desc reveal reveal-delay-2">
-      将潜力节点聚集区域定为斜田认知潜力核心区，识别医疗、体育、商业、科技四类资源区，制定人机共生空间导则引导资源向老年人流动，最终形成商业、体育、科技及两条社会认知轴线，构建"一核五轴·多点共生"的认知支持网络。
+      在<strong>一核五轴 · 多点共生</strong>结构下，于约 <strong>5 公顷</strong>尺度编辑<strong>触媒簇、场域圆、人机轴线</strong>与资源/潜力区；地图支持草稿 JSON 导入导出，便于与仓库数据对齐。后续接智能体踏勘与 Top3 地块方案深化。
     </p>
 
-    <div class="card-slot map-intervention-embed reveal reveal-delay-3" style="margin-top: 32px;">
-      <span class="slot-badge">节点选址 × 空间结构</span>
+    <div class="card-slot map-intervention-embed reveal reveal-delay-3" style="margin-top: 12px;">
+      <span class="slot-badge">一核五轴 · 场域与轴线</span>
       <div class="aspect map-intervention-aspect">
         <iframe data-src="xujiahui-site-selection.html?v=boundary-fields-noland" loading="lazy" title="人机触媒-认知轴线-场域系统"></iframe>
         <div class="placeholder">
@@ -986,24 +1004,78 @@ body::before {
 
 <div class="divider"></div>
 
+<section id="s9b" class="section">
+  <div class="section-inner">
+    <div class="section-num reveal">深化设计</div>
+    <h2 class="section-title reveal reveal-delay-1">
+      深化设计：<em>衡复风貌区-智能体踏勘</em>（占位）
+    </h2>
+    <p class="section-desc reveal reveal-delay-2">
+      对应五类 Agent 在衡复的街景/现场图像语义评分与踏勘维度；本页预留踏勘记录、得分热力与儿童视角（1–1.5 m）专项图层等嵌入位。
+    </p>
+    <div class="narrative-placeholder reveal reveal-delay-3">
+      <span class="np-tag">PLACEHOLDER</span>
+      <p class="np-lead"><strong>待嵌入：</strong>踏勘路线与采样点地图、分 Agent 雷达或条带图、与 CPVI 潜力节点叠置视图。</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="s9c" class="section">
+  <div class="section-inner">
+    <div class="section-num reveal">方案共议</div>
+    <h2 class="section-title reveal reveal-delay-1">
+      Top3 五公顷地块 · 智能体<em>如何讨论</em>设计方案（占位）
+    </h2>
+    <p class="section-desc reveal reveal-delay-2">
+      三块优先选址上，五类智能体按各自叙事权重对物理/虚拟策略进行<strong>跨人群头脑风暴</strong>与案例库检索；本页预留对话流、共识—分歧标注与地块对照面板。
+    </p>
+    <div class="narrative-placeholder reveal reveal-delay-3">
+      <span class="np-tag">PLACEHOLDER</span>
+      <p class="np-lead"><strong>待嵌入：</strong>三地块并列卡片、Agent 发言时间线或线程、外部案例库引用条与「共现价值」摘要。</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="s9d" class="section">
+  <div class="section-inner">
+    <div class="section-num reveal">方案输出</div>
+    <h2 class="section-title reveal reveal-delay-1">
+      设计方案 · <em>详细呈现</em>（占位）
+    </h2>
+    <p class="section-desc reveal reveal-delay-2">
+      融合概念、场地、材料感官与使用程序等维度的<strong>拼接式方案</strong>总览；本页预留总平面图、关键节点透视、虚拟层（AI 伴游 / 跟随模式）界面稿位。
+    </p>
+    <div class="narrative-placeholder reveal reveal-delay-3">
+      <span class="np-tag">PLACEHOLDER</span>
+      <p class="np-lead"><strong>待嵌入：</strong>分地块方案册滚动区、媒体画廊、AR/镜像城市示意与指标注释（对接 CLD 变量）。</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
 <section id="s10" class="section">
   <div class="section-inner">
     <div class="section-num reveal">10</div>
     <h2 class="section-title reveal reveal-delay-1">
-      认知恢复轴线 · <em>人机共生</em>空间导则
+      第四章衔接 · <em>潜力区—廊道—资源区</em>导则
     </h2>
     <p class="section-desc reveal reveal-delay-2">
-      沿<strong>潜力区—认知廊道—资源区</strong>展开轴线：交感街道、横行连廊、感知公园与第三空间 Box 等原型如何落位。
-      交互图<strong>右下</strong>可切换三条导则图层——感知-判断-干预闭环、节点就地生长与交替、廊道时空节奏——与上文节点类型与选址形成「在哪、做成什么样、按什么规则运转」的衔接。
+      对应手册<strong>物理层</strong>可玩性提升与<strong>虚拟层</strong>（AI 伴游、镜像城市、跟随模式、数字公民等）提案在空间上的组织：沿潜力区—廊道—资源区展开轴线与原型的落位关系。
+      交互图<strong>右下</strong>可切换导则图层（感知—判断—干预闭环、节点生长与交替、廊道时空节奏）。
     </p>
 
-    <div class="card-slot cognitive-axis-embed reveal reveal-delay-3" style="margin-top: 32px;">
-      <span class="slot-badge">认知轴线 · 导则叠加</span>
+    <div class="card-slot cognitive-axis-embed reveal reveal-delay-3" style="margin-top: 12px;">
+      <span class="slot-badge">导则 · 轴线叠加</span>
       <div class="aspect cognitive-axis-aspect">
         <iframe data-src="cognitive-axis.html?v=1" loading="lazy" title="认知恢复轴线 · 人机共生空间导则（潜力区—廊道—资源区）"></iframe>
         <div class="placeholder">
           <div class="ph-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--magenta)" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M4 12h4M16 12h4M12 4v4M12 16v4"/><path d="M5 5l2.5 2.5M17 17l2.5 2.5M19 5l-2.5 2.5M7 17l-2.5 2.5"/></svg></div>
-          <span class="ph-label">认知恢复轴线 · 导则切换（右下）</span>
+          <span class="ph-label">潜力区—廊道—资源区 · 导则（右下）</span>
         </div>
       </div>
     </div>
@@ -1016,14 +1088,14 @@ body::before {
   <div class="section-inner">
     <div class="section-num reveal">11</div>
     <h2 class="section-title reveal reveal-delay-1">
-      因果回路<em>建模</em>与系统动力学仿真
+      第五章 · <em>CLD 因果回路</em>与 SD 仿真验证
     </h2>
     <p class="section-desc reveal reveal-delay-2">
-      两种失灵背后存在自我强化回路；上方为二维因果回路呈现<strong>多回路同时作用</strong>的结构与关键节点；底部为同一外生节律下的<strong>双情景 SD 轨迹对比</strong>（无干预 / 有 N18 干预）。
+      改造后通过<strong>因果回路图 + 系统动力学</strong>检验对 N_UV、N_CR、N_PI、认知负荷与五类 <strong>Wp</strong> 等指标的影响，并作为迭代入口。上方为二维 CLD 多回路结构，底部为<strong>双情景轨迹</strong>（无干预 / 有干预）对照。
     </p>
 
-    <div class="card-slot cld-embed reveal reveal-delay-3" style="margin-top: 32px;">
-      <span class="slot-badge">CLD 交互 · SD 双窗仿真</span>
+    <div class="card-slot cld-embed reveal reveal-delay-3" style="margin-top: 12px;">
+      <span class="slot-badge">CLD · SD 仿真</span>
       <div class="aspect cld-embed-aspect">
         <iframe data-src="cld_2d_interactive.html" loading="lazy" title="因果回路建模与系统动力学仿真 · CLD 二维"></iframe>
         <div class="placeholder">
@@ -1038,23 +1110,41 @@ body::before {
 
 <div class="divider"></div>
 
+<section id="s11b" class="section">
+  <div class="section-inner">
+    <div class="section-num reveal">系统论证</div>
+    <h2 class="section-title reveal reveal-delay-1">
+      从本项目到<em>可复用、可迭代</em>的设计系统（占位）
+    </h2>
+    <p class="section-desc reveal reveal-delay-2">
+      论证<strong>数据—CPVI—踏勘—方案—CLD/SD</strong>闭环如何沉淀为可迁移的导则包、参数模板与评审检查表；强调仿真反馈回选址与设计的迭代接口。
+    </p>
+    <div class="narrative-placeholder reveal reveal-delay-3">
+      <span class="np-tag">PLACEHOLDER</span>
+      <p class="np-lead"><strong>待嵌入：</strong>区位类型策略包矩阵（社区—城市交界面 / 历史肌理 / 商圈渗透等）、SD 情景预设列表、版本迭代时间轴与手册附录交叉引用表。</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
 <section id="s12" class="section">
-  <div class="section-inner" style="max-width: 720px;">
+  <div class="section-inner" style="max-width: min(720px, 92vw);">
     <div class="section-num reveal">12</div>
     <h2 class="section-title reveal reveal-delay-1">
       开放问题与<em>系统边界</em>
     </h2>
     <div class="section-desc open-questions reveal reveal-delay-2" style="max-width:100%;">
-      <p>设计能主动制造代际接触还是只能提供偶遇条件？</p>
-      <p>潜力与资源节点若涉及产权边界，设计与治理如何划界？</p>
-      <p>运营主体缺失后闭环多快退化？</p>
-      <p><strong>这三个问题是设计第一天就该正视的。</strong></p>
+      <p>虚拟层（镜像城市、AR、数字公民与数据推送）的<strong>隐私、事权与运维</strong>如何与物理空间改造同步界定？</p>
+      <p>五类 Agent 叙事权重在<strong>跨区域复用</strong>时需要多少校准成本？</p>
+      <p>潜力区—廊道—资源区网络在<strong>治理与运营缺位</strong>时，闭环会多快退化？</p>
+      <p><strong>上述问题应在方案深化第一天与手册技术附录一并纳入评审。</strong></p>
     </div>
   </div>
 </section>
 
 <footer id="footer">
-  <div>徐家汇适老化改造 · 人机共生空间与老年认知恢复 · 2026</div>
+  <div>大徐家汇可玩城市研究 · 人机共生与 CPVI 叙事框架 · 2026</div>
   <div style="color:var(--magenta-20);">━━━━━</div>
 </footer>
 
