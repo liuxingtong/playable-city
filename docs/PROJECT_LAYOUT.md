@@ -23,6 +23,7 @@
 | **`xujiahui-site-selection.html`** | 场域系统选址主页面（叙事 S9 iframe）。 |
 | **`xujiahui-site-selection-osm-light.html`** | 浅色 OSM 栅格 + 浅色 UI；出图/截图（`?export`、`?zoom` 等）。 |
 | **`field_system_selection.html`** | 同算法独立页，绘玫红廊道折线。 |
+| **`agent-recon-mvp.html`** | 五类智能体踏勘 MVP（天平路街道裁剪、可选 GLM、外部 case-base）；一键启动 `npm run start:agent-recon`。 |
 | **`cld_2d_interactive.html`** | CLD 二维交互。 |
 | **`csvi-model.html`**、`dual-line-framework.html`、`prototype-cards.html`、`xujiahui-pole-cards.html`、`node-type-cards-v3.html` 等 | 模型与卡片页。 |
 
@@ -42,7 +43,7 @@
 | 路径 | 用途 |
 |------|------|
 | **`data/`** | 静态地理数据、选址草稿 JSON、POI GeoJSON；边表主文件 **`data/cld_priority.csv`**。 |
-| **`docs/`** | 手册与说明。 |
+| **`docs/`** | 手册与说明；Agent 踏勘统一契约见 **`docs/agent-recon-contracts.md`**。 |
 | **`profiles/`** | 人物画像 HTML。 |
 | **`public/`** | 构建拷贝资源（如 `sync:cld` 后的 `cld_priority.csv`）。 |
 | **`dist/`** | `npm run build` 输出（矩阵为 `dist/src/matrix/stay_willingness_matrix.html` 等）。 |

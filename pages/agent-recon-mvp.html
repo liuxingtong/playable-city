@@ -100,6 +100,45 @@
     }
     .btn:disabled { opacity: 0.5; cursor: default; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    .casebase-panel {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      z-index: 850;
+      width: 288px;
+      max-height: 48vh;
+      overflow: auto;
+      background: rgba(15, 24, 35, 0.95);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    }
+    .casebase-panel h4 { margin: 0 0 6px; font-size: 13px; color: #c5d4e0; }
+    #caseGraphSvg { display: block; width: 100%; height: 220px; margin-top: 6px; }
+    textarea.casebase-query {
+      width: 100%;
+      min-height: 52px;
+      background: #0f1520;
+      color: var(--text);
+      border: 1px solid #2a3a4e;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 12px;
+      resize: vertical;
+    }
+    pre.casebase-out {
+      margin: 8px 0 0;
+      padding: 8px;
+      background: #0a0e14;
+      border-radius: 8px;
+      font-size: 10px;
+      max-height: 140px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #a8c5e0;
+    }
   </style>
 </head>
 <body>
@@ -172,6 +211,16 @@
       </section>
 
       <section class="section">
+        <h3 style="margin:0 0 6px;font-size:14px;">外部案例库 MCP / RAG</h3>
+        <p class="hint">经本地代理调用 <span class="mono">case-base/scripts/rag_answer_glm.py</span>，必须传 <span class="mono">trace_id</span> + <span class="mono">agent_id</span>。SSE 高亮 Case 节点 30s。详见 <span class="mono">docs/agent-recon-contracts.md</span>（一键启动 <span class="mono">npm run start:agent-recon</span>）。</p>
+        <label for="casebaseQuery">检索问题</label>
+        <textarea id="casebaseQuery" class="casebase-query" placeholder="输入面向案例库的自然语言问题…"></textarea>
+        <button type="button" id="casebaseRagBtn" class="btn" style="margin-top:8px;">执行 RAG（生成 trace_id）</button>
+        <button type="button" id="casebaseReplayBtn" class="btn" style="margin-top:6px;background:#1a2838">回放最近事件</button>
+        <pre id="casebaseRagOut" class="casebase-out empty">RAG 原始 JSON（compose_id / event_id / trace_id / refs）将显示于此。</pre>
+      </section>
+
+      <section class="section">
         <h3 style="margin:0 0 6px;font-size:14px;">深化选址讨论（多 Agent + GLM）</h3>
         <p class="hint">GLM 多 Agent 讨论会注入 <span class="mono">docs/skills/agent-recon-case-library.md</span> 技能，并按四维从 <span class="mono">data/agent-case-library.json</span> 预选案例拼接方案。图：本地四象限板 + 可选 CogView（需 <span class="mono">proxyImageUrl</span>）。</p>
         <button id="discussionBtn" class="btn" disabled>生成深化讨论建议</button>
@@ -181,6 +230,12 @@
 
     <main class="map-wrap">
       <div id="map"></div>
+      <div class="casebase-panel">
+        <h4>Case 节点图（检索高亮）</h4>
+        <p class="small" id="casebaseStatus">SSE 未连接</p>
+        <svg id="caseGraphSvg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="案例节点"></svg>
+        <p class="small" style="margin-top:6px;">高亮：与当前 Agent id 一致或与最近一次 RAG 的 trace_id 一致的 retrieval 事件；30s 后淡出。</p>
+      </div>
       <div class="floating">
         <h4>图例</h4>
         <div class="legend-line"><span class="dot" style="background:#2a5fff"></span>低优先（当前 Agent）</div>
@@ -193,6 +248,14 @@
   </div>
 
   <script>
+    window.AgentReconCasebaseConfig = {
+      enabled: true,
+      eventsApiBase: "http://127.0.0.1:8787",
+      ragProxyUrl: "http://127.0.0.1:3851",
+      agentIdPrefix: "playable_",
+      ragK: 6,
+      replayLimit: 100
+    };
     window.AgentReconGlmConfig = {
       enabled: true,
       apiKey: "YOUR_GLM_API_KEY_PLACEHOLDER",

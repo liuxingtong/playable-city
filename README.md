@@ -47,6 +47,8 @@ npm run build
 | `npm run fetch:daxujiahui-4` | 拉取四街道边界 GeoJSON → `data/` |
 | `npm run fetch:tianping-street` | 拉取 **天平路街道** 行政边界 → `data/tianping-road-street.geojson`（Agent 踏勘页裁剪用） |
 | `npm run glm:proxy` | 本地转发智谱 `chat/completions` 与 `images/generations`（`GLM_API_KEY`；页面分别配置 `proxyUrl` / `proxyImageUrl`） |
+| `npm run casebase:rag-proxy` | 案例库 RAG 本地代理：`POST /v1/rag` → `CASE_BASE_ROOT` 下执行 `scripts/rag_answer_glm.py` |
+| `npm run start:agent-recon` | **一键启动**踏勘本地栈：静态 HTTP（默认 8080）+ RAG 代理（3851）；可选 `CASEBASE_EVENTS_CMD`、`START_WITH_GLM_PROXY=1`（见 **`docs/agent-recon-contracts.md`**） |
 | `npm run clip:lan-use` | 需已安装 Python `pyshp`：裁剪用地 → `data/lan_use_daxujiahui.geojson`（供选址页用地统计） |
 | `npm run fetch:field-parcels` | （可选）Overpass 示例地块 |
 | `npm run render:site-osm` / `render:site-osm:vector` | Node 叠加边界与选址 JSON 出图 |
@@ -66,7 +68,8 @@ npm run build
 
 - **`docs/PROJECT_LAYOUT.md`** — 目录与文件说明（更全）
 - **`docs/徐家汇数据分析完整手册.md`** — 指标、节点判定、廊道/瓶颈与实现对照
-- **`docs/agent-recon-integration.md`** — Agent 踏勘外接 LLM / MCP / 数据库接口契约
+- **`docs/agent-recon-contracts.md`** — Agent 踏勘 **统一契约**（GLM、适配器、case-base RAG/SSE、`npm run start:agent-recon`）
+- **`docs/agent-recon-integration.md`** / **`docs/agent-recon-casebase-integration.md`** — 索引，正文见 `agent-recon-contracts.md`
 - **`docs/PPT框架_人机共生空间与认知恢复.md`** — 汇报页结构参考
 
 ## 许可与数据

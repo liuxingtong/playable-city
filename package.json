@@ -9,6 +9,8 @@
     "fetch:daxujiahui-4": "node scripts/fetch-daxujiahui-four-streets.mjs",
     "fetch:tianping-street": "node scripts/fetch-tianping-road-street.mjs",
     "glm:proxy": "node scripts/glm-proxy.mjs",
+    "casebase:rag-proxy": "node scripts/casebase-rag-proxy.mjs",
+    "start:agent-recon": "node scripts/start-agent-recon-stack.mjs",
     "fetch:field-parcels": "node scripts/fetch-field-parcels-overpass.mjs",
     "clip:lan-use": "python scripts/clip_lan_use_to_geojson.py",
     "predev": "npm run sync:cld",
