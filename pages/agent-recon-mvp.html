@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>徐家汇 Agent 踏勘系统 MVP</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f14;
+      --panel: #121923;
+      --panel-border: #213042;
+      --text: #e8f0fa;
+      --muted: #a2b3c6;
+      --accent: #53c5ff;
+      --accent-2: #ff5da2;
+      --good: #3ddc97;
+      --warn: #f5b942;
+      --danger: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+    .layout { display: grid; grid-template-columns: 360px 1fr; height: 100%; }
+    .side {
+      background: linear-gradient(180deg, #101722 0%, #0f141d 100%);
+      border-right: 1px solid var(--panel-border);
+      padding: 16px;
+      overflow: auto;
+    }
+    .section { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+    .title { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
+    .subtitle { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    select, input[type="range"] {
+      width: 100%;
+      background: #0f1520;
+      color: var(--text);
+      border: 1px solid #2a3a4e;
+      border-radius: 8px;
+      padding: 8px;
+    }
+    .kv { display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 12px; margin-top: 6px; }
+    .kv .k { color: var(--muted); }
+    .kv .v { font-weight: 600; }
+    .table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+    .table th, .table td { border-bottom: 1px solid #24364a; padding: 6px 4px; text-align: left; }
+    .table th { color: var(--muted); font-weight: 500; }
+    .badge { display: inline-block; font-size: 11px; padding: 2px 6px; border-radius: 999px; border: 1px solid #2a3a4e; color: var(--muted); }
+    .map-wrap { position: relative; }
+    #map { height: 100%; width: 100%; }
+    .floating {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 900;
+      background: rgba(15, 24, 35, 0.92);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 10px;
+      min-width: 220px;
+      backdrop-filter: blur(4px);
+    }
+    .floating h4 { margin: 0 0 6px; font-size: 13px; }
+    .floating p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+    .legend-line { margin: 4px 0; font-size: 12px; color: var(--muted); }
+    .small { font-size: 11px; color: var(--muted); }
+    .empty { color: var(--muted); font-size: 12px; }
+    .radar-wrap { display: flex; justify-content: center; margin-top: 6px; }
+    #radarSvg text { fill: #b4c3d4; font-size: 10px; }
+    .agent-msg-list { display: grid; gap: 8px; margin-top: 8px; }
+    .agent-msg {
+      border: 1px solid #2a3a4e;
+      border-radius: 10px;
+      padding: 8px;
+      background: #0f1520;
+    }
+    .agent-msg-hd { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    .agent-msg-name { font-size: 12px; font-weight: 600; }
+    .agent-msg-score { font-size: 11px; color: var(--accent); }
+    .agent-msg-body { font-size: 12px; color: var(--text); line-height: 1.5; }
+    .agent-msg-meta { margin-top: 4px; font-size: 11px; color: var(--muted); }
+    .btn {
+      display: inline-block;
+      width: 100%;
+      border: 1px solid #355174;
+      background: #173251;
+      color: #d8e9ff;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">
+      <section class="section">
+        <h1 class="title">徐家汇 Agent 踏勘系统</h1>
+        <p class="subtitle">MVP（规则引擎版）：基于 CPVI 与五类画像权重，快速生成踏勘优先级与候选地块。</p>
+        <p class="subtitle" id="studyScopeNote" style="margin-top:8px;">勘探范围：上海市徐汇区天平路街道（加载边界中…）</p>
+      </section>
+
+      <section class="section">
+        <label for="personaSelect">当前 Agent 视角</label>
+        <select id="personaSelect"></select>
+        <div class="kv">
+          <span class="k">可视化分值</span><span class="v" id="scoreLabel">-</span>
+          <span class="k">当前样本数</span><span class="v" id="sampleCount">-</span>
+        </div>
+      </section>
+
+      <section class="section">
+        <label for="thresholdRange">筛选阈值（百分位）</label>
+        <input id="thresholdRange" type="range" min="0" max="95" step="5" value="70" />
+        <div class="kv">
+          <span class="k">显示条件</span><span class="v" id="thresholdText">Top 30%</span>
+          <span class="k">地图点位</span><span class="v" id="visibleCount">-</span>
+        </div>
+        <p class="hint">规则：仅显示当前 Agent 分轴分位 ≥ 阈值的边段中点，颜色与半径随分值变化。</p>
+      </section>
+
+      <section class="section">
+        <h3 style="margin:0 0 6px;font-size:14px;">街景素材目录（预留）</h3>
+        <p class="hint">目录：<span class="mono">data/streetview_geo/</span>。请后续补充带坐标图像索引（GeoJSON 或 CSV）。</p>
+        <div class="kv">
+          <span class="k">已加载街景点</span><span class="v" id="streetviewCount">0</span>
+          <span class="k">最近素材</span><span class="v" id="streetviewNearest">-</span>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="badge">五类分轴雷达（当前点击点）</div>
+        <div class="radar-wrap">
+          <svg id="radarSvg" width="220" height="220" viewBox="0 0 220 220"></svg>
+        </div>
+        <p class="small">轴：爷叔 / 学生 / 白领 / 家庭 / 漫游；值为经验分位（0-1）。</p>
+      </section>
+
+      <section class="section">
+        <h3 style="margin:0 0 6px;font-size:14px;">Top 候选地块（自动聚合）</h3>
+        <p class="hint">以 120m 网格聚合边段，综合评分 = 当前 Agent 均值 × priority 均值 × 覆盖条数。</p>
+        <table class="table">
+          <thead>
+            <tr><th>#</th><th>中心坐标</th><th>综合分</th></tr>
+          </thead>
+          <tbody id="zoneTableBody"></tbody>
+        </table>
+      </section>
+
+      <section class="section">
+        <h3 style="margin:0 0 6px;font-size:14px;">点位详情</h3>
+        <div id="detailBox" class="empty">点击地图点位查看详情。</div>
+      </section>
+
+      <section class="section">
+        <h3 style="margin:0 0 6px;font-size:14px;">五类 Agent 留言</h3>
+        <p class="hint">配置 <span class="mono">AgentReconGlmConfig</span> 且有效 Key 或本地 <span class="mono">glm:proxy</span> 后，留言由 <span class="mono">glm-5.1</span> 生成；有街景图时可用 <span class="mono">glm-5v-turbo</span> 辅助打分。</p>
+        <div id="agentMessageList" class="agent-msg-list">
+          <div class="empty">点击地图点位后展示每个 Agent 留言。</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h3 style="margin:0 0 6px;font-size:14px;">深化选址讨论（多 Agent + GLM）</h3>
+        <p class="hint">GLM 多 Agent 讨论会注入 <span class="mono">docs/skills/agent-recon-case-library.md</span> 技能，并按四维从 <span class="mono">data/agent-case-library.json</span> 预选案例拼接方案。图：本地四象限板 + 可选 CogView（需 <span class="mono">proxyImageUrl</span>）。</p>
+        <button id="discussionBtn" class="btn" disabled>生成深化讨论建议</button>
+        <div id="discussionBox" class="small" style="margin-top:8px;">先点击地图点位，再触发讨论生成。</div>
+      </section>
+    </aside>
+
+    <main class="map-wrap">
+      <div id="map"></div>
+      <div class="floating">
+        <h4>图例</h4>
+        <div class="legend-line"><span class="dot" style="background:#2a5fff"></span>低优先（当前 Agent）</div>
+        <div class="legend-line"><span class="dot" style="background:#53c5ff"></span>中优先</div>
+        <div class="legend-line"><span class="dot" style="background:#3ddc97"></span>高优先</div>
+        <div class="legend-line"><span class="dot" style="background:#ffb347"></span>极高优先</div>
+        <p>黄圈为 Top3 候选地块（可点击跳转）。</p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    window.AgentReconGlmConfig = {
+      enabled: true,
+      apiKey: "YOUR_GLM_API_KEY_PLACEHOLDER",
+      model: "glm-5.1",
+      visionModel: "glm-5v-turbo",
+      baseUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+      proxyUrl: "",
+      proxyImageUrl: "",
+      imageModel: "cogview-3-flash",
+      enableSchemeImage: true
+    };
+  </script>
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script type="module" src="../lib/agent-recon-mvp.js"></script>
+</body>
+</html>

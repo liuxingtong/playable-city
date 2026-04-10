@@ -25,6 +25,7 @@ npm run build
 | 文件 | 说明 |
 |------|------|
 | `pages/1narrative-framework.html` | 主叙事框架；**勿单独改被 iframe 引用的文件名/相对路径**除非同步修改此处 |
+| `pages/agent-recon-mvp.html` | Agent 踏勘 MVP：勘探范围默认 **天平路街道**（`data/tianping-road-street.geojson`）；五类画像、地图、Top3 候选（规则引擎） |
 | `pages/map_E_exposure.html` / `map_S_stressor.html` / `map_AC_buffer.html` | CSVI 三维度地图 |
 | `pages/map_intervention_nodes.html` | 潜力 · 资源节点街段地图；`lib/ac-dom-aggregate.js` 与矩阵、AC 地图共用聚合规则 |
 | `pages/xujiahui-site-selection.html` | **场域系统选址主页面**（叙事 S9 iframe）；底图 Carto Dark |
@@ -33,16 +34,19 @@ npm run build
 | `csvi-model.html` 等 | 见 `docs/PROJECT_LAYOUT.md` |
 | `src/matrix/stay_willingness_matrix.html` | 停留意愿 **五维雷达** Vite 入口（`csvi_quadrant.jsx` + `personaFive.js`）；构建产出在 `dist/src/matrix/` |
 
-共享浏览器脚本在 **`lib/`**（地图页以 `../lib/*.js` 引用）。
+共享浏览器脚本在 **`lib/`**（地图页以 `../lib/*.js` 引用），其中 `lib/agent-recon-mvp.js` 对应 Agent 踏勘 MVP 的评分与交互逻辑。
 
 ## 脚本与数据（简要）
 
 | 命令 | 作用 |
 |------|------|
 | `npm run sync:cld` | `data/cld_priority.csv` →（按 `data/daxujiahui-four-streets-union.geojson` 裁剪）→ `public/cld_priority.csv` |
+| `data/streetview_geo/index.geojson` / `index.csv` | Agent 踏勘街景坐标索引（可先空，后续补图像与经纬度） |
 | `data/cld_priority.csv` 可选列 | `AC_med_dom`、`AC_tech_dom`、`AC_mkt_dom`、`AC_sport_dom`：**四列同行为非空**时，`map_AC_buffer` 与停留意愿矩阵用**算术平均**作为 AC_phys；`map_intervention_nodes` 另用 **argmax** 标资源主导类型 |
 | `npm run filter:cld-daxujiahui` | 按大徐家汇四街道并集筛选 CSV |
 | `npm run fetch:daxujiahui-4` | 拉取四街道边界 GeoJSON → `data/` |
+| `npm run fetch:tianping-street` | 拉取 **天平路街道** 行政边界 → `data/tianping-road-street.geojson`（Agent 踏勘页裁剪用） |
+| `npm run glm:proxy` | 本地转发智谱 `chat/completions` 与 `images/generations`（`GLM_API_KEY`；页面分别配置 `proxyUrl` / `proxyImageUrl`） |
 | `npm run clip:lan-use` | 需已安装 Python `pyshp`：裁剪用地 → `data/lan_use_daxujiahui.geojson`（供选址页用地统计） |
 | `npm run fetch:field-parcels` | （可选）Overpass 示例地块 |
 | `npm run render:site-osm` / `render:site-osm:vector` | Node 叠加边界与选址 JSON 出图 |
@@ -62,6 +66,7 @@ npm run build
 
 - **`docs/PROJECT_LAYOUT.md`** — 目录与文件说明（更全）
 - **`docs/徐家汇数据分析完整手册.md`** — 指标、节点判定、廊道/瓶颈与实现对照
+- **`docs/agent-recon-integration.md`** — Agent 踏勘外接 LLM / MCP / 数据库接口契约
 - **`docs/PPT框架_人机共生空间与认知恢复.md`** — 汇报页结构参考
 
 ## 许可与数据
