@@ -11,6 +11,13 @@
  * 浏览器 apiKey 可保持占位，由本服务注入 Authorization。
  */
 import http from "node:http";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { loadDotEnv } from "./load-env.mjs";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.join(__dirname, "..");
+loadDotEnv(ROOT);
 
 const PORT = Number(process.env.GLM_PROXY_PORT) || 3847;
 const CHAT_UPSTREAM =
@@ -68,9 +75,30 @@ const server = http.createServer(async (req, res) => {
       },
       body: raw,
     });
-    const text = await r.text();
-    res.writeHead(r.status, { "Content-Type": "application/json; charset=utf-8" });
-    res.end(text);
+    const ct = r.headers.get("content-type") || "application/json; charset=utf-8";
+    const isSse = ct.includes("text/event-stream");
+    res.writeHead(r.status, {
+      "Content-Type": ct,
+      "Cache-Control": isSse ? "no-cache" : "no-store",
+      Connection: isSse ? "keep-alive" : "close",
+      "X-Accel-Buffering": "no",
+    });
+    if (!r.body) {
+      res.end();
+      return;
+    }
+    if (!isSse) {
+      const text = await r.text();
+      res.end(text);
+      return;
+    }
+    const reader = r.body.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!res.writableEnded) res.write(Buffer.from(value));
+    }
+    res.end();
   } catch (e) {
     res.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
     res.end(JSON.stringify({ error: String(e?.message || e) }));

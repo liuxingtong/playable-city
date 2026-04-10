@@ -2,3 +2,5 @@ node_modules/
 output/
 .npm-cache/
 scripts/cache/
+.env
+.env.local

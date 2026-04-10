@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>徐家汇 Agent 踏勘系统 MVP</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232a5fff'/%3E%3C/svg%3E" />
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -68,9 +69,77 @@
     }
     .floating h4 { margin: 0 0 6px; font-size: 13px; }
     .floating p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .streetview-tab {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      z-index: 910;
+      width: min(420px, calc(100% - 24px));
+      background: rgba(15, 24, 35, 0.96);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+      overflow: hidden;
+      backdrop-filter: blur(4px);
+    }
+    .streetview-tab.is-hidden { display: none; }
+    .streetview-tab-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border-bottom: 1px solid #223348;
+      background: rgba(10, 16, 24, 0.65);
+    }
+    .streetview-tab-title { font-size: 12px; color: #d6e5f4; font-weight: 600; }
+    .streetview-close {
+      border: 1px solid #2a3a4e;
+      background: #112034;
+      color: #c9d8ea;
+      font-size: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      padding: 2px 8px;
+    }
+    .streetview-tab-body { padding: 10px; }
+    .streetview-tab-meta { color: var(--muted); font-size: 11px; margin-bottom: 8px; }
+    .streetview-tab-img {
+      width: 100%;
+      max-height: 240px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #2a3a4e;
+      background: #0a0e14;
+      display: block;
+    }
+    .streetview-tab-empty {
+      border: 1px dashed #31465f;
+      border-radius: 8px;
+      padding: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      background: #0e1621;
+    }
     .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
     .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
     .legend-line { margin: 4px 0; font-size: 12px; color: var(--muted); }
+    .legend-gradient {
+      width: 100%;
+      height: 12px;
+      border-radius: 6px;
+      border: 1px solid #2a3a4e;
+      margin: 6px 0 4px;
+      background: linear-gradient(90deg, #2a5fff 0%, #53c5ff 36%, #3ddc97 68%, #ffb347 100%);
+    }
+    .legend-gradient-labels {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+    }
     .small { font-size: 11px; color: var(--muted); }
     .empty { color: var(--muted); font-size: 12px; }
     .radar-wrap { display: flex; justify-content: center; margin-top: 6px; }
@@ -139,6 +208,44 @@
       word-break: break-all;
       color: #a8c5e0;
     }
+    .discussion-live {
+      margin-top: 8px;
+      border: 1px solid #2a3a4e;
+      border-radius: 10px;
+      background: #0d1520;
+      padding: 8px;
+      max-height: 380px;
+      overflow: auto;
+    }
+    .discussion-live .meta { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+    .discussion-live .trace { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #9dc9ff; }
+    .turn {
+      margin: 6px 0;
+      padding: 8px;
+      border-radius: 9px;
+      border: 1px solid #2a3a4e;
+      background: #111c2a;
+    }
+    .turn.host {
+      border-color: #4a3d26;
+      background: #1d1710;
+    }
+    .turn .name { font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #d9ebff; }
+    .turn.host .name { color: #ffd27f; }
+    .turn .body {
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .typing-cursor {
+      display: inline-block;
+      width: 7px;
+      margin-left: 2px;
+      color: #7dd3fc;
+      animation: blink 1s step-start infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
   </style>
 </head>
 <body>
@@ -211,18 +318,8 @@
       </section>
 
       <section class="section">
-        <h3 style="margin:0 0 6px;font-size:14px;">外部案例库 MCP / RAG</h3>
-        <p class="hint">经本地代理调用 <span class="mono">case-base/scripts/rag_answer_glm.py</span>，必须传 <span class="mono">trace_id</span> + <span class="mono">agent_id</span>。SSE 高亮 Case 节点 30s。详见 <span class="mono">docs/agent-recon-contracts.md</span>（一键启动 <span class="mono">npm run start:agent-recon</span>）。</p>
-        <label for="casebaseQuery">检索问题</label>
-        <textarea id="casebaseQuery" class="casebase-query" placeholder="输入面向案例库的自然语言问题…"></textarea>
-        <button type="button" id="casebaseRagBtn" class="btn" style="margin-top:8px;">执行 RAG（生成 trace_id）</button>
-        <button type="button" id="casebaseReplayBtn" class="btn" style="margin-top:6px;background:#1a2838">回放最近事件</button>
-        <pre id="casebaseRagOut" class="casebase-out empty">RAG 原始 JSON（compose_id / event_id / trace_id / refs）将显示于此。</pre>
-      </section>
-
-      <section class="section">
         <h3 style="margin:0 0 6px;font-size:14px;">深化选址讨论（多 Agent + GLM）</h3>
-        <p class="hint">GLM 多 Agent 讨论会注入 <span class="mono">docs/skills/agent-recon-case-library.md</span> 技能，并按四维从 <span class="mono">data/agent-case-library.json</span> 预选案例拼接方案。图：本地四象限板 + 可选 CogView（需 <span class="mono">proxyImageUrl</span>）。</p>
+        <p class="hint">注入 <span class="mono">docs/skills/agent-recon-case-library.md</span>；本地 <span class="mono">data/agent-case-library.json</span> 提供结构化预选。若启用外部 case-base：由 GLM 先产出四维检索 query，再各调 <span class="mono">/v1/rag</span>，并在面板中<strong>实时回显多 Agent 发言 + 主持人汇总</strong>，最终输出合成新案例（非单次向量答案直灌）。四象限板 + 可选 CogView。</p>
         <button id="discussionBtn" class="btn" disabled>生成深化讨论建议</button>
         <div id="discussionBox" class="small" style="margin-top:8px;">先点击地图点位，再触发讨论生成。</div>
       </section>
@@ -230,30 +327,54 @@
 
     <main class="map-wrap">
       <div id="map"></div>
-      <div class="casebase-panel">
-        <h4>Case 节点图（检索高亮）</h4>
-        <p class="small" id="casebaseStatus">SSE 未连接</p>
-        <svg id="caseGraphSvg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="案例节点"></svg>
-        <p class="small" style="margin-top:6px;">高亮：与当前 Agent id 一致或与最近一次 RAG 的 trace_id 一致的 retrieval 事件；30s 后淡出。</p>
-      </div>
       <div class="floating">
         <h4>图例</h4>
-        <div class="legend-line"><span class="dot" style="background:#2a5fff"></span>低优先（当前 Agent）</div>
-        <div class="legend-line"><span class="dot" style="background:#53c5ff"></span>中优先</div>
-        <div class="legend-line"><span class="dot" style="background:#3ddc97"></span>高优先</div>
-        <div class="legend-line"><span class="dot" style="background:#ffb347"></span>极高优先</div>
+        <div class="legend-line">当前 Agent 分位（连续色条，相对区间）</div>
+        <div class="legend-gradient" aria-hidden="true"></div>
+        <div class="legend-gradient-labels">
+          <span id="legendMinLabel">低（-）</span>
+          <span id="legendMidLabel">中（-）</span>
+          <span id="legendMaxLabel">高（-）</span>
+        </div>
         <p>黄圈为 Top3 候选地块（可点击跳转）。</p>
       </div>
+      <section id="streetviewFloatingTab" class="streetview-tab is-hidden" aria-label="街景预览">
+        <div class="streetview-tab-hd">
+          <span class="streetview-tab-title">街景预览</span>
+          <button id="streetviewCloseBtn" type="button" class="streetview-close">关闭</button>
+        </div>
+        <div id="streetviewTabBody" class="streetview-tab-body"></div>
+      </section>
     </main>
   </div>
 
   <script>
+    window.AgentReconStreetviewConfig = {
+      maxNearestDistM: 180,
+      sourceCandidates: [
+        "../data/street-image/50上海_image_meta10_allfieldsb.csv",
+        "../data/street-image/50上海.csv",
+        "../data/50上海/index.geojson",
+        "../data/50上海/index.csv",
+        "../data/streetview_geo/index.geojson",
+        "../data/streetview_geo/index.csv"
+      ]
+    };
+    /** 周边 POI：走 rag 代理 POST /v1/poi-around（Overpass）；不需要可设 enabled: false */
+    window.AgentReconPoiConfig = {
+      enabled: true,
+      radiusM: 300,
+      maxItems: 48
+    };
     window.AgentReconCasebaseConfig = {
       enabled: true,
-      eventsApiBase: "http://127.0.0.1:8787",
+      /** 与 ragProxyUrl 同端口：经 casebase-rag-proxy 转发至 8787，避免 8080→8787 浏览器 CORS */
+      eventsApiBase: "http://127.0.0.1:3851",
       ragProxyUrl: "http://127.0.0.1:3851",
       agentIdPrefix: "playable_",
       ragK: 6,
+      /** 深化讨论内四维各检索条数；默认取 min(4, ragK) */
+      ragKPerDim: 4,
       replayLimit: 100
     };
     window.AgentReconGlmConfig = {
@@ -262,10 +383,12 @@
       model: "glm-5.1",
       visionModel: "glm-5v-turbo",
       baseUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-      proxyUrl: "",
-      proxyImageUrl: "",
+      proxyUrl: "http://127.0.0.1:3847/v1/chat/completions",
+      proxyImageUrl: "http://127.0.0.1:3847/v1/images/generations",
       imageModel: "cogview-3-flash",
-      enableSchemeImage: true
+      enableSchemeImage: true,
+      /** 深化讨论：true=逐 token 流式；false=每轮整段返回（更省主线程，若仍卡顿请用 false） */
+      discussionStream: true
     };
   </script>
   <script
