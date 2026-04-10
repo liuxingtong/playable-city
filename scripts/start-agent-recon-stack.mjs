@@ -2,8 +2,9 @@
  * 一键启动 Agent 踏勘相关本地服务（静态页 + 案例库 RAG 代理；可选 GLM 代理与案例库事件进程）。
  *
  * 若设置 CASEBASE_EVENTS_CMD：
- *   1) 先释放 CASEBASE_EVENTS_PORT（默认 8787）上旧监听，避免多实例空响应；
- *   2) 启动事件子进程后轮询 GET …/health，仅 HTTP 200 后再起 RAG 代理与 http.server。
+ *   1) 先 GET …/health：若已 HTTP 200 则**不**再清端口、**不**起子进程（避免多实例抢 8787）；
+ *   2) 否则释放 CASEBASE_EVENTS_PORT（默认 8787）上旧监听，再启动事件子进程；
+ *   3) 轮询健康检查，仅 HTTP 200 后再起 RAG 代理与静态站。
  *
  * 用法（仓库根）：
  *   npm run start:agent-recon
@@ -74,21 +75,63 @@ function killListenersOnPort(port) {
   }
 }
 
+/** 用于日志展示：弱化命令中的敏感片段 */
+function sanitizeDisplayCmd(cmd) {
+  let s = String(cmd ?? "").trim();
+  if (!s) return "";
+  s = s.replace(/\b(api[_-]?key|password|secret|token)\s*=\s*\S+/gi, "$1=<redacted>");
+  s = s.replace(/\b([A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD))\s*=\s*\S+/g, "$1=<redacted>");
+  return s;
+}
+
+async function fetchHealthOnce(url) {
+  try {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 2500);
+    const res = await fetch(url, { signal: ac.signal });
+    clearTimeout(t);
+    if (res.status === 200) return { ok: true, status: 200 };
+    return { ok: false, status: res.status };
+  } catch (e) {
+    const code = e && typeof e === "object" && "cause" in e && e.cause && typeof e.cause === "object" && "code" in e.cause
+      ? String(e.cause.code)
+      : e && typeof e === "object" && "code" in e
+        ? String(e.code)
+        : "";
+    const msg = e instanceof Error ? e.message : String(e);
+    if (e?.name === "AbortError") return { ok: false, err: "request_timeout_2.5s" };
+    return { ok: false, err: code ? `${code} (${msg})` : msg };
+  }
+}
+
+function formatHealthFailure(h) {
+  if (h.ok) return "HTTP 200";
+  if (h.status != null) return `HTTP ${h.status}`;
+  return h.err || "unknown_error";
+}
+
 async function waitForHttp200(url, maxMs, intervalMs) {
   const start = Date.now();
+  let last = /** @type {{ ok: false; status?: number; err?: string }} */ ({ ok: false, err: "not_yet" });
   while (Date.now() - start < maxMs) {
-    try {
-      const ac = new AbortController();
-      const t = setTimeout(() => ac.abort(), 2500);
-      const res = await fetch(url, { signal: ac.signal });
-      clearTimeout(t);
-      if (res.status === 200) return true;
-    } catch {
-      /* 连接拒绝、超时等 */
-    }
+    last = await fetchHealthOnce(url);
+    if (last.ok) return { ok: true, last };
     await new Promise((r) => setTimeout(r, intervalMs));
   }
-  return false;
+  return { ok: false, last };
+}
+
+function waitSpawnOrError(cp) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (v) => {
+      if (settled) return;
+      settled = true;
+      resolve(v);
+    };
+    cp.once("error", (err) => done({ type: "error", err }));
+    cp.once("spawn", () => done({ type: "spawn" }));
+  });
 }
 
 function shutdown() {
@@ -134,39 +177,77 @@ async function main() {
     const healthUrl =
       process.env.CASEBASE_EVENTS_HEALTH_URL?.trim() || `${healthBase}/health`;
 
-    console.log(`案例库事件: ${eventsCmd}`);
-    console.log(`案例库工作目录: ${eventsCwd}`);
-    console.log(`健康检查: GET ${healthUrl}（200 后才启动 RAG / 静态站）\n`);
+    const displayCmd = sanitizeDisplayCmd(eventsCmd);
+    console.log(`[casebase-events] 执行命令（脱敏）: ${displayCmd || "(空)"}`);
+    console.log(`[casebase-events] cwd: ${eventsCwd}`);
+    console.log(`[casebase-events] 健康检查 URL: ${healthUrl}`);
 
-    killListenersOnPort(EVENTS_PORT);
-
-    const eventsCp = spawn(eventsCmd, [], {
-      cwd: eventsCwd,
-      stdio: "inherit",
-      env: { ...process.env },
-      shell: true,
-      windowsHide: true,
-    });
-
-    eventsCp.on("error", (err) => {
-      console.error(`[casebase-events] 启动失败: ${err.message}`);
-    });
-
-    console.log(`[casebase-events] 等待健康检查（最长 ${Math.round(HEALTH_TIMEOUT_MS / 1000)}s）…`);
-    const healthy = await waitForHttp200(healthUrl, HEALTH_TIMEOUT_MS, HEALTH_INTERVAL_MS);
-    if (!healthy) {
-      console.error(
-        `[casebase-events] 健康检查未通过: ${healthUrl} 未在超时内返回 HTTP 200，已终止事件进程，未启动 RAG/静态站。`
+    const preHealth = await fetchHealthOnce(healthUrl);
+    if (preHealth.ok) {
+      console.log(
+        `[casebase-events] 健康检查结果: HTTP 200 — 已有可用实例，跳过清端口与子进程启动（避免 8787 多实例冲突）。\n`
       );
-      try {
-        eventsCp.kill("SIGTERM");
-      } catch {
-        /* ignore */
+    } else {
+      console.log(
+        `[casebase-events] 健康检查（启动前探测）: ${formatHealthFailure(preHealth)} — 将尝试释放端口并启动子进程。`
+      );
+
+      killListenersOnPort(EVENTS_PORT);
+
+      const eventsCp = spawn(eventsCmd, [], {
+        cwd: eventsCwd,
+        stdio: "inherit",
+        env: { ...process.env },
+        shell: true,
+        windowsHide: true,
+      });
+
+      const spawned = await waitSpawnOrError(eventsCp);
+      if (spawned.type === "error") {
+        console.error(
+          `[casebase-events] 子进程 spawn 失败: ${spawned.err?.message || spawned.err}（请检查命令、PATH、以及 CASEBASE_EVENTS_CWD 是否为 case-base 根目录）`
+        );
+        process.exit(1);
       }
-      process.exit(1);
+
+      let earlyExit = /** @type {{ code: number | null; signal: NodeJS.Signals | null } | null} */ (null);
+      const onExit = (code, signal) => {
+        earlyExit = { code: code ?? null, signal: signal ?? null };
+      };
+      eventsCp.on("exit", onExit);
+
+      console.log(
+        `[casebase-events] 轮询健康检查 GET ${healthUrl}（最长 ${Math.round(HEALTH_TIMEOUT_MS / 1000)}s，间隔 ${HEALTH_INTERVAL_MS}ms）…`
+      );
+      const healthWait = await waitForHttp200(healthUrl, HEALTH_TIMEOUT_MS, HEALTH_INTERVAL_MS);
+      eventsCp.off("exit", onExit);
+
+      if (!healthWait.ok) {
+        const last = healthWait.last;
+        console.error(`[casebase-events] 健康检查失败: 超时或始终非 200`);
+        console.error(`[casebase-events] 健康检查 URL: ${healthUrl}`);
+        console.error(
+          `[casebase-events] 最后一次探测结果: ${formatHealthFailure(/** @type {*} */ (last))}`
+        );
+        if (earlyExit) {
+          console.error(
+            `[casebase-events] 子进程已退出: code=${earlyExit.code ?? "null"} signal=${earlyExit.signal ?? "null"}（若 code≠0 多为脚本/依赖错误；端口被占见 EADDRINUSE 类提示）`
+          );
+        } else if (String(last?.err ?? "").includes("ECONNREFUSED")) {
+          console.error(
+            `[casebase-events] 可能原因: 目标端口无监听（进程未起来或监听地址非 127.0.0.1）。`
+          );
+        }
+        try {
+          eventsCp.kill("SIGTERM");
+        } catch {
+          /* ignore */
+        }
+        process.exit(1);
+      }
+      console.log(`[casebase-events] 健康检查通过: GET ${healthUrl} → HTTP 200\n`);
+      pushChild(eventsCp, "casebase-events");
     }
-    console.log(`[casebase-events] 健康检查通过（200）\n`);
-    pushChild(eventsCp, "casebase-events");
   } else {
     console.log("案例库事件: 未设置 CASEBASE_EVENTS_CMD（8787 需自行启动，见 README）\n");
   }

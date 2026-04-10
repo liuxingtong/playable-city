@@ -76,7 +76,7 @@ npm run build
 - **RAG 代理**：`POST http://127.0.0.1:3851/v1/rag`（在 `CASE_BASE_ROOT` 下执行 `rag_answer_glm.py`）
 - **街景语义日志（同一代理）**：`POST http://127.0.0.1:3851/v1/streetview-semantic/log`，追加写入 `data/agent-recon-semantic/semantic-events.jsonl`（可 `GET /v1/streetview-semantic/events?limit=100` 回看）
 
-若设置 `**CASEBASE_EVENTS_CMD`**，脚本会 **先释放 8787 端口旧监听**（避免多实例空响应），再 **启动事件服务**，并轮询 `**/health` 直到 HTTP 200** 后才启动 RAG 与静态站；健康检查失败则 **退出且不会启动后续服务**。
+若设置 `**CASEBASE_EVENTS_CMD`**，脚本会 **先请求 `http://127.0.0.1:8787/health`（可配）**：若已 **HTTP 200** 则 **不再清端口、不再起子进程**（避免多实例抢 8787）；否则 **释放 8787 上旧监听** 后启动事件服务，并轮询直至 200 再启动 RAG 与静态站；失败则 **退出且不会启动后续服务**（日志含 cwd、脱敏命令、健康 URL、spawn/超时/子进程退出码等）。
 
 **Windows（PowerShell）推荐（两选一）**：
 
@@ -85,23 +85,21 @@ npm run build
 ```powershell
 cd F:\Aworks\2026studio\xujiahui\playable-city
 copy .env.example .env
-# 编辑 .env，填入真实 GLM_API_KEY 与 case-base 路径
+# 编辑 .env，填入真实 GLM_API_KEY；CASEBASE_EVENTS_* 可按本机路径调整
 npm run start:agent-recon
 ```
 
-1. 临时会话变量（把盘符路径换成你的本机 case-base 根目录）：
+2. 临时会话变量（路径按本机修改；`CASEBASE_EVENTS_CMD` 使用 case-base 的 `start_casebase_events.ps1` 可一键起 postgres+neo4j+SSE）：
 
 ```powershell
 cd F:\Aworks\2026studio\xujiahui\playable-city
-$env:GLM_API_KEY = "your_real_key"
-$env:CASE_BASE_ROOT = "F:\Aworks\2026studio\xujiahui\case-base"
-$env:CASEBASE_EVENTS_CWD = "F:\Aworks\2026studio\xujiahui\case-base"
-$env:CASEBASE_EVENTS_CMD = "python scripts/retrieval_events_sse.py --host 127.0.0.1 --port 8787"
+$env:CASEBASE_EVENTS_CWD="F:\Aworks\2026studio\xujiahui\case-base"
+$env:CASEBASE_EVENTS_CMD="powershell -ExecutionPolicy Bypass -File scripts/start_casebase_events.ps1 -BindHost 127.0.0.1 -Port 8787"
 npm run start:agent-recon
 ```
 
-- `**CASEBASE_EVENTS_CWD**`：必须指向 **case-base 仓库根**（与 `python scripts/...` 相对路径一致）。
-- `**CASEBASE_EVENTS_CMD`**：case-base 侧事件/SSE 启动命令（需与本机 Python 环境一致）。
+- `**CASEBASE_EVENTS_CWD**`：必须指向 **case-base 仓库根**（保证 `scripts/...` 相对路径正确）。
+- `**CASEBASE_EVENTS_CMD`**：case-base 侧启动命令；可在命令中加 **`-SkipDb`** 仅起 SSE（数据库已由 docker 拉起时）。
 
 **外部系统（case-base，默认 127.0.0.1:8787）常用地址**：
 

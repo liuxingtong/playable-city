@@ -32,12 +32,12 @@ npm run start:agent-recon
 
 启动顺序（**设了 `CASEBASE_EVENTS_CMD` 时**）：
 
-1. **释放 `CASEBASE_EVENTS_PORT`（默认 8787）** 上已有监听进程，避免多实例导致空响应（可用 `CASEBASE_SKIP_KILL_PORT=1` 跳过）。  
-2. **启动案例库事件子进程**（`CASEBASE_EVENTS_CMD`，工作目录 `CASEBASE_EVENTS_CWD`）。  
-3. **健康检查**：轮询 `GET` **`CASEBASE_EVENTS_HEALTH_URL`**，默认 `http://127.0.0.1:8787/health`，**仅 HTTP 200** 才继续；超时则结束事件子进程并以非零码退出（**不会**再启动 RAG 与静态站）。  
+1. **健康检查（探测已有实例）**：`GET` **`CASEBASE_EVENTS_HEALTH_URL`**（默认 `http://127.0.0.1:8787/health`）。若 **HTTP 200**，则**跳过**清端口与子进程启动（避免多实例争抢 `8787`）。  
+2. 若未通过： **释放 `CASEBASE_EVENTS_PORT`（默认 8787）** 上已有监听进程（可用 `CASEBASE_SKIP_KILL_PORT=1` 跳过），再 **启动案例库事件子进程**（`CASEBASE_EVENTS_CMD`，`shell` 执行，`cwd` 为 `CASEBASE_EVENTS_CWD`）。  
+3. **健康检查**：轮询同一 URL，**仅 HTTP 200** 才继续；超时、spawn 失败或子进程提前退出则记录原因并以非零码退出（**不会**再启动 RAG 与静态站）。控制台会输出脱敏后的命令、`cwd`、健康 URL 与最后一次探测结果。  
 4. **案例库 RAG 代理**（默认 **3851**）。  
 5. （可选）**GLM 代理**（`START_WITH_GLM_PROXY=1`）。  
-6. **`python -m http.server`**（默认 **8080**），站点根为 **playable-city** 仓库根。
+6. **`serve-static-robust.py`**（默认 **8080**），站点根为 **playable-city** 仓库根。
 
 未设 `CASEBASE_EVENTS_CMD` 时：直接执行步骤 4–6。
 
@@ -71,15 +71,16 @@ npm run start:agent-recon
 | `CASEBASE_EVENTS_HEALTH_INTERVAL_MS` | 健康检查轮询间隔，默认 `400`。 |
 | `CASEBASE_SKIP_KILL_PORT` | 设为 `1` 时**不**在启动事件服务前尝试释放 `CASEBASE_EVENTS_PORT`。 |
 
-**Windows（PowerShell）可用配置示例**（路径按本机修改）：
+**Windows（PowerShell）推荐配置**（路径按本机修改；使用 case-base 的 `scripts/start_casebase_events.ps1` 可一键起 **postgres + neo4j + SSE**）：
 
 ```powershell
 cd F:\Aworks\2026studio\xujiahui\playable-city
-$env:CASE_BASE_ROOT = "F:\Aworks\2026studio\xujiahui\case-base"
-$env:CASEBASE_EVENTS_CWD = "F:\Aworks\2026studio\xujiahui\case-base"
-$env:CASEBASE_EVENTS_CMD = "python scripts/retrieval_events_sse.py --host 127.0.0.1 --port 8787"
+$env:CASEBASE_EVENTS_CWD="F:\Aworks\2026studio\xujiahui\case-base"
+$env:CASEBASE_EVENTS_CMD="powershell -ExecutionPolicy Bypass -File scripts/start_casebase_events.ps1 -BindHost 127.0.0.1 -Port 8787"
 npm run start:agent-recon
 ```
+
+仅起 SSE、数据库已由 docker 拉起时，可在上述命令中增加 **`-SkipDb`**。亦可继续使用直接调用 Python 的方式：`python scripts/retrieval_events_sse.py --host 127.0.0.1 --port 8787`（需自行保证依赖与库已就绪）。
 
 ### 2.2 与「仅起单项」的关系
 
