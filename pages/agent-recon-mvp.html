@@ -312,6 +312,18 @@
       <section class="section">
         <h3 style="margin:0 0 6px;font-size:14px;">五类 Agent 留言</h3>
         <p class="hint">配置 <span class="mono">AgentReconGlmConfig</span> 且有效 Key 或本地 <span class="mono">glm:proxy</span> 后，留言由 <span class="mono">glm-5.1</span> 生成；有街景图时可用 <span class="mono">glm-5v-turbo</span> 辅助打分。</p>
+        <button type="button" id="batchReconBtn" class="btn" style="margin-top:8px">
+          批量街景勘探（研究区全部点位）
+        </button>
+        <p class="small" id="batchReconStatus" style="margin-top:6px;line-height:1.45">
+          对当前研究区（如已加载天平路街道边界则为界内全部边段中点）依次跑满五类 Agent；每位点内五路并行，街景图每点只加载一次。结果自动写入本页域名下的 <span class="mono">localStorage</span>（按研究区边界文件区分键名），刷新或重启静态服务后仍会恢复；批量时会<strong>跳过</strong>键已存在且仍匹配当前街景命中的点位。可导出 JSON 备份或导入合并。
+        </p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+          <button type="button" id="reconCacheExportBtn" class="btn" style="flex:1;min-width:100px">导出缓存 JSON</button>
+          <button type="button" id="reconCacheImportBtn" class="btn" style="flex:1;min-width:100px">导入合并</button>
+          <button type="button" id="reconCacheClearBtn" class="btn" style="flex:1;min-width:100px">清空本地缓存</button>
+        </div>
+        <input type="file" id="reconCacheImportInput" accept="application/json,.json" style="display:none" />
         <div id="agentMessageList" class="agent-msg-list">
           <div class="empty">点击地图点位后展示每个 Agent 留言。</div>
         </div>
@@ -319,7 +331,7 @@
 
       <section class="section">
         <h3 style="margin:0 0 6px;font-size:14px;">深化选址讨论（多 Agent + GLM）</h3>
-        <p class="hint">注入 <span class="mono">docs/skills/agent-recon-case-library.md</span>；本地 <span class="mono">data/agent-case-library.json</span> 提供结构化预选。若启用外部 case-base：由 GLM 先产出四维检索 query，再各调 <span class="mono">/v1/rag</span>，并在面板中<strong>实时回显多 Agent 发言 + 主持人汇总</strong>，最终输出合成新案例（非单次向量答案直灌）。四象限板 + 可选 CogView。</p>
+        <p class="hint">注入 <span class="mono">docs/skills/agent-recon-case-library.md</span>；本地 <span class="mono">data/agent-case-library.json</span> 提供结构化预选。若启用外部 case-base：由 GLM 先产出多维检索 query（按案例库 dimensions 自动适配），再各调 <span class="mono">/v1/rag</span>，并在面板中<strong>实时回显多 Agent 发言 + 主持人汇总</strong>，最终输出合成新案例（非单次向量答案直灌）。多维拼接板 + 可选 CogView。</p>
         <button id="discussionBtn" class="btn" disabled>生成深化讨论建议</button>
         <div id="discussionBox" class="small" style="margin-top:8px;">先点击地图点位，再触发讨论生成。</div>
       </section>
@@ -373,7 +385,7 @@
       ragProxyUrl: "http://127.0.0.1:3851",
       agentIdPrefix: "playable_",
       ragK: 6,
-      /** 深化讨论内四维各检索条数；默认取 min(4, ragK) */
+      /** 深化讨论内每条检索建议 k；默认取 min(4, ragK) */
       ragKPerDim: 4,
       replayLimit: 100
     };

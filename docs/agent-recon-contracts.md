@@ -14,7 +14,7 @@
 | 地图、规则评分、五类画像 | `lib/agent-recon-mvp.js` |
 | 智谱 GLM / 多 Agent 讨论 / CogView | `lib/agent-recon-glm.js` |
 | 本地静态案例库合并 | `lib/agent-recon-caselib.js` |
-| 外部 case-base：/v1/rag 代理、深化内 Agent 四维检索、SSE 高亮 + 回放 | `lib/agent-recon-casebase-sse.js`、`lib/agent-recon-case-graph.js` |
+| 外部 case-base：/v1/rag 代理、深化内 Agent 多维检索、SSE 高亮 + 回放 | `lib/agent-recon-casebase-sse.js`、`lib/agent-recon-case-graph.js` |
 | case-base RAG 子进程代理（Node，单 endpoint 多用途） | `scripts/casebase-rag-proxy.mjs` |
 | GLM CORS 代理（Node） | `scripts/glm-proxy.mjs` |
 | 一键本地栈 | `scripts/start-agent-recon-stack.mjs` |
@@ -163,7 +163,7 @@ npm run start:agent-recon
 
 | 字段 | 说明 |
 |------|------|
-| `hooks.setActiveRagTraceId(traceId)` | 当 GLM 增强实现触发 **深化讨论内** case-base 四维检索时，在发起检索前调用一次，传入本次讨论共用的 `trace_id`，便于 Case 图高亮与「最近一次 trace」对齐（见 §6.3）。自定义后端适配器可忽略。 |
+| `hooks.setActiveRagTraceId(traceId)` | 当 GLM 增强实现触发 **深化讨论内** case-base 多维检索时，在发起检索前调用一次，传入本次讨论共用的 `trace_id`，便于 Case 图高亮与「最近一次 trace」对齐（见 §6.3）。自定义后端适配器可忽略。 |
 
 ---
 
@@ -175,9 +175,9 @@ npm run start:agent-recon
 
 设计原则：**不把「单次向量 RAG 长答案」当作深化讨论的主输入**。主路径是 GLM 在 **`lib/agent-recon-glm.js` 的 `runDeepDiscussion`** 内：
 
-1. **规划**：根据场地上下文 + 本地四维预选（`caseLibraryPack`），由模型输出四条检索 `query`（键名固定为 `concept` / `site_treatment` / `material_sensory` / `program`）。解析失败时用脚本内兜底 query。  
-2. **检索**：对每条 `query` 各调用一次同一代理 **`POST /v1/rag`**，**共用**本次讨论的一个 `trace_id`、**同一** `agent_id`，每维 `k` 由 `ragKPerDim` 或 `min(4, ragK)` 控制。实现见 **`retrieveCasesByDimensionQueries`**（`lib/agent-recon-casebase-sse.js`）。  
-3. **讨论与合成**：五类 Agent 与主持人可见「各维检索摘要 + refs」，在主持人段必须输出 **「合成新案例」**（整合式方案名、四维各自借鉴的 case id 与贡献、与本地预选的衔接），而非复述某一次 RAG 的单一答案。
+1. **规划**：根据场地上下文 + 本地维度预选（`caseLibraryPack`），由模型输出多条检索 `query`（按 `data/agent-case-library.json` 的 `dimensions` 自动适配，建议覆盖不同维度）。解析失败时用脚本内兜底 query。  
+2. **检索**：对每条 `query` 各调用一次同一代理 **`POST /v1/rag`**，**共用**本次讨论的一个 `trace_id`、**同一** `agent_id`，每条 `k` 由 `ragKPerDim` / 规划值控制。  
+3. **讨论与合成**：五类 Agent 与主持人可见「各维检索摘要 + refs」，在主持人段必须输出 **「合成新案例」**（整合式方案名、各关键维度借鉴的 case id 与贡献、与本地预选的衔接），而非复述某一次 RAG 的单一答案。
 
 侧栏 **「执行 RAG」** 按钮保留为 **手动单次** 调试；与深化链路共用 endpoint，语义不变。
 
@@ -201,12 +201,12 @@ npm run start:agent-recon
 
 | 字段 | 含义 |
 |------|------|
-| `enabled` | `true` 时连接 SSE、加载图、绑定手动 RAG/回放；且 GLM 开启时启用 **深化内四维检索**（还须配置有效 `ragProxyUrl`） |
+| `enabled` | `true` 时连接 SSE、加载图、绑定手动 RAG/回放；且 GLM 开启时启用 **深化内多维检索**（还须配置有效 `ragProxyUrl`） |
 | `eventsApiBase` | 事件 API 根 URL；**默认 `http://127.0.0.1:3851`**（与同页 `ragProxyUrl` 一致，由代理转发到 8787） |
 | `ragProxyUrl` | RAG 代理根，默认 `http://127.0.0.1:3851` |
 | `agentIdPrefix` | 与画像下拉值拼成 `agent_id` |
 | `ragK` | 手动 RAG 与缺省时的 `--k` 上界参考，默认 6 |
-| `ragKPerDim` | **深化讨论**内每一维 `POST /v1/rag` 的 `k`；未设时用 `min(4, ragK)` |
+| `ragKPerDim` | **深化讨论**内每条检索 `POST /v1/rag` 的默认 `k`；未设时用 `min(4, ragK)` |
 | `replayLimit` | `GET /events?limit=` |
 
 ### 6.4 高亮规则与隔离
@@ -220,7 +220,7 @@ npm run start:agent-recon
 
 ## 7. 案例库静态 JSON 与讨论 Skill
 
-- 数据：`data/agent-case-library.json`（四维 `concept` / `site_treatment` / `material_sensory` / `program`）。  
+- 数据：`data/agent-case-library.json`（维度由 `dimensions` 定义，支持多维扩展）。  
 - 逻辑：`lib/agent-recon-caselib.js` 合并进 `queryKnowledgeCases` 并传入 GLM 讨论；外部 case-base **启用且配置了 `ragProxyUrl`** 时，GLM 增强实现**不再**在 `queryKnowledgeCases` 中追加虚构案例条目，避免与真实库检索重复。  
 - Skill 全文：`docs/skills/agent-recon-case-library.md`（与《徐家汇数据分析完整手册》第四章物理层融合维度对齐）。  
 - 示意图：`lib/agent-recon-scheme-canvas.js`；可选 CogView（`lib/agent-recon-glm.js`）。
@@ -244,9 +244,9 @@ npm run start:agent-recon
 
 ## 9. 多 Agent 讨论流程（GLM 开启时）
 
-1. （可选，见 §6）若 case-base 启用：先 **规划四维 query** → **四次** `/v1/rag`（同一 `trace_id`）→ 将各维摘要与 `refs` 写入共享上下文。  
+1. （可选，见 §6）若 case-base 启用：先 **规划多维 query** → **多次** `/v1/rag`（同一 `trace_id`）→ 将各维摘要与 `refs` 写入共享上下文。  
 2. 五位画像 Agent **依次**调用同一文本模型，后一位可见前面摘要。  
-3. 再调 **主持人** system prompt，输出共识、分歧、四维拼接、短中长期行动、核验清单，以及 **「合成新案例」** 段落。  
+3. 再调 **主持人** system prompt，输出共识、分歧、多维拼接、短中长期行动、核验清单，以及 **「合成新案例」** 段落。  
 4. 任一步失败则回退规则引擎 `makeRuleDiscussion`。
 
 ---
