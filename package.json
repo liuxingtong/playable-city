@@ -8,6 +8,7 @@
     "filter:cld-daxujiahui": "node scripts/filter-cld-daxujiahui.mjs",
     "fetch:daxujiahui-4": "node scripts/fetch-daxujiahui-four-streets.mjs",
     "fetch:tianping-street": "node scripts/fetch-tianping-road-street.mjs",
+    "build:block-od": "node scripts/build-block-od-graph.mjs",
     "glm:proxy": "node scripts/glm-proxy.mjs",
     "casebase:rag-proxy": "node scripts/casebase-rag-proxy.mjs",
     "web:rag-proxy": "node scripts/web-rag-proxy.mjs",

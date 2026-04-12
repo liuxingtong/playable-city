@@ -295,7 +295,7 @@
 
       <section class="section">
         <h3 style="margin:0 0 6px;font-size:14px;">Top 候选地块（自动聚合）</h3>
-        <p class="hint">以 120m 网格聚合边段，综合评分 = 当前 Agent 均值 × priority 均值 × 覆盖条数。</p>
+        <p class="hint">120 m 网格：综合分 ≈ 当前 Wp 均值 × priority 均值 × ln(1+边数)。规则分含轨迹网 <strong>N_OD</strong>（<code>npm run build:block-od</code>）。范围：<code>?boundary=../data/xxx.geojson</code> 或页面内 <code>AgentReconStudyConfig</code>。</p>
         <table class="table">
           <thead>
             <tr><th>#</th><th>中心坐标</th><th>综合分</th></tr>
@@ -378,6 +378,8 @@
       radiusM: 300,
       maxItems: 48
     };
+    /** 可选：自定义勘探边界（默认天平路）。亦可打开页面时加 ?boundary=../data/xxx.geojson */
+    // window.AgentReconStudyConfig = { boundaryUrl: "../data/my-study-area.geojson", label: "研究范围" };
     window.AgentReconCasebaseConfig = {
       enabled: true,
       /** 经 casebase-rag-proxy：转发 /events 至 8787；并提供 /v1/poi-around、/v1/streetview-semantic/log */

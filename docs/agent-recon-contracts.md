@@ -111,6 +111,8 @@ npm run start:agent-recon
 - 默认仅使用 **上海市徐汇区天平路街道** 多边形裁剪边段与街景索引。  
 - 边界：`data/tianping-road-street.geojson`（缺失时退回全表并控制台告警）。  
 - 更新边界：`npm run fetch:tianping-street`  
+- **自定义范围**（衡复等）：在踏勘页加载前设置 `window.AgentReconStudyConfig = { boundaryUrl: "../data/你的范围.geojson", label: "显示名称" }`，或使用 URL 参数 **`?boundary=../data/你的范围.geojson`**（相对路径相对当前页面，一般为 `pages/` 下的兄弟路径）。未设 `label` 时地图提示为「自定义边界」。  
+- **轨迹活动指标（N_OD）**：可选数据 `data/block-od-activity.csv`，由 `npm run build:block-od` 根据 `data/徐汇地块轨迹样本_*.xlsx` 生成；缺失时规则分中 **N_OD** 取中性值 0.5。  
 - 街景索引目录：`data/streetview_geo/` — `index.geojson`（推荐）或 `index.csv`；可先空文件后补数据。
 
 ---

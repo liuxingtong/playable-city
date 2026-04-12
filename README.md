@@ -55,6 +55,7 @@ npm run build
 | `npm run filter:cld-daxujiahui`                        | 按大徐家汇四街道并集筛选 CSV                                                                                                                                              |
 | `npm run fetch:daxujiahui-4`                           | 拉取四街道边界 GeoJSON → `data/`                                                                                                                                     |
 | `npm run fetch:tianping-street`                        | 拉取 **天平路街道** 行政边界 → `data/tianping-road-street.geojson`（Agent 踏勘页裁剪用）                                                                                         |
+| `npm run build:block-od`                               | 由轨迹 xlsx 生成 `data/block-od-activity.csv`（地块 OD 网：介数/调和/PageRank 合成 **N_OD**，供踏勘规则分）                                                                       |
 | `npm run glm:proxy`                                    | 本地转发智谱 `chat/completions` 与 `images/generations`（`GLM_API_KEY`；页面分别配置 `proxyUrl` / `proxyImageUrl`）                                                           |
 | `npm run casebase:rag-proxy`                           | 案例库本地代理（默认 **3851**）：案例库 `POST /v1/rag` + 事件转发 + `POST /v1/poi-around` + 街景语义日志等                                                                                       |
 | `npm run web:rag-proxy`                                | 网页检索代理（默认 **3852**）：`POST /v1/rag`（不经案例库，公开检索摘要）                                                                                       |
