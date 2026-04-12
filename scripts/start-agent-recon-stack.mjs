@@ -1,10 +1,10 @@
 /**
- * 一键启动 Agent 踏勘相关本地服务（静态页 + 案例库 RAG 代理；可选 GLM 代理与案例库事件进程）。
+ * 一键启动 Agent 踏勘相关本地服务（静态页 + 案例库 RAG 代理 + 网页检索 RAG 代理；可选 GLM 代理与案例库事件进程）。
  *
  * 若设置 CASEBASE_EVENTS_CMD：
  *   1) 先 GET …/health：若已 HTTP 200 则**不**再清端口、**不**起子进程（避免多实例抢 8787）；
  *   2) 否则释放 CASEBASE_EVENTS_PORT（默认 8787）上旧监听，再启动事件子进程；
- *   3) 轮询健康检查，仅 HTTP 200 后再起 RAG 代理与静态站。
+ *   3) 轮询健康检查，仅 HTTP 200 后再起案例库代理、网页 RAG 代理与静态站。
  *
  * 用法（仓库根）：
  *   npm run start:agent-recon
@@ -160,7 +160,8 @@ async function main() {
   console.log("=== Agent 踏勘本地栈 ===\n");
   console.log(`playable-city 根: ${ROOT}`);
   console.log(`静态站: http://127.0.0.1:${HTTP_PORT}/pages/agent-recon-mvp.html`);
-  console.log(`RAG 代理: http://127.0.0.1:${Number(process.env.CASEBASE_RAG_PORT) || 3851}/v1/rag`);
+  console.log(`案例库 RAG 代理: http://127.0.0.1:${Number(process.env.CASEBASE_RAG_PORT) || 3851}/v1/rag`);
+  console.log(`网页 RAG 代理: http://127.0.0.1:${Number(process.env.WEB_RAG_PORT) || 3852}/v1/rag`);
   const startGlmProxy = process.env.START_WITH_GLM_PROXY === "1" || Boolean(process.env.GLM_API_KEY);
   if (startGlmProxy) {
     console.log(`GLM 代理: http://127.0.0.1:${Number(process.env.GLM_PROXY_PORT) || 3847}/v1/chat/completions`);
@@ -261,6 +262,17 @@ async function main() {
       windowsHide: true,
     }),
     "casebase-rag-proxy"
+  );
+
+  const webRagScript = path.join(ROOT, "scripts", "web-rag-proxy.mjs");
+  pushChild(
+    spawn(NODE, [webRagScript], {
+      cwd: ROOT,
+      stdio: "inherit",
+      env: { ...process.env },
+      windowsHide: true,
+    }),
+    "web-rag-proxy"
   );
 
   if (startGlmProxy) {

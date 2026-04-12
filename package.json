@@ -10,6 +10,7 @@
     "fetch:tianping-street": "node scripts/fetch-tianping-road-street.mjs",
     "glm:proxy": "node scripts/glm-proxy.mjs",
     "casebase:rag-proxy": "node scripts/casebase-rag-proxy.mjs",
+    "web:rag-proxy": "node scripts/web-rag-proxy.mjs",
     "start:agent-recon": "node scripts/start-agent-recon-stack.mjs",
     "serve:static": "python scripts/serve-static-robust.py 8080",
     "fetch:field-parcels": "node scripts/fetch-field-parcels-overpass.mjs",

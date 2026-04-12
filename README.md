@@ -56,7 +56,8 @@ npm run build
 | `npm run fetch:daxujiahui-4`                           | 拉取四街道边界 GeoJSON → `data/`                                                                                                                                     |
 | `npm run fetch:tianping-street`                        | 拉取 **天平路街道** 行政边界 → `data/tianping-road-street.geojson`（Agent 踏勘页裁剪用）                                                                                         |
 | `npm run glm:proxy`                                    | 本地转发智谱 `chat/completions` 与 `images/generations`（`GLM_API_KEY`；页面分别配置 `proxyUrl` / `proxyImageUrl`）                                                           |
-| `npm run casebase:rag-proxy`                           | 案例库本地代理：`POST /v1/rag`（RAG）+ `POST /v1/streetview-semantic/log`（街景语义落盘）                                                                                       |
+| `npm run casebase:rag-proxy`                           | 案例库本地代理（默认 **3851**）：案例库 `POST /v1/rag` + 事件转发 + `POST /v1/poi-around` + 街景语义日志等                                                                                       |
+| `npm run web:rag-proxy`                                | 网页检索代理（默认 **3852**）：`POST /v1/rag`（不经案例库，公开检索摘要）                                                                                       |
 | `npm run start:agent-recon`                            | **一键启动**踏勘栈：见下文 **「Agent 踏勘一键启动（含 case-base）」** 与 `**docs/agent-recon-contracts.md`**                                                                         |
 | `npm run serve:static`                                 | 仅静态站（默认 **8080**）：`python scripts/serve-static-robust.py`                                                                                                     |
 | `npm run clip:lan-use`                                 | 需已安装 Python `pyshp`：裁剪用地 → `data/lan_use_daxujiahui.geojson`（供选址页用地统计）                                                                                        |
@@ -73,8 +74,9 @@ npm run build
 在 **playable-city 仓库根** 执行 `npm run start:agent-recon`，会按顺序启动（细节与变量表见 `**docs/agent-recon-contracts.md`** §2）：
 
 - **静态站**：`python scripts/serve-static-robust.py <端口>`（默认 **8080**，可用环境变量 `**AGENT_RECON_HTTP_PORT`** 覆盖）。该脚本在客户端提前断开时抑制 Windows 上常见的 `**ConnectionAbortedError` / WinError 10053** 噪声；浏览器打开 `http://127.0.0.1:8080/pages/agent-recon-mvp.html`（端口以实际为准）。
-- **RAG 代理**：`POST http://127.0.0.1:3851/v1/rag`（在 `CASE_BASE_ROOT` 下执行 `rag_answer_glm.py`）
-- **街景语义日志（同一代理）**：`POST http://127.0.0.1:3851/v1/streetview-semantic/log`，追加写入 `data/agent-recon-semantic/semantic-events.jsonl`（可 `GET /v1/streetview-semantic/events?limit=100` 回看）
+- **网页 RAG 代理（深化默认）**：`POST http://127.0.0.1:3852/v1/rag`（`WEB_RAG_PORT`；踏勘页默认 `ragProxyUrl` 指向此端口）
+- **案例库等服务代理**：`POST http://127.0.0.1:3851/v1/rag`（在 `CASE_BASE_ROOT` 下执行 `rag_answer_glm.py`；将 `ragProxyUrl` 改回 3851 即用案例库检索）
+- **街景语义日志**：`POST http://127.0.0.1:3851/v1/streetview-semantic/log`（与 **3851** 同源；网页 RAG 模式下由 `eventsApiBase` 承担，不必经 3852）
 
 若设置 `**CASEBASE_EVENTS_CMD`**，脚本会 **先请求 `http://127.0.0.1:8787/health`（可配）**：若已 **HTTP 200** 则 **不再清端口、不再起子进程**（避免多实例抢 8787）；否则 **释放 8787 上旧监听** 后启动事件服务，并轮询直至 200 再启动 RAG 与静态站；失败则 **退出且不会启动后续服务**（日志含 cwd、脱敏命令、健康 URL、spawn/超时/子进程退出码等）。
 

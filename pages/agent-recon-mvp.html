@@ -331,7 +331,7 @@
 
       <section class="section">
         <h3 style="margin:0 0 6px;font-size:14px;">深化选址讨论（多 Agent + GLM）</h3>
-        <p class="hint">注入 <span class="mono">docs/skills/agent-recon-case-library.md</span>；本地 <span class="mono">data/agent-case-library.json</span> 提供结构化预选。若启用外部 case-base：由 GLM 先产出多维检索 query（按案例库 dimensions 自动适配），再各调 <span class="mono">/v1/rag</span>，并在面板中<strong>实时回显多 Agent 发言 + 主持人汇总</strong>，最终输出合成新案例（非单次向量答案直灌）。多维拼接板 + 可选 CogView。</p>
+        <p class="hint">注入 <span class="mono">docs/skills/agent-recon-case-library.md</span>；本地 <span class="mono">data/agent-case-library.json</span> 提供结构化预选。深化讨论默认对 <span class="mono">WEB_RAG_PORT</span>（默认 3852）做<strong>网页检索</strong> <span class="mono">POST /v1/rag</span>；若改指 <span class="mono">CASEBASE_RAG_PORT</span>（3851）则走案例库向量 RAG。GLM 先产出多维 query（六维 key 与 <span class="mono">agent-recon-dimensions.js</span> 一致），再各调 <span class="mono">/v1/rag</span>，面板<strong>实时回显多 Agent 发言 + 主持人汇总</strong>。SSE/POI/街景语义日志仍经 3851。多维拼接板 + 可选 CogView。</p>
         <button id="discussionBtn" class="btn" disabled>生成深化讨论建议</button>
         <div id="discussionBox" class="small" style="margin-top:8px;">先点击地图点位，再触发讨论生成。</div>
       </section>
@@ -380,9 +380,10 @@
     };
     window.AgentReconCasebaseConfig = {
       enabled: true,
-      /** 与 ragProxyUrl 同端口：经 casebase-rag-proxy 转发至 8787，避免 8080→8787 浏览器 CORS */
+      /** 经 casebase-rag-proxy：转发 /events 至 8787；并提供 /v1/poi-around、/v1/streetview-semantic/log */
       eventsApiBase: "http://127.0.0.1:3851",
-      ragProxyUrl: "http://127.0.0.1:3851",
+      /** 默认网页检索代理（scripts/web-rag-proxy.mjs）；改回 http://127.0.0.1:3851 即用案例库 RAG */
+      ragProxyUrl: "http://127.0.0.1:3852",
       agentIdPrefix: "playable_",
       ragK: 6,
       /** 深化讨论内每条检索建议 k；默认取 min(4, ragK) */

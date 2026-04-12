@@ -15,7 +15,8 @@
 | 智谱 GLM / 多 Agent 讨论 / CogView | `lib/agent-recon-glm.js` |
 | 本地静态案例库合并 | `lib/agent-recon-caselib.js` |
 | 外部 case-base：/v1/rag 代理、深化内 Agent 多维检索、SSE 高亮 + 回放 | `lib/agent-recon-casebase-sse.js`、`lib/agent-recon-case-graph.js` |
-| case-base RAG 子进程代理（Node，单 endpoint 多用途） | `scripts/casebase-rag-proxy.mjs` |
+| 网页检索 RAG 代理（默认深化用，不经案例库） | `scripts/web-rag-proxy.mjs` |
+| case-base RAG 子进程代理（Node：案例库 RAG + 事件转发 + POI + 街景语义日志） | `scripts/casebase-rag-proxy.mjs` |
 | GLM CORS 代理（Node） | `scripts/glm-proxy.mjs` |
 | 一键本地栈 | `scripts/start-agent-recon-stack.mjs` |
 | 案例 Skill（讨论注入） | `docs/skills/agent-recon-case-library.md` |
@@ -34,12 +35,13 @@ npm run start:agent-recon
 
 1. **健康检查（探测已有实例）**：`GET` **`CASEBASE_EVENTS_HEALTH_URL`**（默认 `http://127.0.0.1:8787/health`）。若 **HTTP 200**，则**跳过**清端口与子进程启动（避免多实例争抢 `8787`）。  
 2. 若未通过： **释放 `CASEBASE_EVENTS_PORT`（默认 8787）** 上已有监听进程（可用 `CASEBASE_SKIP_KILL_PORT=1` 跳过），再 **启动案例库事件子进程**（`CASEBASE_EVENTS_CMD`，`shell` 执行，`cwd` 为 `CASEBASE_EVENTS_CWD`）。  
-3. **健康检查**：轮询同一 URL，**仅 HTTP 200** 才继续；超时、spawn 失败或子进程提前退出则记录原因并以非零码退出（**不会**再启动 RAG 与静态站）。控制台会输出脱敏后的命令、`cwd`、健康 URL 与最后一次探测结果。  
-4. **案例库 RAG 代理**（默认 **3851**）。  
-5. （可选）**GLM 代理**（`START_WITH_GLM_PROXY=1`）。  
-6. **`serve-static-robust.py`**（默认 **8080**），站点根为 **playable-city** 仓库根。
+3. **健康检查**：轮询同一 URL，**仅 HTTP 200** 才继续；超时、spawn 失败或子进程提前退出则记录原因并以非零码退出（**不会**再启动案例库代理、网页 RAG 代理与静态站）。控制台会输出脱敏后的命令、`cwd`、健康 URL 与最后一次探测结果。  
+4. **案例库 RAG 代理**（默认 **3851**：`rag_answer_glm.py`、SSE 转发、`/v1/poi-around`、街景语义日志）。  
+5. **网页检索 RAG 代理**（默认 **3852**：`POST /v1/rag` 拉取公开检索摘要，与深化讨论 JSON 形状兼容）。  
+6. （可选）**GLM 代理**（`START_WITH_GLM_PROXY=1`）。  
+7. **`serve-static-robust.py`**（默认 **8080**），站点根为 **playable-city** 仓库根。
 
-未设 `CASEBASE_EVENTS_CMD` 时：直接执行步骤 4–6。
+未设 `CASEBASE_EVENTS_CMD` 时：直接执行步骤 4–7。
 
 浏览器打开踏勘页：`http://127.0.0.1:8080/pages/agent-recon-mvp.html`（端口以环境变量为准）。
 
@@ -59,7 +61,10 @@ npm run start:agent-recon
 | `AGENT_RECON_HTTP_PORT` | 静态 HTTP 端口，默认 `8080`。 |
 | `PYTHON` | 运行 `http.server` 的解释器，默认 `python`。 |
 | `CASE_BASE_ROOT` | case-base 仓库根（RAG 脚本所在目录）。默认：`playable-city` 的上一级目录下的 `case-base`。 |
-| `CASEBASE_RAG_PORT` | RAG 代理端口，默认 `3851`。 |
+| `CASEBASE_RAG_PORT` | 案例库 RAG 等服务代理端口，默认 `3851`。 |
+| `WEB_RAG_PORT` | 网页检索 RAG 代理端口，默认 `3852`。 |
+| `WEB_RAG_TIMEOUT_MS` | 网页代理单次外联超时（毫秒），默认 `18000`。 |
+| `WEB_RAG_USER_AGENT` | 网页检索请求 UA，可选。 |
 | `START_WITH_GLM_PROXY` | 设为 `1` 时额外启动 `glm-proxy.mjs`（需配置 `GLM_API_KEY` 等）。 |
 | `GLM_PROXY_PORT` | GLM 代理端口，默认 `3847`。 |
 | `CASEBASE_EVENTS_CMD` | **可选**：整条 shell 命令，启动案例库 **SSE/事件服务**（如监听 **8787**）。 |
@@ -86,7 +91,8 @@ npm run start:agent-recon
 
 | 命令 | 用途 |
 |------|------|
-| `npm run casebase:rag-proxy` | 仅 RAG 代理。 |
+| `npm run casebase:rag-proxy` | 仅案例库等服务代理（3851）。 |
+| `npm run web:rag-proxy` | 仅网页检索 RAG 代理（3852）。 |
 | `npm run glm:proxy` | 仅 GLM 代理。 |
 | `python -m http.server 8080` | 仅静态站（需在仓库根执行）。 |
 | `npm run serve:static` / `python scripts/serve-static-robust.py 8080` | 同上，**推荐 Windows**：避免浏览器取消请求时出现 `ConnectionAbortedError` / **WinError 10053** 刷屏。 |
@@ -163,53 +169,60 @@ npm run start:agent-recon
 
 | 字段 | 说明 |
 |------|------|
-| `hooks.setActiveRagTraceId(traceId)` | 当 GLM 增强实现触发 **深化讨论内** case-base 多维检索时，在发起检索前调用一次，传入本次讨论共用的 `trace_id`，便于 Case 图高亮与「最近一次 trace」对齐（见 §6.3）。自定义后端适配器可忽略。 |
+| `hooks.setActiveRagTraceId(traceId)` | 当 GLM 增强实现触发 **深化讨论内** 多维检索时，在发起检索前调用一次，传入本次讨论共用的 `trace_id`，便于 Case 图高亮与「最近一次 trace」对齐（见 §6.5）。自定义后端适配器可忽略。 |
 
 ---
 
 <a id="case-base-integration"></a>
 
-## 6. 外部案例库（case-base）：深化 Agent 检索 + 可选手动 RAG + SSE + 图高亮
+## 6. 深化检索：网页（默认）与外部案例库（case-base）+ SSE + 图高亮
 
-与 **`case-base`** 仓库配合：任意一次 `POST /v1/rag` **必须**传 **`trace_id`** 与 **`agent_id`**（`agentIdPrefix` + 当前画像 id）。
+任意一次深化链路中的 `POST /v1/rag` **必须**传 **`trace_id`** 与 **`agent_id`**（`agentIdPrefix` + 当前画像 id）。**默认**页面将 **`ragProxyUrl`** 指向 **网页检索代理**（`WEB_RAG_PORT`，默认 **3852**）；将 **`ragProxyUrl`** 改指 **`CASEBASE_RAG_PORT`**（默认 **3851**）即恢复**案例库向量 RAG**（`rag_answer_glm.py`），两种后端共用同一请求/响应形状（至少含可供讨论的 **`answer`**、**`refs`**）。
 
-设计原则：**不把「单次向量 RAG 长答案」当作深化讨论的主输入**。主路径是 GLM 在 **`lib/agent-recon-glm.js` 的 `runDeepDiscussion`** 内：
+设计原则：**不把「单次长答案」当作深化讨论的唯一输入**。主路径是 GLM 在 **`lib/agent-recon-glm.js` 的 `runDeepDiscussion`** 内：
 
-1. **规划**：根据场地上下文 + 本地维度预选（`caseLibraryPack`），由模型输出多条检索 `query`（按 `data/agent-case-library.json` 的 `dimensions` 自动适配，建议覆盖不同维度）。解析失败时用脚本内兜底 query。  
-2. **检索**：对每条 `query` 各调用一次同一代理 **`POST /v1/rag`**，**共用**本次讨论的一个 `trace_id`、**同一** `agent_id`，每条 `k` 由 `ragKPerDim` / 规划值控制。  
-3. **讨论与合成**：五类 Agent 与主持人可见「各维检索摘要 + refs」，在主持人段必须输出 **「合成新案例」**（整合式方案名、各关键维度借鉴的 case id 与贡献、与本地预选的衔接），而非复述某一次 RAG 的单一答案。
+1. **规划**：根据场地上下文 + 本地维度预选（`caseLibraryPack`），由模型输出多条检索 `query`（按 **`lib/agent-recon-dimensions.js`** 六维与 `data/agent-case-library.json` 的 `dimensions` 自动适配，建议覆盖不同维度）。解析失败时用脚本内兜底 query。  
+2. **检索**：对每条 `query` 各调用一次 **`ragProxyUrl` 上的 `POST /v1/rag`**，**共用**本次讨论的一个 `trace_id`、**同一** `agent_id`，每条 `k` 由 `ragKPerDim` / 规划值控制。  
+3. **讨论与合成**：五类 Agent 与主持人可见「各维检索摘要 + refs」，在主持人段输出整合方案（网页检索无 `case_id` 时以 URL/标题引用即可），而非复述某一次检索的单一答案。
 
-侧栏 **「执行 RAG」** 按钮保留为 **手动单次** 调试；与深化链路共用 endpoint，语义不变。
+侧栏 **「执行 RAG」** 按钮保留为 **手动单次** 调试；与深化链路共用 **`ragProxyUrl`** 所指后端的 `/v1/rag`。
 
-### 6.1 `/v1/rag` 代理调用链（深化与手动共用）
+### 6.1 网页 RAG 代理（默认 **3852**）
 
-1. 浏览器 `POST` **`http://127.0.0.1:3851/v1/rag`**（可配置），JSON：`{ query, agent_id, trace_id, k }`。  
+1. 浏览器 `POST` **`http://127.0.0.1:3852/v1/rag`**（`WEB_RAG_PORT` 可配），JSON：`{ query, agent_id, trace_id, k }`。  
+2. `scripts/web-rag-proxy.mjs` 调用公开检索（DuckDuckGo HTML / Lite 等），解析标题、链接与摘要，返回 JSON：`answer`、`refs[]`、`source: "web_search"` 等。  
+3. **无**案例库侧的 `compose_id` / `event_id` 属正常；讨论仍可按六维组织。若外网不可达，代理返回空 `refs` 与说明性 `answer`（HTTP 仍 200），以免打断讨论链。
+
+### 6.2 案例库 `/v1/rag` 代理调用链（**3851**，可选）
+
+1. 浏览器 `POST` **`http://127.0.0.1:3851/v1/rag`**（`CASEBASE_RAG_PORT` 可配置），JSON：`{ query, agent_id, trace_id, k }`。  
 2. `scripts/casebase-rag-proxy.mjs` 在 `CASE_BASE_ROOT` 下执行：  
    `python scripts/rag_answer_glm.py "<query>" --k <k> --agent-id "<agent_id>" --trace-id "<trace_id>" --json`  
 3. 案例库侧应维护可追溯的 **`retrieval_events` / `compose_history`**；本前端只读消费返回中的 **`compose_id` / `event_id` / `trace_id` / `refs`**（及 `answer` 等）拼入讨论上下文，**不改变**其语义。
 
-### 6.2 事件服务（SSE + 回放）
+### 6.3 事件服务（SSE + 回放）
 
 - **案例库进程**（通常 **8787**）：`GET …/events/stream`、`GET …/events?limit=…`。  
-- **浏览器**：宜将 `eventsApiBase` 设为 **RAG 代理根**（默认 `http://127.0.0.1:3851`），由 `scripts/casebase-rag-proxy.mjs` **转发**至 `CASEBASE_EVENTS_UPSTREAM`（默认 `http://127.0.0.1:8787`），避免 **8080 静态页 → 8787** 的跨源 CORS。直连 8787 需在案例库服务上自行返回 `Access-Control-Allow-Origin` 等头。  
+- **浏览器**：宜将 `eventsApiBase` 设为 **案例库代理根**（默认 `http://127.0.0.1:3851`），由 `scripts/casebase-rag-proxy.mjs` **转发**至 `CASEBASE_EVENTS_UPSTREAM`（默认 `http://127.0.0.1:8787`），避免 **8080 静态页 → 8787** 的跨源 CORS。与默认 **`ragProxyUrl`（3852 网页检索）** 分离。直连 8787 需在案例库服务上自行返回 `Access-Control-Allow-Origin` 等头。  
 - **SSE**：`GET http://127.0.0.1:8787/events/stream`（经代理时路径仍为 `/events/stream`）。  
   - 监听 **`event: retrieval`**，`data` 为 JSON，需含 **`case_ids`**（数组），建议含 **`trace_id`、`agent_id`、`event_id`**。  
   - 断线重连时带查询参数 **`since_event_id`**（取已见最大 `event_id` 或 SSE `id:` 行）。  
 - **回放**：`GET /events?limit=100`（limit 可配置）。响应可为 JSON 数组，或 `{ events }` / `{ data }` / `{ items }`；事件体可为 `{ type, data: { case_ids, ... } }` 扁平结构。
 
-### 6.3 `window.AgentReconCasebaseConfig`
+### 6.4 `window.AgentReconCasebaseConfig`
 
 | 字段 | 含义 |
 |------|------|
 | `enabled` | `true` 时连接 SSE、加载图、绑定手动 RAG/回放；且 GLM 开启时启用 **深化内多维检索**（还须配置有效 `ragProxyUrl`） |
-| `eventsApiBase` | 事件 API 根 URL；**默认 `http://127.0.0.1:3851`**（与同页 `ragProxyUrl` 一致，由代理转发到 8787） |
-| `ragProxyUrl` | RAG 代理根，默认 `http://127.0.0.1:3851` |
+| `eventsApiBase` | **案例库代理**根 URL；**默认 `http://127.0.0.1:3851`**（转发 `/events` → 8787，且提供 `/v1/poi-around`、`/v1/streetview-semantic/log`） |
+| `ragProxyUrl` | **深化与手动 RAG** 所用的 `/v1/rag` 根；**默认 `http://127.0.0.1:3852`**（网页检索）。改 `http://127.0.0.1:3851` 即走案例库向量 RAG。 |
+| `semanticLogUrl` | 可选；覆盖街景语义日志完整 URL。未设时优先 **`eventsApiBase`**，再 **`ragProxyUrl`** + `/v1/streetview-semantic/log`（保证网页 RAG 模式下日志仍落 3851）。 |
 | `agentIdPrefix` | 与画像下拉值拼成 `agent_id` |
 | `ragK` | 手动 RAG 与缺省时的 `--k` 上界参考，默认 6 |
 | `ragKPerDim` | **深化讨论**内每条检索 `POST /v1/rag` 的默认 `k`；未设时用 `min(4, ragK)` |
 | `replayLimit` | `GET /events?limit=` |
 
-### 6.4 高亮规则与隔离
+### 6.5 高亮规则与隔离
 
 - 仅当 retrieval 的 **`agent_id` 等于当前会话 Agent**，或 **`trace_id` 等于最近一次手动 RAG 或深化讨论检索的 trace** 时，对 **`case_id`** 高亮。  
 - 高亮 **TTL 30s**，过期自动恢复。  
@@ -244,7 +257,7 @@ npm run start:agent-recon
 
 ## 9. 多 Agent 讨论流程（GLM 开启时）
 
-1. （可选，见 §6）若 case-base 启用：先 **规划多维 query** → **多次** `/v1/rag`（同一 `trace_id`）→ 将各维摘要与 `refs` 写入共享上下文。  
+1. （可选，见 §6）若配置了 **`ragProxyUrl`** 且 casebase 区块启用：先 **规划多维 query** → **多次** `POST /v1/rag`（同一 `trace_id`）→ 将各维摘要与 `refs` 写入共享上下文。  
 2. 五位画像 Agent **依次**调用同一文本模型，后一位可见前面摘要。  
 3. 再调 **主持人** system prompt，输出共识、分歧、多维拼接、短中长期行动、核验清单，以及 **「合成新案例」** 段落。  
 4. 任一步失败则回退规则引擎 `makeRuleDiscussion`。
